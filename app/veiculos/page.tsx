@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Car, 
   Plus, 
@@ -11,7 +11,8 @@ import {
   Save,
   Key,
   Clock,
-  AlertTriangle
+  AlertTriangle,
+  User
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -26,16 +27,31 @@ interface Vehicle {
   tipo: string;
   nomeProprietario?: string;
   telefone?: string;
+  moradorId?: string;
   status: string;
   created_at: string;
 }
 
+interface Resident {
+  id: string;
+  nome: string;
+  bloco?: string;
+  numero?: string;
+  celular?: string;
+  foto?: string;
+}
+
 export default function VeiculosPage() {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [residents, setResidents] = useState<Resident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
+  const [moradorSearch, setMoradorSearch] = useState('');
+  const [showMoradorDropdown, setShowMoradorDropdown] = useState(false);
+  const [selectedMorador, setSelectedMorador] = useState<Resident | null>(null);
+  const moradorRef = useRef<HTMLDivElement>(null);
   const [formData, setFormData] = useState({
     placa: '',
     modelo: '',
@@ -43,12 +59,32 @@ export default function VeiculosPage() {
     unidadeDesc: '',
     tipo: 'MORADOR',
     nomeProprietario: '',
-    telefone: ''
+    telefone: '',
+    moradorId: ''
   });
 
   useEffect(() => {
     fetchVehicles();
+    fetchResidents();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (moradorRef.current && !moradorRef.current.contains(event.target as Node)) {
+        setShowMoradorDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const fetchResidents = async () => {
+    const { data } = await supabase
+      .from('residents')
+      .select('id, nome, bloco, numero, celular, foto')
+      .order('nome');
+    if (data) setResidents(data);
+  };
 
   const fetchVehicles = async () => {
     setLoading(true);
@@ -61,6 +97,37 @@ export default function VeiculosPage() {
     setLoading(false);
   };
 
+  const filteredResidents = residents.filter(r => 
+    r.nome.toLowerCase().includes(moradorSearch.toLowerCase())
+  ).slice(0, 10);
+
+  const handleSelectMorador = (resident: Resident) => {
+    setSelectedMorador(resident);
+    setMoradorSearch(resident.nome);
+    setFormData({
+      ...formData,
+      nomeProprietario: resident.nome,
+      telefone: resident.celular || '',
+      moradorId: resident.id,
+      unidadeDesc: resident.bloco && resident.numero 
+        ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
+        : ''
+    });
+    setShowMoradorDropdown(false);
+  };
+
+  const clearMoradorSelection = () => {
+    setSelectedMorador(null);
+    setMoradorSearch('');
+    setFormData({
+      ...formData,
+      nomeProprietario: '',
+      telefone: '',
+      moradorId: '',
+      unidadeDesc: ''
+    });
+  };
+
   const handleSubmit = async () => {
     try {
       await supabase.from('vehicles_registry').insert({
@@ -71,6 +138,7 @@ export default function VeiculosPage() {
         tipo: formData.tipo,
         nomeProprietario: formData.nomeProprietario || null,
         telefone: formData.telefone || null,
+        moradorId: formData.moradorId || null,
         status: 'ATIVO'
       });
       
@@ -82,8 +150,11 @@ export default function VeiculosPage() {
         unidadeDesc: '',
         tipo: 'MORADOR',
         nomeProprietario: '',
-        telefone: ''
+        telefone: '',
+        moradorId: ''
       });
+      setSelectedMorador(null);
+      setMoradorSearch('');
       fetchVehicles();
     } catch (err) {
       console.error(err);
@@ -299,26 +370,52 @@ export default function VeiculosPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Proprietário</label>
-                  <input 
-                    type="text"
-                    value={formData.nomeProprietario}
-                    onChange={(e) => setFormData({...formData, nomeProprietario: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="Nome do proprietário"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Telefone</label>
-                  <input 
-                    type="text"
-                    value={formData.telefone}
-                    onChange={(e) => setFormData({...formData, telefone: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="(00) 00000-0000"
-                  />
+                <div ref={moradorRef} className="relative">
+                  <label className="block text-sm font-bold mb-2">
+                    Morador Proprietário {formData.tipo === 'MORADOR' && '*'}
+                  </label>
+                  <div className="relative">
+                    <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                      type="text"
+                      value={moradorSearch}
+                      onChange={(e) => {
+                        setMoradorSearch(e.target.value);
+                        setShowMoradorDropdown(true);
+                      }}
+                      onFocus={() => setShowMoradorDropdown(true)}
+                      className="w-full pl-10 pr-10 p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                      placeholder="Buscar morador por nome..."
+                      disabled={formData.tipo !== 'MORADOR'}
+                    />
+                    {selectedMorador && (
+                      <button 
+                        onClick={clearMoradorSelection}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                  
+                  {showMoradorDropdown && formData.tipo === 'MORADOR' && filteredResidents.length > 0 && (
+                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                      {filteredResidents.map((resident) => (
+                        <button
+                          key={resident.id}
+                          onClick={() => handleSelectMorador(resident)}
+                          className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-0"
+                        >
+                          <p className="font-semibold text-sm">{resident.nome}</p>
+                          <p className="text-xs text-slate-500">
+                            {resident.bloco && resident.numero 
+                              ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
+                              : 'Sem unidade cadastrada'}
+                          </p>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div>
@@ -326,9 +423,9 @@ export default function VeiculosPage() {
                   <input 
                     type="text"
                     value={formData.unidadeDesc}
-                    onChange={(e) => setFormData({...formData, unidadeDesc: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="Bloco/Apto"
+                    readOnly
+                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500"
+                    placeholder="Selecione um morador"
                   />
                 </div>
               </div>
