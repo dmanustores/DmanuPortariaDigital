@@ -19,7 +19,8 @@ import {
   AlertTriangle,
   FileText,
   Calendar,
-  Bell
+  Bell,
+  BarChart3
 } from 'lucide-react';
 import { ShiftHandoverModal } from './ShiftHandover';
 import { motion, AnimatePresence } from 'motion/react';
@@ -73,6 +74,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: BarChart3, label: 'Relatórios', href: '/relatorios' },
     { icon: Users, label: 'Acessos', href: '/acessos' },
     { icon: Package, label: 'Encomendas', href: '/encomendas' },
     { icon: Car, label: 'Veículos', href: '/veiculos' },

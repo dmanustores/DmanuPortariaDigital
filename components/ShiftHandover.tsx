@@ -30,6 +30,20 @@ export function ShiftHandoverModal({ isOpen, onClose, onConfirm }: ShiftHandover
   const handleSave = async () => {
     setSaving(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        await supabase.from('shift_handovers').insert({
+          operator_id: session.user.id,
+          shift_start: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(),
+          shift_end: new Date().toISOString(),
+          visitors_inside: data.visitorsInside || null,
+          pending_packages: data.pendingPackages || null,
+          open_occurrences: data.openOccurrences || null,
+          notes: data.notes || null
+        });
+      }
+      
       await supabase.from('occurrences').insert({
         tipo: 'Passagem de Plantão',
         titulo: `Passagem Turno ${new Date().toLocaleTimeString('pt-BR', { hour: '2-digit' })}`,
