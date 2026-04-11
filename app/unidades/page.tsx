@@ -15,7 +15,10 @@ import {
   Filter,
   Wand2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  LayoutGrid,
+  List,
+  Wrench
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -57,6 +60,7 @@ export default function UnidadesPage() {
   const [operatorRole, setOperatorRole] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedCount, setGeneratedCount] = useState(0);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [formData, setFormData] = useState({
     bloco: '01',
     numero: '',
@@ -202,9 +206,19 @@ export default function UnidadesPage() {
     switch (status) {
       case 'OCUPADA': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
       case 'VAGA': return 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
-      case 'OBRAS': return 'amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
-      case 'MANUTENCAO': return 'red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'OBRAS': return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400';
+      case 'MANUTENCAO': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
       default: return 'bg-slate-100 text-slate-600';
+    }
+  };
+
+  const getStatusConfig = (status: string) => {
+    switch (status) {
+      case 'OCUPADA': return { color: '#6daa45', label: 'Ocupado', bgColor: '#dcfce7', textColor: '#166534' };
+      case 'VAGA': return { color: '#393836', label: 'Vago', bgColor: '#f1f5f9', textColor: '#475569' };
+      case 'OBRAS': return { color: '#fdab43', label: 'Em Obras', bgColor: '#fef3c7', textColor: '#92400e' };
+      case 'MANUTENCAO': return { color: '#dd6974', label: 'Inativo', bgColor: '#fee2e2', textColor: '#991b1b' };
+      default: return { color: '#393836', label: status, bgColor: '#f1f5f9', textColor: '#475569' };
     }
   };
 
@@ -336,7 +350,69 @@ export default function UnidadesPage() {
             <option value="">Todos os Tipos</option>
             {tipos.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
+
+          <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
+            <button
+              onClick={() => setViewMode('grid')}
+              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
+              onClick={() => setViewMode('list')}
+              className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+            >
+              <List size={18} />
+            </button>
+          </div>
         </div>
+      </div>
+
+      <div className="flex flex-wrap gap-2 mb-6">
+        <button
+          onClick={() => setFilterStatus(filterStatus === 'OCUPADA' ? '' : 'OCUPADA')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterStatus === 'OCUPADA' 
+              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-2 border-green-500' 
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-green-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-green-500"></span>
+          {stats.occupied} Ocupadas
+        </button>
+        <button
+          onClick={() => setFilterStatus(filterStatus === 'VAGA' ? '' : 'VAGA')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterStatus === 'VAGA' 
+              ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-2 border-slate-500' 
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
+          {stats.vacant} Vagas
+        </button>
+        <button
+          onClick={() => setFilterStatus(filterStatus === 'OBRAS' ? '' : 'OBRAS')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterStatus === 'OBRAS' 
+              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-2 border-amber-500' 
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-amber-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+          {stats.obras} Em Obras
+        </button>
+        <button
+          onClick={() => setFilterStatus(filterStatus === 'MANUTENCAO' ? '' : 'MANUTENCAO')}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+            filterStatus === 'MANUTENCAO' 
+              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-2 border-red-500' 
+              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-red-400'
+          }`}
+        >
+          <span className="w-2 h-2 rounded-full bg-red-500"></span>
+          {stats.manutencao} Manutenção
+        </button>
       </div>
 
       {loading ? (
@@ -346,59 +422,119 @@ export default function UnidadesPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
           <Building2 size={48} className="mx-auto mb-4 opacity-50" />
-          <p>Nenhuma unidade encontrada</p>
+          <p>Nenhuma unidade encontrada para este filtro</p>
+          <button 
+            onClick={() => { setSearch(''); setFilterBloco(''); setFilterStatus(''); setFilterTipo(''); }}
+            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm"
+          >
+            Limpar filtros
+          </button>
+        </div>
+      ) : viewMode === 'grid' ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {filtered.map((unit) => {
+            const statusConfig = getStatusConfig(unit.status);
+            return (
+              <motion.div
+                key={unit.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: unit.status === 'MANUTENCAO' ? 0.5 : 1, y: 0 }}
+                whileHover={{ scale: 1.02 }}
+                className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden cursor-pointer hover:shadow-xl transition-all ${
+                  unit.status === 'VAGA' ? 'border-dashed border-slate-300 dark:border-slate-600' : ''
+                }`}
+                style={{ borderLeftColor: statusConfig.color, borderLeftWidth: '4px' }}
+                onClick={() => openDetail(unit)}
+              >
+                {unit.status === 'OBRAS' && (
+                  <div className="absolute top-2 right-2 bg-amber-500 text-white p-1 rounded-full">
+                    <Wrench size={12} />
+                  </div>
+                )}
+                
+                {unit.status === 'OCUPADA' && (
+                  <div className="absolute top-3 right-3">
+                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
+                  </div>
+                )}
+
+                <div className="p-4 text-center">
+                  <p className="text-3xl font-black text-slate-900 dark:text-white">{unit.numero}</p>
+                  <p className="text-sm text-slate-500 dark:text-slate-400">Bloco {unit.bloco}</p>
+                  
+                  <div className="mt-3">
+                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
+                      {statusConfig.label}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="border-t border-slate-100 dark:border-slate-800 p-3 flex items-center justify-center gap-4 text-xs text-slate-500">
+                  <span className="flex items-center gap-1"><Users size={12} />0</span>
+                  <span className="flex items-center gap-1"><Car size={12} />{unit.vagasGaragem || 0}</span>
+                  <span className="flex items-center gap-1"><Package size={12} />0</span>
+                </div>
+
+                {isAdmin && (
+                  <div className="flex border-t border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); openEdit(unit); }}
+                      className="flex-1 py-2 text-xs font-bold text-primary hover:bg-primary/10"
+                    >
+                      <Edit size={14} className="inline mr-1" />Editar
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }}
+                      className="flex-1 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 border-l border-slate-100 dark:border-slate-800"
+                    >
+                      <Trash2 size={14} className="inline mr-1" />Excluir
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((unit) => (
-            <motion.div
-              key={unit.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => openDetail(unit)}
-            >
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-lg font-black text-slate-900 dark:text-white">
-                    Bloco {unit.bloco} - {unit.numero}
-                  </h3>
-                  <p className="text-xs text-slate-500">{unit.tipo}</p>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(unit.status)}`}>
-                  {unit.status}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-4 text-xs text-slate-500">
-                {unit.vagasGaragem && unit.vagasGaragem > 0 && (
-                  <span className="flex items-center gap-1">
-                    <Car size={14} />
-                    {unit.vagasGaragem} vagas
-                  </span>
-                )}
-              </div>
-
-              {isAdmin && (
-                <div className="flex gap-2 mt-4 pt-3 border-t border-slate-100 dark:border-slate-800">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); openEdit(unit); }}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg"
-                  >
-                    <Edit size={14} />
-                    Editar
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }}
-                    className="flex-1 flex items-center justify-center gap-1 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg"
-                  >
-                    <Trash2 size={14} />
-                    Excluir
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          ))}
+        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 dark:bg-slate-800">
+              <tr>
+                <th className="text-left p-3 font-bold text-slate-500">Unidade</th>
+                <th className="text-left p-3 font-bold text-slate-500">Bloco</th>
+                <th className="text-left p-3 font-bold text-slate-500">Status</th>
+                <th className="text-center p-3 font-bold text-slate-500">Moradores</th>
+                <th className="text-center p-3 font-bold text-slate-500">Veículos</th>
+                <th className="text-center p-3 font-bold text-slate-500">Encomendas</th>
+                {isAdmin && <th className="text-right p-3 font-bold text-slate-500">Ações</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((unit) => {
+                const statusConfig = getStatusConfig(unit.status);
+                return (
+                  <tr key={unit.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onClick={() => openDetail(unit)}>
+                    <td className="p-3 font-black">{unit.numero}</td>
+                    <td className="p-3">Bloco {unit.bloco}</td>
+                    <td className="p-3">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
+                        {statusConfig.label}
+                      </span>
+                    </td>
+                    <td className="p-3 text-center">0</td>
+                    <td className="p-3 text-center">{unit.vagasGaragem || 0}</td>
+                    <td className="p-3 text-center">0</td>
+                    {isAdmin && (
+                      <td className="p-3 text-right">
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2">Editar</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }} className="text-red-500 text-xs font-bold">Excluir</button>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
