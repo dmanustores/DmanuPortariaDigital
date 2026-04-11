@@ -5,17 +5,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
+  Users,
   Package, 
   Car, 
   Building2, 
   Truck, 
   UserPlus, 
   Settings, 
-  Users, 
+  Users as UsersIcon,
   LogOut,
   X as CloseIcon,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  FileText
 } from 'lucide-react';
 import { ShiftHandoverModal } from './ShiftHandover';
 import { motion, AnimatePresence } from 'motion/react';
@@ -72,9 +74,10 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
     { icon: Users, label: 'Acessos', href: '/acessos' },
     { icon: Package, label: 'Encomendas', href: '/encomendas' },
     { icon: Car, label: 'Veículos', href: '/veiculos' },
+    { icon: FileText, label: 'Ocorrências', href: '/ocorrencias' },
     { icon: Building2, label: 'Unidades', href: '/unidades' },
     { icon: Truck, label: 'Mudanças', href: '/mudancas' },
-    { icon: Users, label: 'Colaboradores', href: '/colaboradores' },
+    { icon: UsersIcon, label: 'Colaboradores', href: '/colaboradores' },
     { icon: UserPlus, label: 'Moradores', href: '/moradores' },
   ];
 
