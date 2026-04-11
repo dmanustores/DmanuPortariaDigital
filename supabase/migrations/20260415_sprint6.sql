@@ -1,6 +1,17 @@
 -- Sprint 6: Relatórios + Shift Handovers table
 -- Creates shift_handovers table for proper tracking of shift handovers
 
+-- First ensure operators table exists (from previous migrations)
+CREATE TABLE IF NOT EXISTS operators (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email TEXT UNIQUE NOT NULL,
+  nome TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'Porteiro',
+  turno TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Create shift_handovers table
 CREATE TABLE IF NOT EXISTS shift_handovers (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   operator_id UUID REFERENCES operators(id),
@@ -41,7 +52,7 @@ CREATE POLICY "Zelador view all shifts" ON shift_handovers FOR SELECT
     )
   );
 
--- Insert sample data for testing
+-- Insert sample data for testing (only if an admin exists)
 INSERT INTO shift_handovers (operator_id, shift_start, visitors_inside, pending_packages, open_occurrences, notes)
 SELECT 
   id,
