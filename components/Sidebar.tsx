@@ -69,6 +69,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
+    { icon: Users, label: 'Acessos', href: '/acessos' },
     { icon: Package, label: 'Encomendas', href: '/encomendas' },
     { icon: Car, label: 'Veículos', href: '/veiculos' },
     { icon: Building2, label: 'Unidades', href: '/unidades' },
