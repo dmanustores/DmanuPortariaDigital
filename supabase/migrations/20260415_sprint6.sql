@@ -30,6 +30,11 @@ ALTER TABLE operators ADD COLUMN IF NOT EXISTS current_shift_start TIMESTAMP;
 -- Enable RLS
 ALTER TABLE shift_handovers ENABLE ROW LEVEL SECURITY;
 
+-- Drop existing policies if they exist (to allow re-run)
+DROP POLICY IF EXISTS "View own shifts" ON shift_handovers;
+DROP POLICY IF EXISTS "Admins view all shifts" ON shift_handovers;
+DROP POLICY IF EXISTS "Zelador view all shifts" ON shift_handovers;
+
 -- Policy for viewing shift handovers
 CREATE POLICY "View own shifts" ON shift_handovers FOR SELECT
   USING (operator_id IN (
@@ -53,12 +58,18 @@ CREATE POLICY "Zelador view all shifts" ON shift_handovers FOR SELECT
   );
 
 -- Insert sample data for testing (only if an admin exists)
-INSERT INTO shift_handovers (operator_id, shift_start, visitors_inside, pending_packages, open_occurrences, notes)
-SELECT 
-  id,
-  NOW() - INTERVAL '8 hours',
-  'Nenhum',
-  'Apt 101, Apt 202',
-  'Nenhuma',
-  'Teste de registro'
-FROM operators WHERE role = 'Admin' LIMIT 1;
+-- Use DO block to handle case where no admin exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM operators WHERE role = 'Admin' LIMIT 1) THEN
+    INSERT INTO shift_handovers (operator_id, shift_start, visitors_inside, pending_packages, open_occurrences, notes)
+    SELECT 
+      id,
+      NOW() - INTERVAL '8 hours',
+      'Nenhum',
+      'Apt 101, Apt 202',
+      'Nenhuma',
+      'Teste de registro'
+    FROM operators WHERE role = 'Admin' LIMIT 1;
+  END IF;
+END $$;
