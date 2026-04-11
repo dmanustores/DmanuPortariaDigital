@@ -241,11 +241,24 @@ export default function UnidadesPage() {
           </p>
         </motion.div>
 
-        {isAdmin && units.length > 0 && (
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-bold text-slate-500">
-              {units.length} / {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} unidades
-            </span>
+        <div className="flex items-center gap-3">
+          {isAdmin && units.length < TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR && (
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowWizard(true)}
+              className="flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-amber-600 shadow-lg shadow-amber-500/20"
+            >
+              <Wand2 size={18} />
+              Gerar Todas
+            </motion.button>
+          )}
+          
+          <span className="text-sm font-bold text-slate-500">
+            {units.length} / {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} unidades
+          </span>
+
+          {isAdmin && (
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -255,32 +268,8 @@ export default function UnidadesPage() {
               <Plus size={18} />
               Nova
             </motion.button>
-          </div>
-        )}
-
-        {isAdmin && units.length === 0 && (
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowWizard(true)}
-            className="flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-amber-600 shadow-lg shadow-amber-500/20"
-          >
-            <Wand2 size={18} />
-            Gerar Todas as {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} Unidades
-          </motion.button>
-        )}
-
-        {isAdmin && units.length > 0 && (
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { resetForm(); setShowModal(true); }}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
-          >
-            <Plus size={18} />
-            Nova Unidade
-          </motion.button>
-        )}
+          )}
+        </div>
       </div>
 
       {units.length > 0 && (
