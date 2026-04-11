@@ -17,7 +17,9 @@ import {
   X as CloseIcon,
   Shield,
   AlertTriangle,
-  FileText
+  FileText,
+  Calendar,
+  Bell
 } from 'lucide-react';
 import { ShiftHandoverModal } from './ShiftHandover';
 import { motion, AnimatePresence } from 'motion/react';
@@ -75,8 +77,10 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
     { icon: Package, label: 'Encomendas', href: '/encomendas' },
     { icon: Car, label: 'Veículos', href: '/veiculos' },
     { icon: FileText, label: 'Ocorrências', href: '/ocorrencias' },
-    { icon: Building2, label: 'Unidades', href: '/unidades' },
     { icon: Truck, label: 'Mudanças', href: '/mudancas' },
+    { icon: Calendar, label: 'Reservas', href: '/reservas' },
+    { icon: Bell, label: 'Avisos', href: '/avisos' },
+    { icon: Building2, label: 'Unidades', href: '/unidades' },
     { icon: UsersIcon, label: 'Colaboradores', href: '/colaboradores' },
     { icon: UserPlus, label: 'Moradores', href: '/moradores' },
   ];
