@@ -12,6 +12,10 @@ import {
   Save,
   Search,
   Shield,
+  Eye,
+  EyeOff,
+  Mail,
+  Lock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -20,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 interface Operator {
   id: string;
   nome: string;
+  email?: string;
   role: string;
   turno: string;
   created_at: string;
@@ -29,11 +34,12 @@ const Turnos = [
   { value: 'A', label: 'Turno A (06:00-14:00)', hours: '06:00 - 14:00' },
   { value: 'B', label: 'Turno B (14:00-22:00)', hours: '14:00 - 22:00' },
   { value: 'C', label: 'Turno C (22:00-06:00)', hours: '22:00 - 06:00' },
-  { value: 'D', label: 'Folga', hours: ' folga' },
+  { value: 'D', label: 'Folga', hours: 'folga' },
 ];
 
 const Roles = [
   { value: 'Admin', label: 'Administrador' },
+  { value: 'Zelador', label: 'Zelador' },
   { value: 'Porteiro', label: 'Porteiro' },
   { value: 'Operador', label: 'Operador' },
 ];
@@ -42,10 +48,15 @@ export default function AdminPage() {
   const [operators, setOperators] = useState<Operator[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [editingOperator, setEditingOperator] = useState<Operator | null>(null);
   const [search, setSearch] = useState('');
+  const [errors, setErrors] = useState<{email?: string; senha?: string; confirmar?: string}>({});
   const [formData, setFormData] = useState({
     nome: '',
+    email: '',
+    senha: '',
+    confirmarSenha: '',
     role: 'Porteiro',
     turno: 'A',
   });
@@ -66,40 +77,108 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  const validateForm = () => {
+    const newErrors: {email?: string; senha?: string; confirmar?: string} = {};
+    
+    if (!editingOperator) {
+      if (!formData.email) {
+        newErrors.email = 'E-mail é obrigatório';
+      } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+        newErrors.email = 'E-mail inválido';
+      }
+      
+      if (!formData.senha) {
+        newErrors.senha = 'Senha é obrigatória';
+      } else if (formData.senha.length < 6) {
+        newErrors.senha = 'Mínimo 6 caracteres';
+      }
+      
+      if (formData.senha !== formData.confirmarSenha) {
+        newErrors.confirmar = 'As senhas não coincidem';
+      }
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const openModal = (operator?: Operator) => {
     if (operator) {
       setEditingOperator(operator);
-      setFormData({ nome: operator.nome, role: operator.role, turno: operator.turno });
+      setFormData({ nome: operator.nome, email: '', senha: '', confirmarSenha: '', role: operator.role, turno: operator.turno });
     } else {
       setEditingOperator(null);
-      setFormData({ nome: '', role: 'Porteiro', turno: 'A' });
+      setFormData({ nome: '', email: '', senha: '', confirmarSenha: '', role: 'Porteiro', turno: 'A' });
     }
+    setErrors({});
     setShowModal(true);
   };
 
   const closeModal = () => {
     setShowModal(false);
     setEditingOperator(null);
-    setFormData({ nome: '', role: 'Porteiro', turno: 'A' });
+    setFormData({ nome: '', email: '', senha: '', confirmarSenha: '', role: 'Porteiro', turno: 'A' });
+    setErrors({});
   };
 
   const handleSave = async () => {
+    if (!validateForm()) return;
+    
     setSaving(true);
     try {
       if (editingOperator) {
         await supabase
           .from('operators')
-          .update({ nome: formData.nome, role: formData.role, turno: formData.turno })
+          .update({ nome: formData.nome, role: formData.role, turno: formData.turno || null })
           .eq('id', editingOperator.id);
       } else {
-        alert('Para criar novo operador, CADASTRE primeiro via Supabase Auth');
-        setSaving(false);
-        return;
+        // Create user in Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: formData.email.toLowerCase(),
+          password: formData.senha,
+          options: {
+            emailRedirectTo: window.location.origin
+          }
+        });
+        
+        if (authError) {
+          console.error('Auth error:', authError);
+          if (authError.message.includes('already been registered')) {
+            setErrors({ email: 'Este e-mail já está cadastrado' });
+            setSaving(false);
+            return;
+          }
+          alert('Erro no cadastro: ' + authError.message);
+          setSaving(false);
+          return;
+        }
+        
+        if (authData.user) {
+          const { error: insertError } = await supabase.from('operators').insert({
+            id: authData.user.id,
+            nome: formData.nome,
+            email: formData.email.toLowerCase(),
+            role: formData.role,
+            turno: formData.role === 'Admin' ? null : (formData.turno || null)
+          });
+          
+          if (insertError) {
+            console.error('Insert error:', insertError);
+            alert('Erro ao criar perfil: ' + insertError.message);
+            setSaving(false);
+            return;
+          }
+          
+          alert('Operador cadastrado com sucesso! Verifique o e-mail para confirmar a conta.');
+        } else {
+          alert('Erro: usuário não foi criado');
+        }
       }
       fetchOperators();
       closeModal();
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert('Erro ao salvar operador: ' + (err.message || 'Erro desconhecido'));
     }
     setSaving(false);
   };
@@ -293,7 +372,7 @@ export default function AdminPage() {
 
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-sm font-bold mb-2">Nome</label>
+                  <label className="block text-sm font-bold mb-2">Nome *</label>
                   <input 
                     type="text"
                     value={formData.nome}
@@ -303,11 +382,67 @@ export default function AdminPage() {
                   />
                 </div>
 
+                {!editingOperator && (
+                  <>
+                    <div>
+                      <label className="block text-sm font-bold mb-2">E-mail *</label>
+                      <div className="relative">
+                        <Mail size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                          type="email"
+                          value={formData.email}
+                          onChange={(e) => { setFormData({...formData, email: e.target.value}); setErrors({...errors, email: undefined}); }}
+                          className={`w-full pl-10 p-3 bg-slate-50 dark:bg-slate-800 border rounded-lg text-sm ${errors.email ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                          placeholder="email@exemplo.com"
+                        />
+                      </div>
+                      {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Senha *</label>
+                      <div className="relative">
+                        <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.senha}
+                          onChange={(e) => { setFormData({...formData, senha: e.target.value}); setErrors({...errors, senha: undefined}); }}
+                          className={`w-full pl-10 pr-10 p-3 bg-slate-50 dark:bg-slate-800 border rounded-lg text-sm ${errors.senha ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                          placeholder="Mínimo 6 caracteres"
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                      {errors.senha && <p className="text-xs text-red-500 mt-1">{errors.senha}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold mb-2">Confirmar Senha *</label>
+                      <div className="relative">
+                        <Lock size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                          type={showPassword ? 'text' : 'password'}
+                          value={formData.confirmarSenha}
+                          onChange={(e) => { setFormData({...formData, confirmarSenha: e.target.value}); setErrors({...errors, confirmar: undefined}); }}
+                          className={`w-full pl-10 p-3 bg-slate-50 dark:bg-slate-800 border rounded-lg text-sm ${errors.confirmar ? 'border-red-500' : 'border-slate-200 dark:border-slate-700'}`}
+                          placeholder="Digite a senha novamente"
+                        />
+                      </div>
+                      {errors.confirmar && <p className="text-xs text-red-500 mt-1">{errors.confirmar}</p>}
+                    </div>
+                  </>
+                )}
+
                 <div>
-                  <label className="block text-sm font-bold mb-2">Função</label>
+                  <label className="block text-sm font-bold mb-2">Função *</label>
                   <select 
                     value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value})}
+                    onChange={(e) => setFormData({...formData, role: e.target.value, turno: e.target.value === 'Admin' ? '' : 'A'})}
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
                   >
                     {Roles.map(role => (
@@ -316,18 +451,20 @@ export default function AdminPage() {
                   </select>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Turno</label>
-                  <select 
-                    value={formData.turno}
-                    onChange={(e) => setFormData({...formData, turno: e.target.value})}
-                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
-                  >
-                    {Turnos.map(turno => (
-                      <option key={turno.value} value={turno.value}>{turno.label}</option>
-                    ))}
-                  </select>
-                </div>
+                {formData.role !== 'Admin' && (
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Turno</label>
+                    <select 
+                      value={formData.turno}
+                      onChange={(e) => setFormData({...formData, turno: e.target.value})}
+                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                    >
+                      {Turnos.map(turno => (
+                        <option key={turno.value} value={turno.value}>{turno.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
