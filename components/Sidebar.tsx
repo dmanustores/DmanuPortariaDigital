@@ -184,7 +184,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
                 {operator ? `${operator.role} - Turno ${operator.turno}` : 'Carregando...'}
               </p>
             </div>
-            <Settings size={18} className="text-slate-400 cursor-pointer hover:text-primary transition-colors" />
+            <Settings size={18} className="text-slate-400 cursor-pointer hover:text-primary transition-colors" onClick={() => router.push('/admin')} />
           </div>
           
           <button 
