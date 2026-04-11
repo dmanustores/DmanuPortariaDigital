@@ -15,7 +15,9 @@ const residentSchema = z.object({
   apto: z.string().min(1, 'Obrigatório'),
   tipo: z.enum(['LOCATARIO', 'PROPRIETARIO']),
   nome: z.string().min(3, 'Nome muito curto'),
+  foto: z.string().optional(),
   celular: z.string().min(10, 'Celular inválido'),
+  temWhatsApp: z.boolean().optional(),
   fone: z.string().optional(),
   foneComercial: z.string().optional(),
   email: z.string().email('Email inválido'),
@@ -23,15 +25,16 @@ const residentSchema = z.object({
   enderecoComercial: z.string().optional(),
   cpf: z.string().min(11, 'CPF inválido'),
   rg: z.string().min(5, 'RG inválido'),
+  dataEntrada: z.string().min(1, 'Data de entrada obrigatória'),
+  dataSaida: z.string().optional(),
+  status: z.enum(['ATIVO', 'INATIVO']),
+  observacoes: z.string().optional(),
   householdMembers: z.array(z.object({
-    nome: z.string().min(1, 'Nome obrigatório'),
+    nome: z.string(),
     rg: z.string().optional(),
     cpf: z.string().optional(),
-    parentesco: z.string().min(1, 'Parentesco obrigatório'),
+    parentesco: z.string(),
     isBaby: z.boolean().optional()
-  }).refine(data => data.isBaby || data.rg || data.cpf, {
-    message: "Preencha RG ou CPF (ou marque como Bebê)",
-    path: ["rg"]
   })),
   vehicles: z.array(z.object({
     modelo: z.string(),
@@ -56,6 +59,7 @@ const residentSchema = z.object({
     estado: z.string().optional(),
     cep: z.string().optional(),
   }).optional(),
+  lgpdConsent: z.boolean().optional(),
 });
 
 type ResidentFormData = z.infer<typeof residentSchema>;
@@ -90,6 +94,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
       serviceProviders: initialData.serviceProviders || []
     } : {
       tipo: 'PROPRIETARIO',
+      status: 'ATIVO',
       householdMembers: [],
       vehicles: [],
       serviceProviders: [],
@@ -103,7 +108,9 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         cidade: '',
         estado: '',
         cep: ''
-      }
+      },
+      temWhatsApp: false,
+      lgpdConsent: false
     }
   });
 

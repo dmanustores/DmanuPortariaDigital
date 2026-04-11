@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -14,9 +14,12 @@ import {
   Users, 
   LogOut,
   X as CloseIcon,
-  Shield
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
+import { ShiftHandoverModal } from './ShiftHandover';
 import { motion, AnimatePresence } from 'motion/react';
+import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 
 interface SidebarProps {
@@ -28,6 +31,7 @@ interface SidebarProps {
 export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => {
   const router = useRouter();
   const [operator, setOperator] = useState<{ nome: string; role: string; turno: string } | null>(null);
+  const [showShiftModal, setShowShiftModal] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -65,18 +69,23 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-    { icon: Package, label: 'Encomendas', href: '#' },
-    { icon: Car, label: 'Veículos', href: '#' },
-    { icon: Building2, label: 'Unidades', href: '#' },
-    { icon: Truck, label: 'Mudanças', href: '#' },
-    { icon: UserPlus, label: 'Novo Morador', href: '/moradores' },
+    { icon: Package, label: 'Encomendas', href: '/encomendas' },
+    { icon: Car, label: 'Veículos', href: '/veiculos' },
+    { icon: Building2, label: 'Unidades', href: '/unidades' },
+    { icon: Truck, label: 'Mudanças', href: '/mudancas' },
+    { icon: Users, label: 'Colaboradores', href: '/colaboradores' },
+    { icon: UserPlus, label: 'Moradores', href: '/moradores' },
   ];
 
   const adminItems = operator?.role === 'Admin' ? [
     { icon: Shield, label: 'Admin', href: '/admin' },
   ] : [];
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setShowShiftModal(true);
+  };
+
+  const handleConfirmShift = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('portaria_auth');
     router.push('/login');
@@ -177,6 +186,12 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
           </button>
         </div>
       </aside>
+
+      <ShiftHandoverModal 
+        isOpen={showShiftModal}
+        onClose={() => setShowShiftModal(false)}
+        onConfirm={handleConfirmShift}
+      />
     </>
   );
 };

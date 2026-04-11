@@ -41,7 +41,9 @@ export interface Resident {
   apto: string;
   tipo: ResidentType;
   nome: string;
+  foto?: string;
   celular: string;
+  temWhatsApp?: boolean;
   fone?: string;
   foneComercial?: string;
   email: string;
@@ -49,11 +51,16 @@ export interface Resident {
   enderecoComercial?: string;
   cpf: string;
   rg: string;
+  dataEntrada: string;
+  dataSaida?: string;
+  status: 'ATIVO' | 'INATIVO';
+  observacoes?: string;
   householdMembers: HouseholdMember[];
   vehicles: Vehicle[];
   serviceProviders: ServiceProvider[];
   emergencyContact: EmergencyContact;
   invoiceDelivery: InvoiceDelivery;
   invoiceAddress?: InvoiceAddress;
+  lgpdConsent?: boolean;
   createdAt: string;
 }
