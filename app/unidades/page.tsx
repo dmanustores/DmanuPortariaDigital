@@ -35,7 +35,7 @@ interface Unit {
   encomendas?: any[];
 }
 
-const blocos = ['A', 'B', 'C', 'D'];
+const blocos = Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'));
 const tipos = ['RESIDENCIAL', 'COMERCIAL', 'GARAGE'];
 const statusOptions = ['OCUPADA', 'VAGA', 'OBRAS', 'MANUTENCAO'];
 
@@ -58,7 +58,7 @@ export default function UnidadesPage() {
   const [generating, setGenerating] = useState(false);
   const [generatedCount, setGeneratedCount] = useState(0);
   const [formData, setFormData] = useState({
-    bloco: 'A',
+    bloco: '01',
     numero: '',
     tipo: 'RESIDENCIAL',
     status: 'VAGA',
@@ -189,7 +189,7 @@ export default function UnidadesPage() {
   const resetForm = () => {
     setSelectedUnit(null);
     setFormData({
-      bloco: 'A',
+      bloco: '01',
       numero: '',
       tipo: 'RESIDENCIAL',
       status: 'VAGA',
@@ -218,6 +218,14 @@ export default function UnidadesPage() {
     return matchSearch && matchBloco && matchStatus && matchTipo;
   });
 
+  const stats = {
+    total: units.length,
+    occupied: units.filter(u => u.status === 'OCUPADA').length,
+    vacant: units.filter(u => u.status === 'VAGA').length,
+    obras: units.filter(u => u.status === 'OBRAS').length,
+    manutencao: units.filter(u => u.status === 'MANUTENCAO').length
+  };
+
   const isAdmin = operatorRole === 'Admin';
 
   return (
@@ -232,6 +240,23 @@ export default function UnidadesPage() {
             {isAdmin ? 'Gerencie as unidades do condomínio' : 'Visualize as unidades'}
           </p>
         </motion.div>
+
+        {isAdmin && units.length > 0 && (
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-bold text-slate-500">
+              {units.length} / {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} unidades
+            </span>
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => { resetForm(); setShowModal(true); }}
+              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
+            >
+              <Plus size={18} />
+              Nova
+            </motion.button>
+          </div>
+        )}
 
         {isAdmin && units.length === 0 && (
           <motion.button 
@@ -257,6 +282,31 @@ export default function UnidadesPage() {
           </motion.button>
         )}
       </div>
+
+      {units.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
+            <p className="text-3xl font-black text-slate-900 dark:text-white">{stats.total}</p>
+            <p className="text-xs text-slate-500">Total</p>
+          </div>
+          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 p-4 text-center">
+            <p className="text-3xl font-black text-green-600 dark:text-green-400">{stats.occupied}</p>
+            <p className="text-xs text-green-600 dark:text-green-400">Ocupadas</p>
+          </div>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
+            <p className="text-3xl font-black text-slate-600 dark:text-slate-400">{stats.vacant}</p>
+            <p className="text-xs text-slate-500">Vagas</p>
+          </div>
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-4 text-center">
+            <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{stats.obras}</p>
+            <p className="text-xs text-amber-600 dark:text-amber-400">Em Obras</p>
+          </div>
+          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-4 text-center">
+            <p className="text-3xl font-black text-red-600 dark:text-red-400">{stats.manutencao}</p>
+            <p className="text-xs text-red-600 dark:text-red-400">Manutenção</p>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 mb-6">
         <div className="flex flex-wrap gap-4">
