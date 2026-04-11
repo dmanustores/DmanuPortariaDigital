@@ -18,7 +18,8 @@ import {
   AlertCircle,
   LayoutGrid,
   List,
-  Wrench
+  Wrench,
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -60,7 +61,8 @@ export default function UnidadesPage() {
   const [operatorRole, setOperatorRole] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedCount, setGeneratedCount] = useState(0);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'planta'>('planta');
+  const [selectedBloco, setSelectedBloco] = useState<string>('01');
   const [formData, setFormData] = useState({
     bloco: '01',
     numero: '',
@@ -353,6 +355,13 @@ export default function UnidadesPage() {
 
           <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
             <button
+              onClick={() => setViewMode('planta')}
+              className={`p-2 rounded ${viewMode === 'planta' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Planta do Bloco"
+            >
+              <Home size={18} />
+            </button>
+            <button
               onClick={() => setViewMode('grid')}
               className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
             >
@@ -367,6 +376,88 @@ export default function UnidadesPage() {
           </div>
         </div>
       </div>
+
+      {viewMode === 'planta' && (
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
+          <div className="flex items-center gap-4 mb-6">
+            <label className="text-sm font-bold">Selecione o Bloco:</label>
+            <select
+              value={selectedBloco}
+              onChange={(e) => setSelectedBloco(e.target.value)}
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
+            >
+              {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
+            </select>
+          </div>
+
+          <div className="text-center mb-4">
+            <h3 className="text-xl font-black">Bloco {selectedBloco}</h3>
+            <p className="text-sm text-slate-500">5 andares × 4 apartamentos = 20 unidades</p>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {[5, 4, 3, 2, 1].map(andar => (
+              <div key={andar} className="flex items-center gap-2">
+                <div className="w-12 text-xs font-bold text-slate-400 text-right">Andar {andar}</div>
+                <div className="flex-1 flex gap-2 justify-center">
+                  {[1, 2, 3, 4].map(apt => {
+                    const numero = `${andar}${apt.toString().padStart(2, '0')}`;
+                    const unit = units.find(u => u.bloco === selectedBloco && u.numero === numero);
+                    const statusConfig = unit ? getStatusConfig(unit.status) : getStatusConfig('VAGA');
+                    return (
+                      <button
+                        key={numero}
+                        onClick={() => {
+                          if (unit) {
+                            openDetail(unit);
+                          } else {
+                            setFormData({ bloco: selectedBloco, numero, tipo: 'RESIDENCIAL', status: 'VAGA', vagasGaragem: 1, observacoes: '' });
+                            setSelectedUnit(null);
+                            setShowModal(true);
+                          }
+                        }}
+                        className={`w-20 h-16 rounded-lg border-2 flex flex-col items-center justify-center text-xs font-bold transition-all hover:scale-105 ${
+                          unit 
+                            ? `border-l-4` 
+                            : 'border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                        }`}
+                        style={{ 
+                          borderLeftColor: unit ? statusConfig.color : undefined,
+                          backgroundColor: unit ? statusConfig.bgColor : undefined,
+                        }}
+                      >
+                        <span className="text-lg">{numero}</span>
+                        {unit && (
+                          <span className="text-[8px]" style={{ color: statusConfig.textColor }}>
+                            {statusConfig.label}
+                          </span>
+                        )}
+                        {!unit && (
+                          <span className="text-[8px] text-slate-400">+ Add</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => {
+                const existingUnits = units.filter(u => u.bloco === selectedBloco).length;
+                if (existingUnits < 20) {
+                  alert('Este bloco ainda tem unidades vazias. Clique nos apartamentos "+ Add" para criar.');
+                }
+              }}
+              className="text-sm text-primary font-bold"
+            >
+              Ver detalhes do bloco →
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mb-6">
         <button
@@ -429,6 +520,11 @@ export default function UnidadesPage() {
           >
             Limpar filtros
           </button>
+        </div>
+      ) : viewMode === 'planta' ? (
+        <div className="text-center py-12 text-slate-400">
+          <Home size={48} className="mx-auto mb-4 opacity-50" />
+          <p>Selecione um bloco acima para ver a planta</p>
         </div>
       ) : viewMode === 'grid' ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
