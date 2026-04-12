@@ -290,6 +290,17 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+              Data Prevista de Saída
+            </label>
+            <input 
+              type="date"
+              {...register('dataSaida')} 
+              disabled={isReadOnly}
+              className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
               Status Cadastral
             </label>
             <select 
@@ -374,6 +385,15 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
               className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
             {errors.celular && <p className="text-red-500 text-xs">{errors.celular.message}</p>}
+            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+              <input 
+                type="checkbox" 
+                {...register('temWhatsApp')} 
+                disabled={isReadOnly} 
+                className="text-primary focus:ring-primary w-4 h-4 rounded" 
+              />
+              Este número tem WhatsApp
+            </label>
           </div>
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-slate-500">Fone Fixo</label>
