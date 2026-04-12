@@ -11,7 +11,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   useEffect(() => {
-    const checkAuth = async () => {
+    const verifyLocalAuth = () => {
       const localAuth = localStorage.getItem('portaria_auth');
       if (localAuth) {
         try {
@@ -19,7 +19,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
             setIsAuthenticated(true);
             setIsLoading(false);
-            return true; // Use return true to indicate local auth is valid
+            return true;
           }
         } catch {
           localStorage.removeItem('portaria_auth');
@@ -29,8 +29,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
 
     const checkAuth = async () => {
-      const isLocalValid = verifyLocalAuth();
-      if (isLocalValid) return;
+      if (verifyLocalAuth()) return;
 
       // Fallback to Supabase session
       const { data: { session } } = await supabase.auth.getSession();

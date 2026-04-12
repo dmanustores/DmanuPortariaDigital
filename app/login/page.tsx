@@ -21,7 +21,7 @@ export default function LoginPage() {
       try {
         const parsed = JSON.parse(auth);
         if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
-          window.location.href = '/';
+          router.replace('/');
           return;
         }
       } catch {
@@ -49,7 +49,7 @@ export default function LoginPage() {
           loginTime: new Date().toISOString(),
           sessionExpiry
         }));
-        window.location.href = '/';
+        router.replace('/');
         return;
       }
 
