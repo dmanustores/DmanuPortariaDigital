@@ -37,6 +37,7 @@ interface Unit {
   moradores?: any[];
   veiculos?: any[];
   encomendas?: any[];
+  primaryResident?: string;
 }
 
 const blocos = Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -61,8 +62,9 @@ export default function UnidadesPage() {
   const [operatorRole, setOperatorRole] = useState('');
   const [generating, setGenerating] = useState(false);
   const [generatedCount, setGeneratedCount] = useState(0);
-  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'planta'>('planta');
+  const [viewMode, setViewMode] = useState<'grid' | 'list' | 'planta' | 'panorama'>('panorama');
   const [selectedBloco, setSelectedBloco] = useState<string>('01');
+  const [expandedBlocks, setExpandedBlocks] = useState<Set<string>>(new Set());
   const [formData, setFormData] = useState({
     bloco: '01',
     numero: '',
@@ -91,13 +93,27 @@ export default function UnidadesPage() {
 
   const fetchUnits = async () => {
     setLoading(true);
-    const { data } = await supabase
+    const { data: unitsData } = await supabase
       .from('units')
       .select('*')
       .order('bloco', { ascending: true })
       .order('numero', { ascending: true });
     
-    if (data) setUnits(data);
+    // Fetch residents to show basic info
+    const { data: residentsData } = await supabase
+      .from('residents')
+      .select('nome, bloco, apto');
+
+    if (unitsData) {
+      const unitsWithResidents = unitsData.map(u => {
+        const resident = residentsData?.find(r => r.bloco === u.bloco && r.apto === u.numero);
+        return {
+          ...u,
+          primaryResident: resident?.nome
+        };
+      });
+      setUnits(unitsWithResidents);
+    }
     setLoading(false);
   };
 
@@ -224,10 +240,20 @@ export default function UnidadesPage() {
     }
   };
 
+  const normalizeSearch = (text: string) => {
+    return text.toLowerCase()
+      .replace(/bloco|unidade|apto|unid|apt|u\./g, '')
+      .trim();
+  };
+
   const filtered = units.filter(u => {
+    const cleanSearch = normalizeSearch(search);
     const matchSearch = !search || 
-      u.numero.toLowerCase().includes(search.toLowerCase()) ||
-      u.bloco.toLowerCase().includes(search.toLowerCase());
+      u.numero.toLowerCase().includes(cleanSearch) ||
+      u.bloco.toLowerCase().includes(cleanSearch) ||
+      (search.toLowerCase().includes('bloco') && u.bloco === cleanSearch) ||
+      u.primaryResident?.toLowerCase().includes(search.toLowerCase());
+
     const matchBloco = !filterBloco || u.bloco === filterBloco;
     const matchStatus = !filterStatus || u.status === filterStatus;
     const matchTipo = !filterTipo || u.tipo === filterTipo;
@@ -355,6 +381,13 @@ export default function UnidadesPage() {
 
           <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
             <button
+              onClick={() => setViewMode('panorama')}
+              className={`p-2 rounded ${viewMode === 'panorama' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Panorama Geral"
+            >
+              <LayoutGrid size={18} />
+            </button>
+            <button
               onClick={() => setViewMode('planta')}
               className={`p-2 rounded ${viewMode === 'planta' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
               title="Planta do Bloco"
@@ -362,20 +395,151 @@ export default function UnidadesPage() {
               <Home size={18} />
             </button>
             <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-            >
-              <LayoutGrid size={18} />
-            </button>
-            <button
               onClick={() => setViewMode('list')}
               className={`p-2 rounded ${viewMode === 'list' ? 'bg-primary text-white' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
+              title="Lista"
             >
               <List size={18} />
             </button>
           </div>
         </div>
       </div>
+
+      {viewMode === 'panorama' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
+          {blocos
+            .filter(bloco => filtered.some(u => u.bloco === bloco))
+            .map((bloco) => {
+              const blocoUnitsFiltered = filtered.filter(u => u.bloco === bloco);
+              const isExpanded = expandedBlocks.has(bloco);
+              const occupied = blocoUnitsFiltered.filter(u => u.status === 'OCUPADA').length;
+              const totalInFilter = blocoUnitsFiltered.length;
+              const percentage = (occupied / Math.max(totalInFilter, 1)) * 100;
+
+            return (
+              <motion.div
+                key={bloco}
+                layout
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className={`bg-white dark:bg-slate-900 rounded-2xl border-2 transition-all p-4 flex flex-col ${
+                  isExpanded 
+                    ? 'col-span-1 sm:col-span-2 lg:col-span-2 xl:col-span-2 ring-2 ring-primary border-primary' 
+                    : 'border-slate-200 dark:border-slate-800 hover:border-primary/50'
+                }`}
+              >
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="bg-primary/10 p-2 rounded-lg">
+                      <Building2 className="text-primary" size={20} />
+                    </div>
+                    <div>
+                      <h3 className="font-black text-lg">Bloco {bloco}</h3>
+                      <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
+                        {occupied}/{totalInFilter} Matches Filtrados
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const newSet = new Set(expandedBlocks);
+                      if (isExpanded) newSet.delete(bloco);
+                      else newSet.add(bloco);
+                      setExpandedBlocks(newSet);
+                    }}
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
+                      isExpanded 
+                        ? 'bg-primary text-white' 
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    {isExpanded ? 'Recolher' : 'Ver Planta'}
+                  </button>
+                </div>
+
+                {/* Occupancy Progress Bar */}
+                {!isExpanded && (
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mb-4 overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentage}%` }}
+                      className="bg-primary h-full"
+                    />
+                  </div>
+                )}
+
+                <AnimatePresence mode="wait">
+                  {isExpanded ? (
+                    <motion.div
+                      key="expanded"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 10 }}
+                      className="grid grid-cols-4 gap-2 pt-2"
+                    >
+                      {[5, 4, 3, 2, 1].map(andar => (
+                        <React.Fragment key={andar}>
+                          {[1, 2, 3, 4].map(apt => {
+                            const numero = `${andar}${apt.toString().padStart(2, '0')}`;
+                            const unit = blocoUnitsFiltered.find(u => u.numero === numero);
+                            if (!unit) return null; // In filter mode, hide non-matching units inside expanded block
+
+                            const statusConfig = getStatusConfig(unit.status);
+                            return (
+                              <button
+                                key={numero}
+                                onClick={() => openDetail(unit)}
+                                className={`h-14 rounded-lg border flex flex-col items-center justify-center text-[10px] font-black transition-all hover:scale-105 relative group/item overflow-hidden border-l-4`}
+                                style={{ 
+                                  borderLeftColor: statusConfig.color,
+                                  backgroundColor: statusConfig.bgColor,
+                                }}
+                              >
+                                <span className="text-xs">{numero}</span>
+                                {unit.primaryResident ? (
+                                  <span className="text-[6px] truncate max-w-[90%] opacity-80 uppercase leading-tight">
+                                    {unit.primaryResident.split(' ')[0]}
+                                  </span>
+                                ) : (
+                                  <span className="text-[7px] font-bold opacity-70" style={{ color: statusConfig.textColor }}>
+                                    {statusConfig.label}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </React.Fragment>
+                      ))}
+                    </motion.div>
+                  ) : (
+                    <div className="grid grid-cols-5 gap-1.5">
+                      {blocoUnitsFiltered.slice(0, 20).map(u => (
+                        <div 
+                          key={u.id}
+                          className="w-full aspect-square rounded-sm"
+                          style={{ backgroundColor: getStatusConfig(u.status).color, opacity: 0.8 }}
+                          title={`${u.numero}: ${u.status}`}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </AnimatePresence>
+
+                {isExpanded && (
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-center">
+                    <button 
+                      onClick={() => { setSelectedBloco(bloco); setViewMode('planta'); }}
+                      className="text-xs font-bold text-primary hover:underline"
+                    >
+                      Abrir tela cheia do bloco →
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      )}
 
       {viewMode === 'planta' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
