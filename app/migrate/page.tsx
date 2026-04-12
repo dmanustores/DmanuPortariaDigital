@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { supabase as defaultSupabase } from '@/lib/supabase';
