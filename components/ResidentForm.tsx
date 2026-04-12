@@ -733,7 +733,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
                  key === 'bloco' ? 'Bloco' :
                  key === 'apto' ? 'Apartamento' :
                  key === 'emergencyContact' ? 'Contato de Emergência' :
-                 key} : {error.message}
+                 key}: {error.message}
               </li>
             ))}
           </ul>
