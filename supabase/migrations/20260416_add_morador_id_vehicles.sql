@@ -65,6 +65,17 @@ CREATE TABLE IF NOT EXISTS vehicles_registry (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Functions
+CREATE OR REPLACE FUNCTION public.check_is_admin()
+RETURNS boolean AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.operators
+    WHERE id = auth.uid() AND role = 'Admin'
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 -- Enable RLS on all tables
 ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
 ALTER TABLE units ENABLE ROW LEVEL SECURITY;
@@ -73,24 +84,16 @@ ALTER TABLE vehicles_registry ENABLE ROW LEVEL SECURITY;
 
 -- Policies for operators
 CREATE POLICY "Everyone can read operators" ON operators FOR SELECT USING (true);
-CREATE POLICY "Admins manage operators" ON operators FOR ALL USING (
-  EXISTS (SELECT 1 FROM operators WHERE id = auth.uid() AND role = 'Admin')
-);
+CREATE POLICY "Admins manage operators" ON operators FOR ALL USING (public.check_is_admin());
 
 -- Policies for units
 CREATE POLICY "Everyone can read units" ON units FOR SELECT USING (true);
-CREATE POLICY "Admins manage units" ON units FOR ALL USING (
-  EXISTS (SELECT 1 FROM operators WHERE id = auth.uid() AND role = 'Admin')
-);
+CREATE POLICY "Admins manage units" ON units FOR ALL USING (public.check_is_admin());
 
 -- Policies for residents
 CREATE POLICY "Everyone can read residents" ON residents FOR SELECT USING (true);
-CREATE POLICY "Admins manage residents" ON residents FOR ALL USING (
-  EXISTS (SELECT 1 FROM operators WHERE id = auth.uid() AND role = 'Admin')
-);
+CREATE POLICY "Admins manage residents" ON residents FOR ALL USING (public.check_is_admin());
 
 -- Policies for vehicles_registry
 CREATE POLICY "Everyone can read vehicles" ON vehicles_registry FOR SELECT USING (true);
-CREATE POLICY "Admins manage vehicles" ON vehicles_registry FOR ALL USING (
-  EXISTS (SELECT 1 FROM operators WHERE id = auth.uid() AND role = 'Admin')
-);
+CREATE POLICY "Admins manage vehicles" ON vehicles_registry FOR ALL USING (public.check_is_admin());
