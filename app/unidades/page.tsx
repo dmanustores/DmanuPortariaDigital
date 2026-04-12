@@ -119,19 +119,30 @@ export default function UnidadesPage() {
       .from('household_members')
       .select('nome, parentesco, resident_id');
 
+    // Busca veículos
+    const { data: vehiclesData } = await supabase
+      .from('vehicles_registry')
+      .select('moradorid');
+
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
         const primaryResidents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero).map(r => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
         
         let allResidents: any[] = [...primaryResidents];
+        let totalVehicles = 0;
         
         primaryResidents.forEach((pr: any) => {
           const deps = dependentsData?.filter((d: any) => d.resident_id === pr.id).map((d: any) => ({ nome: d.nome, label: (d.parentesco || 'Dependente').toUpperCase() })) || [];
           allResidents = [...allResidents, ...deps];
+          
+          const veiculos = vehiclesData?.filter((v: any) => v.moradorid === pr.id) || [];
+          totalVehicles += veiculos.length;
         });
 
         return {
           ...u,
+          totalMoradores: allResidents.length,
+          totalVehicles: totalVehicles,
           primaryResident: allResidents.length > 0 ? allResidents[0].nome : undefined,
           allResidents: allResidents
         };
@@ -707,10 +718,10 @@ export default function UnidadesPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-slate-100 dark:border-slate-800 p-3 flex items-center justify-center gap-4 text-xs text-slate-500">
-                  <span className="flex items-center gap-1"><Users size={12} />0</span>
-                  <span className="flex items-center gap-1"><Car size={12} />{unit.vagasGaragem || 0}</span>
-                  <span className="flex items-center gap-1"><Package size={12} />0</span>
+                <div className="border-t border-slate-100 dark:border-slate-800 p-3 flex items-center justify-center gap-4 text-xs text-slate-500 font-bold">
+                  <span className="flex items-center gap-1" title="Moradores"><Users size={12} className="text-primary" /> {unit.totalMoradores || 0}</span>
+                  <span className="flex items-center gap-1" title="Veículos Ativos"><Car size={12} className="text-amber-500" /> {unit.totalVehicles || 0} <span className="opacity-50 font-normal ml-1">/ {unit.vagasGaragem || 0} vagas</span></span>
+                  <span className="flex items-center gap-1" title="Encomendas"><Package size={12} /> 0</span>
                 </div>
 
                 {isAdmin && (
@@ -738,11 +749,11 @@ export default function UnidadesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th className="text-left p-3 font-bold text-slate-500">Unidade</th>
                 <th className="text-left p-3 font-bold text-slate-500">Bloco</th>
+                <th className="text-left p-3 font-bold text-slate-500 text-lg uppercase">Unidade</th>
                 <th className="text-left p-3 font-bold text-slate-500">Status</th>
-                <th className="text-center p-3 font-bold text-slate-500">Moradores</th>
-                <th className="text-center p-3 font-bold text-slate-500">Veículos</th>
+                <th className="text-center p-3 font-bold text-primary">Moradores</th>
+                <th className="text-center p-3 font-bold text-amber-500">Veículos</th>
                 <th className="text-center p-3 font-bold text-slate-500">Encomendas</th>
                 {isAdmin && <th className="text-right p-3 font-bold text-slate-500">Ações</th>}
               </tr>
@@ -752,16 +763,19 @@ export default function UnidadesPage() {
                 const statusConfig = getStatusConfig(unit.status);
                 return (
                   <tr key={unit.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onClick={() => openDetail(unit)}>
-                    <td className="p-3 font-black">{unit.numero}</td>
-                    <td className="p-3">Bloco {unit.bloco}</td>
+                    <td className="p-3 font-semibold text-slate-600 dark:text-slate-300">Bloco {unit.bloco}</td>
+                    <td className="p-3 font-black text-xl text-slate-900 dark:text-white">{unit.numero}</td>
                     <td className="p-3">
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
                         {statusConfig.label}
                       </span>
                     </td>
-                    <td className="p-3 text-center">0</td>
-                    <td className="p-3 text-center">{unit.vagasGaragem || 0}</td>
-                    <td className="p-3 text-center">0</td>
+                    <td className="p-3 text-center font-bold text-primary">{unit.totalMoradores || 0}</td>
+                    <td className="p-3 text-center">
+                      <span className="font-bold text-amber-500">{unit.totalVehicles || 0} </span>
+                      <span className="text-xs text-slate-400">/ {unit.vagasGaragem || 0}</span>
+                    </td>
+                    <td className="p-3 text-center text-slate-400">0</td>
                     {isAdmin && (
                       <td className="p-3 text-right">
                         <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2">Editar</button>
