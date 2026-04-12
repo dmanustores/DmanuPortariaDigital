@@ -12,7 +12,6 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Check localStorage first (for Owner/master login)
       const localAuth = localStorage.getItem('portaria_auth');
       if (localAuth) {
         try {
@@ -20,12 +19,18 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
             setIsAuthenticated(true);
             setIsLoading(false);
-            return;
+            return true; // Use return true to indicate local auth is valid
           }
         } catch {
           localStorage.removeItem('portaria_auth');
         }
       }
+      return false;
+    };
+
+    const checkAuth = async () => {
+      const isLocalValid = verifyLocalAuth();
+      if (isLocalValid) return;
 
       // Fallback to Supabase session
       const { data: { session } } = await supabase.auth.getSession();
@@ -44,10 +49,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event: any, session: any) => {
-      if (!session && pathname !== '/login') {
-        setIsAuthenticated(false);
-        router.push('/login');
-      } else if (session) {
+      if (!session) {
+        // Only redirect if local auth is also invalid
+        const isLocalValid = verifyLocalAuth();
+        if (!isLocalValid && pathname !== '/login') {
+          setIsAuthenticated(false);
+          router.push('/login');
+        }
+      } else {
         setIsAuthenticated(true);
       }
     });

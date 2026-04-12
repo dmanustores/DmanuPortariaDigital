@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Building2, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { motion } from 'motion/react';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
