@@ -106,10 +106,11 @@ export default function UnidadesPage() {
 
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
-        const resident = residentsData?.find((r: any) => r.bloco === u.bloco && r.apto === u.numero);
+        const residents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero) || [];
         return {
           ...u,
-          primaryResident: resident?.nome
+          primaryResident: residents.length > 0 ? residents[0].nome : undefined,
+          allResidents: residents
         };
       });
       setUnits(unitsWithResidents);
@@ -965,11 +966,30 @@ export default function UnidadesPage() {
                   </div>
                 )}
 
-                <div className="text-center py-8 text-slate-400">
-                  <Users size={40} className="mx-auto mb-2 opacity-50" />
-                  <p>Moradores e outros detalhes serão mostrados aqui</p>
-                  <p className="text-xs mt-2">Configure a integração com moradores para ver detalhes</p>
-                </div>
+                {selectedUnit.allResidents && selectedUnit.allResidents.length > 0 ? (
+                  <div className="mt-6">
+                    <p className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">Moradores Vinculados ({selectedUnit.allResidents.length})</p>
+                    <div className="flex flex-col gap-2">
+                      {selectedUnit.allResidents.map((r: any, idx: number) => (
+                        <div key={idx} className="p-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+                            {r.nome.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="font-bold text-sm text-slate-900 dark:text-white uppercase">{r.nome}</p>
+                            <p className="text-[10px] text-slate-500">{idx === 0 ? 'Titular do Cadastro' : 'Residente Vinculado'}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-slate-400">
+                    <Users size={40} className="mx-auto mb-2 opacity-50" />
+                    <p>Unidade sem moradores vinculados no momento</p>
+                    <p className="text-xs mt-2">Vá no menu Moradores para adicionar um link a este Apartamento.</p>
+                  </div>
+                )}
               </div>
 
               {isAdmin && (
