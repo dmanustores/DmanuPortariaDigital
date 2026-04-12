@@ -38,6 +38,7 @@ const Turnos = [
 ];
 
 const Roles = [
+  { value: 'Owner', label: 'Owner (Master)' },
   { value: 'Admin', label: 'Administrador' },
   { value: 'Zelador', label: 'Zelador' },
   { value: 'Porteiro', label: 'Porteiro' },
@@ -62,9 +63,20 @@ export default function AdminPage() {
   });
   const [saving, setSaving] = useState(false);
 
+  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+
   useEffect(() => {
     fetchOperators();
+    fetchCurrentUser();
   }, []);
+
+  const fetchCurrentUser = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      const { data } = await supabase.from('operators').select('role').eq('id', session.user.id).single();
+      if (data) setCurrentUserRole(data.role);
+    }
+  };
 
   const fetchOperators = async () => {
     setLoading(true);
@@ -159,7 +171,7 @@ export default function AdminPage() {
             nome: formData.nome,
             email: formData.email.toLowerCase(),
             role: formData.role,
-            turno: formData.role === 'Admin' ? null : (formData.turno || null)
+            turno: (formData.role === 'Admin' || formData.role === 'Owner') ? null : (formData.turno || null)
           });
           
           if (insertError) {
@@ -202,6 +214,7 @@ export default function AdminPage() {
     total: operators.length,
     porteros: operators.filter(o => o.role === 'Porteiro').length,
     admins: operators.filter(o => o.role === 'Admin').length,
+    owners: operators.filter(o => o.role === 'Owner').length,
     turnoA: operators.filter(o => o.turno === 'A').length,
     turnoB: operators.filter(o => o.turno === 'B').length,
     turnoC: operators.filter(o => o.turno === 'C').length,
@@ -291,19 +304,28 @@ export default function AdminPage() {
                 return (
                   <tr key={operator.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                     <td className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <UserCheck size={18} className="text-primary" />
+                      {operator.role === 'Owner' && (
+                        <span className="inline-flex px-2 py-1 rounded-full text-[10px] font-black bg-slate-900 text-yellow-400 border border-yellow-500 uppercase">
+                          System Master
+                        </span>
+                      )}
+                      {operator.role !== 'Owner' && (
+                        <div className="flex items-center gap-3">
+                          <div className="size-10 rounded-full bg-primary/10 flex items-center justify-center">
+                            <UserCheck size={18} className="text-primary" />
+                          </div>
+                          <div>
+                            <p className="font-semibold text-sm">{operator.nome}</p>
+                            <p className="text-xs text-slate-400">ID: {operator.id.slice(0, 8)}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-sm">{operator.nome}</p>
-                          <p className="text-xs text-slate-400">ID: {operator.id.slice(0, 8)}</p>
-                        </div>
-                      </div>
+                      )}
                     </td>
                     <td className="p-4">
                       <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
-                        operator.role === 'Admin' 
+                        operator.role === 'Owner'
+                          ? 'bg-black text-white dark:bg-white dark:text-black'
+                          : operator.role === 'Admin' 
                           ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
                           : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
                       }`}>
@@ -322,20 +344,29 @@ export default function AdminPage() {
                     </td>
                     <td className="p-4 text-sm text-slate-500">{turnoInfo.hours}</td>
                     <td className="p-4">
-                      <div className="flex justify-end gap-2">
-                        <button 
-                          onClick={() => openModal(operator)}
-                          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
-                        >
-                          <Pencil size={16} className="text-slate-400" />
-                        </button>
-                        <button 
-                          onClick={() => handleDelete(operator.id)}
-                          className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} className="text-red-400" />
-                        </button>
-                      </div>
+                      { (currentUserRole === 'Owner' || (operator.role !== 'Admin' && operator.role !== 'Owner')) ? (
+                        <div className="flex justify-end gap-2">
+                          <button 
+                            onClick={() => openModal(operator)}
+                            className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
+                          >
+                            <Pencil size={16} className="text-slate-400" />
+                          </button>
+                          {operator.role !== 'Owner' && (
+                            <button 
+                              onClick={() => handleDelete(operator.id)}
+                              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} className="text-red-400" />
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="text-right flex items-center justify-end gap-1">
+                          <Shield size={14} className="text-amber-500" />
+                          <span className="text-xs text-slate-400 italic">Nível Elevado</span>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 );
@@ -442,16 +473,16 @@ export default function AdminPage() {
                   <label className="block text-sm font-bold mb-2">Função *</label>
                   <select 
                     value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value, turno: e.target.value === 'Admin' ? '' : 'A'})}
+                    onChange={(e) => setFormData({...formData, role: e.target.value, turno: (e.target.value === 'Admin' || e.target.value === 'Owner') ? '' : 'A'})}
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
                   >
-                    {Roles.map(role => (
+                    {Roles.filter(role => currentUserRole === 'Owner' || (role.value !== 'Admin' && role.value !== 'Owner')).map(role => (
                       <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
                   </select>
                 </div>
 
-                {formData.role !== 'Admin' && (
+                {(formData.role !== 'Admin' && formData.role !== 'Owner') && (
                   <div>
                     <label className="block text-sm font-bold mb-2">Turno</label>
                     <select 

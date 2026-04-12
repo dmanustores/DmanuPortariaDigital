@@ -170,10 +170,11 @@ export default function VeiculosPage() {
   };
 
   const filtered = vehicles.filter(v => {
+    const nameToSearch = v.nomeProprietario || v.nomeproprietario || '';
     const matchSearch = !search || 
       v.placa.toLowerCase().includes(search.toLowerCase()) ||
       (v.modelo?.toLowerCase().includes(search.toLowerCase())) ||
-      (v.nomeProprietario?.toLowerCase().includes(search.toLowerCase()));
+      (nameToSearch.toLowerCase().includes(search.toLowerCase()));
     const matchFilter = filter === 'TODOS' || v.tipo === filter;
     return matchSearch && matchFilter;
   });
@@ -266,12 +267,12 @@ export default function VeiculosPage() {
                   </td>
                   <td className="p-4">
                     <div>
-                      <p className="text-sm">{vehicle.nomeProprietario || '-'}</p>
+                      <p className="text-sm">{vehicle.nomeProprietario || vehicle.nomeproprietario || '-'}</p>
                       {vehicle.telefone && <p className="text-xs text-slate-400">{vehicle.telefone}</p>}
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm">{vehicle.unidadeDesc || '-'}</span>
+                    <span className="text-sm">{vehicle.unidadeDesc || vehicle.unidadedesc || '-'}</span>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
