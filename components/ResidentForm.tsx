@@ -657,16 +657,16 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <FileText size={18} />
           <h3 className="font-bold text-sm uppercase">Entrega de Boletos</h3>
         </div>
-      <div className="flex gap-6">
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" value="CONDOMINIO" {...register('invoiceDelivery')} disabled={isReadOnly} className="text-primary focus:ring-primary disabled:opacity-70" />
-          No próprio condomínio
-        </label>
-        <label className="flex items-center gap-2 text-sm cursor-pointer">
-          <input type="radio" value="OUTRO" {...register('invoiceDelivery')} disabled={isReadOnly} className="text-primary focus:ring-primary disabled:opacity-70" />
-          Outro endereço
-        </label>
-      </div>
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" value="CONDOMINIO" {...register('invoiceDelivery')} disabled={isReadOnly} className="text-primary focus:ring-primary disabled:opacity-70" />
+            No próprio condomínio
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="radio" value="OUTRO" {...register('invoiceDelivery')} disabled={isReadOnly} className="text-primary focus:ring-primary disabled:opacity-70" />
+            Outro endereço
+          </label>
+        </div>
         {invoiceDelivery === 'OUTRO' && (
           <motion.div 
             initial={{ opacity: 0, height: 0 }}
@@ -711,6 +711,8 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             </div>
           </motion.div>
         )}
+      </div>
+
       {Object.keys(errors).length > 0 && (
         <motion.div 
           initial={{ opacity: 0, height: 0 }}
