@@ -110,7 +110,8 @@ export const saveResident = async (resident: Resident) => {
       supabase.from('household_members').delete().eq('resident_id', resident.id),
       supabase.from('vehicles').delete().eq('resident_id', resident.id),
       supabase.from('service_providers').delete().eq('resident_id', resident.id),
-      supabase.from('invoice_addresses').delete().eq('resident_id', resident.id)
+      supabase.from('invoice_addresses').delete().eq('resident_id', resident.id),
+      supabase.from('vehicles_registry').delete().eq('moradorid', resident.id)
     ]);
 
     const delError = delResults.find(r => r.error)?.error;
@@ -120,6 +121,30 @@ export const saveResident = async (resident: Resident) => {
 
     // Insert relations
     const promises = [];
+
+    // Sincroniza e força atualização da unidade residente
+    if (resident.bloco && resident.apto) {
+      promises.push((async () => {
+        const { data: existingUnit } = await supabase
+          .from('units')
+          .select('id')
+          .eq('bloco', resident.bloco)
+          .eq('numero', resident.apto)
+          .maybeSingle();
+
+        if (existingUnit) {
+          await supabase.from('units').update({ status: 'OCUPADA' }).eq('id', existingUnit.id);
+        } else {
+          await supabase.from('units').insert({
+            bloco: resident.bloco,
+            numero: resident.apto,
+            tipo: 'RESIDENCIAL',
+            status: 'OCUPADA',
+            vagasgaragem: 1
+          });
+        }
+      })());
+    }
 
     if (resident.householdMembers && resident.householdMembers.length > 0) {
       promises.push(
@@ -147,6 +172,22 @@ export const saveResident = async (resident: Resident) => {
             const { id, resident_id, created_at, ...rest } = v;
             return { ...rest, resident_id: resident.id };
           })
+        )
+      );
+
+      promises.push(
+        supabase.from('vehicles_registry').insert(
+          resident.vehicles.map((v: any) => ({
+            placa: v.placa ? v.placa.toUpperCase() : '',
+            modelo: v.modelo || null,
+            cor: v.cor || null,
+            unidadedesc: `Bloco ${resident.bloco}, Apt ${resident.apto}`,
+            tipo: 'MORADOR',
+            nomeproprietario: resident.nome,
+            telefone: resident.celular || resident.fone || null,
+            moradorid: resident.id,
+            status: 'ATIVO'
+          }))
         )
       );
     }
@@ -194,7 +235,8 @@ export const deleteResident = async (id: string) => {
       supabase.from('household_members').delete().eq('resident_id', id),
       supabase.from('vehicles').delete().eq('resident_id', id),
       supabase.from('service_providers').delete().eq('resident_id', id),
-      supabase.from('invoice_addresses').delete().eq('resident_id', id)
+      supabase.from('invoice_addresses').delete().eq('resident_id', id),
+      supabase.from('vehicles_registry').delete().eq('moradorid', id)
     ]);
 
     // Check if any relation deletion failed
