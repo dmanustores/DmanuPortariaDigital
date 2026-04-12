@@ -60,10 +60,6 @@ export default function OcorrenciasPage() {
     prioridade: 'Normal'
   });
 
-  useEffect(() => {
-    fetchOccurrences();
-  }, []);
-
   const fetchOccurrences = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -75,6 +71,10 @@ export default function OcorrenciasPage() {
     if (data) setOccurrences(data);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchOccurrences();
+  }, []);
 
   const handleSubmit = async () => {
     try {

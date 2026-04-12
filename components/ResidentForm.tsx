@@ -111,8 +111,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
       },
       temWhatsApp: false,
       lgpdConsent: false,
-      dataEntrada: new Date().toISOString().split('T')[0],
-      status: 'ATIVO'
+      dataEntrada: new Date().toISOString().split('T')[0]
     }
   });
 

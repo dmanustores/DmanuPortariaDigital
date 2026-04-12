@@ -50,10 +50,6 @@ export default function AvisosPage() {
     validade: ''
   });
 
-  useEffect(() => {
-    fetchNotices();
-  }, []);
-
   const fetchNotices = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -65,6 +61,10 @@ export default function AvisosPage() {
     if (data) setNotices(data);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchNotices();
+  }, []);
 
   const handleSubmit = async () => {
     try {

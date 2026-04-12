@@ -60,10 +60,6 @@ export default function ReservasPage() {
     observacoes: ''
   });
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
   const fetchData = async () => {
     setLoading(true);
     const [areasRes, reservationsRes] = await Promise.all([
@@ -75,6 +71,10 @@ export default function ReservasPage() {
     if (reservationsRes.data) setReservations(reservationsRes.data);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const handleSubmit = async () => {
     try {

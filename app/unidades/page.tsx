@@ -105,8 +105,8 @@ export default function UnidadesPage() {
       .select('nome, bloco, apto');
 
     if (unitsData) {
-      const unitsWithResidents = unitsData.map(u => {
-        const resident = residentsData?.find(r => r.bloco === u.bloco && r.apto === u.numero);
+      const unitsWithResidents = unitsData.map((u: any) => {
+        const resident = residentsData?.find((r: any) => r.bloco === u.bloco && r.apto === u.numero);
         return {
           ...u,
           primaryResident: resident?.nome

@@ -64,11 +64,6 @@ export default function VeiculosPage() {
   });
 
   useEffect(() => {
-    fetchVehicles();
-    fetchResidents();
-  }, []);
-
-  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (moradorRef.current && !moradorRef.current.contains(event.target as Node)) {
         setShowMoradorDropdown(false);
@@ -96,6 +91,11 @@ export default function VeiculosPage() {
     if (data) setVehicles(data);
     setLoading(false);
   };
+
+  useEffect(() => {
+    fetchVehicles();
+    fetchResidents();
+  }, []);
 
   const filteredResidents = residents.filter(r => 
     r.nome.toLowerCase().includes(moradorSearch.toLowerCase())
