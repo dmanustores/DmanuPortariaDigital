@@ -102,15 +102,28 @@ export default function UnidadesPage() {
     // Fetch residents to show basic info
     const { data: residentsData } = await supabase
       .from('residents')
-      .select('nome, bloco, apto');
+      .select('id, nome, bloco, apto');
+
+    // Busca dependentes / familiares
+    const { data: dependentsData } = await supabase
+      .from('household_members')
+      .select('nome, parentesco, resident_id');
 
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
-        const residents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero) || [];
+        const primaryResidents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero).map(r => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
+        
+        let allResidents: any[] = [...primaryResidents];
+        
+        primaryResidents.forEach((pr: any) => {
+          const deps = dependentsData?.filter((d: any) => d.resident_id === pr.id).map((d: any) => ({ nome: d.nome, label: (d.parentesco || 'Dependente').toUpperCase() })) || [];
+          allResidents = [...allResidents, ...deps];
+        });
+
         return {
           ...u,
-          primaryResident: residents.length > 0 ? residents[0].nome : undefined,
-          allResidents: residents
+          primaryResident: allResidents.length > 0 ? allResidents[0].nome : undefined,
+          allResidents: allResidents
         };
       });
       setUnits(unitsWithResidents);
@@ -437,7 +450,7 @@ export default function UnidadesPage() {
                     <div>
                       <h3 className="font-black text-lg">Bloco {bloco}</h3>
                       <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">
-                        {occupied}/{totalInFilter} Matches Filtrados
+                        {occupied}/{totalInFilter} unidades listadas
                       </p>
                     </div>
                   </div>
@@ -977,7 +990,7 @@ export default function UnidadesPage() {
                           </div>
                           <div>
                             <p className="font-bold text-sm text-slate-900 dark:text-white uppercase">{r.nome}</p>
-                            <p className="text-[10px] text-slate-500">{idx === 0 ? 'Titular do Cadastro' : 'Residente Vinculado'}</p>
+                            <p className="text-[10px] text-slate-500 font-bold tracking-wider">{r.label}</p>
                           </div>
                         </div>
                       ))}

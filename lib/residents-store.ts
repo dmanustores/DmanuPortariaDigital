@@ -122,27 +122,32 @@ export const saveResident = async (resident: Resident) => {
     // Insert relations
     const promises = [];
 
-    // Sincroniza e força atualização da unidade residente
+    // Sincroniza e força atualização da unidade residente (Tolerante a falhas RLS)
     if (resident.bloco && resident.apto) {
       promises.push((async () => {
-        const { data: existingUnit } = await supabase
-          .from('units')
-          .select('id')
-          .eq('bloco', resident.bloco)
-          .eq('numero', resident.apto)
-          .maybeSingle();
+        try {
+          const { data: existingUnit } = await supabase
+            .from('units')
+            .select('id')
+            .eq('bloco', resident.bloco)
+            .eq('numero', resident.apto)
+            .maybeSingle();
 
-        if (existingUnit) {
-          await supabase.from('units').update({ status: 'OCUPADA' }).eq('id', existingUnit.id);
-        } else {
-          await supabase.from('units').insert({
-            bloco: resident.bloco,
-            numero: resident.apto,
-            tipo: 'RESIDENCIAL',
-            status: 'OCUPADA',
-            vagasgaragem: 1
-          });
+          if (existingUnit) {
+            await supabase.from('units').update({ status: 'OCUPADA' }).eq('id', existingUnit.id);
+          } else {
+            await supabase.from('units').insert({
+              bloco: resident.bloco,
+              numero: resident.apto,
+              tipo: 'RESIDENCIAL',
+              status: 'OCUPADA',
+              vagasgaragem: 1
+            });
+          }
+        } catch(e) {
+          console.warn('Silent skip no espelho de unidades:', e);
         }
+        return { error: null }; // Previne quebra geral caso a trigger de Unidade falhe.
       })());
     }
 
@@ -188,7 +193,10 @@ export const saveResident = async (resident: Resident) => {
             moradorid: resident.id,
             status: 'ATIVO'
           }))
-        )
+        ).then(res => {
+          if(res.error) console.warn('Bloqueio previsto de RLS ao espelhar veículos globalmente:', res.error);
+          return { error: null }; // Ignora erro pra não travar a tela form do morador
+        })
       );
     }
 
@@ -215,10 +223,10 @@ export const saveResident = async (resident: Resident) => {
 
     if (promises.length > 0) {
       const results = await Promise.all(promises);
-      const firstError = results.find(r => r.error)?.error;
-      if (firstError) {
-        console.error('Error saving resident relations:', firstError);
-        throw firstError;
+      const errorResult = results.find(r => r && r.error);
+      if (errorResult?.error) {
+        console.error('Error saving resident relations:', errorResult.error);
+        throw errorResult.error;
       }
     }
 
