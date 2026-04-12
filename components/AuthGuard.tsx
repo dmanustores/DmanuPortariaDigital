@@ -12,6 +12,22 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
+      // Check localStorage first (for Owner/master login)
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth) {
+        try {
+          const parsed = JSON.parse(localAuth);
+          if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
+            setIsAuthenticated(true);
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          localStorage.removeItem('portaria_auth');
+        }
+      }
+
+      // Fallback to Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {

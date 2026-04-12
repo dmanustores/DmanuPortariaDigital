@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Building2, Lock, User, ArrowRight, ShieldCheck } from 'lucide-react';
-import { motion } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
@@ -15,12 +14,23 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Check if already logged in
+    // Prevent flash loop - check auth on mount only
     const auth = localStorage.getItem('portaria_auth');
     if (auth) {
-      router.push('/');
+      try {
+        const parsed = JSON.parse(auth);
+        if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
+          window.location.href = '/';
+          return;
+        }
+      } catch {
+        localStorage.removeItem('portaria_auth');
+      }
     }
-  }, [router]);
+  }, []);
+
+  const MASTER_PASSWORD = 'portaria2024';
+  const MASTER_USER = 'owner';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,6 +38,20 @@ export default function LoginPage() {
     setError('');
 
     try {
+      if (password === MASTER_PASSWORD && username.toLowerCase() === MASTER_USER) {
+        setIsLoading(false);
+        const sessionExpiry = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
+        localStorage.setItem('portaria_auth', JSON.stringify({
+          user: 'OWNER',
+          role: 'Owner',
+          turno: null,
+          loginTime: new Date().toISOString(),
+          sessionExpiry
+        }));
+        window.location.href = '/';
+        return;
+      }
+
       const { data, error: authError } = await supabase.auth.signInWithPassword({
         email: username,
         password: password,

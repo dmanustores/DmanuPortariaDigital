@@ -40,6 +40,19 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
 
   useEffect(() => {
     const fetchProfile = async () => {
+      // First check localStorage (works for Owner/login without Supabase)
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth) {
+        const parsed = JSON.parse(localAuth);
+        setOperator({
+          nome: parsed.user,
+          role: parsed.role,
+          turno: parsed.turno
+        });
+        return;
+      }
+
+      // Fallback to Supabase session
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: profile } = await supabase
@@ -54,17 +67,6 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
             role: profile.role,
             turno: profile.turno
           });
-        } else {
-          // Fallback to local storage if profile not found yet
-          const localAuth = localStorage.getItem('portaria_auth');
-          if (localAuth) {
-            const parsed = JSON.parse(localAuth);
-            setOperator({
-              nome: parsed.user,
-              role: parsed.role,
-              turno: parsed.turno
-            });
-          }
         }
       }
     };
