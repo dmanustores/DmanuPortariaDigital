@@ -171,10 +171,12 @@ export default function VeiculosPage() {
 
   const filtered = vehicles.filter(v => {
     const nameToSearch = v.nomeProprietario || v.nomeproprietario || '';
+    const unitToSearch = v.unidadeDesc || v.unidadedesc || '';
     const matchSearch = !search || 
       v.placa.toLowerCase().includes(search.toLowerCase()) ||
       (v.modelo?.toLowerCase().includes(search.toLowerCase())) ||
-      (nameToSearch.toLowerCase().includes(search.toLowerCase()));
+      (nameToSearch.toLowerCase().includes(search.toLowerCase())) ||
+      (unitToSearch.toLowerCase().includes(search.toLowerCase()));
     const matchFilter = filter === 'TODOS' || v.tipo === filter;
     return matchSearch && matchFilter;
   });
@@ -214,7 +216,7 @@ export default function VeiculosPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text"
-            placeholder="Buscar por placa, modelo ou proprietário..."
+            placeholder="Buscar por placa, modelo, proprietário ou unidade (bloco/apt)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
