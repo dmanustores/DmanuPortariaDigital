@@ -21,7 +21,7 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   transpilePackages: ['motion'],
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
     optimizePackageImports: ['lucide-react', 'motion'],
   },
   webpack: (config, {dev}) => {

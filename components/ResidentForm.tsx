@@ -110,7 +110,9 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         cep: ''
       },
       temWhatsApp: false,
-      lgpdConsent: false
+      lgpdConsent: false,
+      dataEntrada: new Date().toISOString().split('T')[0],
+      status: 'ATIVO'
     }
   });
 
@@ -150,7 +152,9 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           cidade: '',
           estado: '',
           cep: ''
-        }
+        },
+        dataEntrada: new Date().toISOString().split('T')[0],
+        status: 'ATIVO'
       });
     }
   }, [initialData, reset]);
@@ -270,6 +274,31 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             >
               <option value="PROPRIETARIO">Proprietário</option>
               <option value="LOCATARIO">Locatário</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+              Data de Entrada
+            </label>
+            <input 
+              type="date"
+              {...register('dataEntrada')} 
+              disabled={isReadOnly}
+              className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+            />
+            {errors.dataEntrada && <p className="text-red-500 text-xs font-bold mt-1">{errors.dataEntrada.message}</p>}
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+              Status Cadastral
+            </label>
+            <select 
+              {...register('status')} 
+              disabled={isReadOnly}
+              className={`w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold ${watch('status') === 'ATIVO' ? 'text-green-600' : 'text-red-500'}`}
+            >
+              <option value="ATIVO">ATIVO</option>
+              <option value="INATIVO">INATIVO</option>
             </select>
           </div>
         </div>
@@ -682,7 +711,34 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             </div>
           </motion.div>
         )}
-      </div>
+      {Object.keys(errors).length > 0 && (
+        <motion.div 
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl"
+        >
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-400 font-bold text-sm mb-2">
+            <ShieldAlert size={16} />
+            Não é possível salvar. Verifique os campos abaixo:
+          </div>
+          <ul className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-1 list-disc list-inside">
+            {Object.entries(errors).map(([key, error]: [string, any]) => (
+              <li key={key} className="text-[10px] text-red-600 dark:text-red-400 uppercase font-black">
+                {key === 'nome' ? 'Nome Completo' : 
+                 key === 'celular' ? 'Celular' :
+                 key === 'cpf' ? 'CPF' :
+                 key === 'rg' ? 'RG' :
+                 key === 'email' ? 'E-mail' :
+                 key === 'dataEntrada' ? 'Data de Entrada' :
+                 key === 'bloco' ? 'Bloco' :
+                 key === 'apto' ? 'Apartamento' :
+                 key === 'emergencyContact' ? 'Contato de Emergência' :
+                 key} : {error.message}
+              </li>
+            ))}
+          </ul>
+        </motion.div>
+      )}
 
       <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 pt-6 border-t border-slate-100 dark:border-slate-800">
         <button type="button" onClick={onCancel} className="w-full sm:w-auto px-6 py-2.5 rounded-lg text-sm font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
