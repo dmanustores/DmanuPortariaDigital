@@ -12,7 +12,9 @@ import {
   Key,
   Clock,
   AlertTriangle,
-  User
+  User,
+  FileText,
+  Building
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -52,12 +54,20 @@ export default function VeiculosPage() {
   const [showMoradorDropdown, setShowMoradorDropdown] = useState(false);
   const [selectedMorador, setSelectedMorador] = useState<Resident | null>(null);
   const moradorRef = useRef<HTMLDivElement>(null);
+  const unidadeRef = useRef<HTMLDivElement>(null);
+  const [blocoSearch, setBlocoSearch] = useState('');
+  const [apartamentoSearch, setApartamentoSearch] = useState('');
+  const [showUnidadeDropdown, setShowUnidadeDropdown] = useState(false);
+  const [selectedUnidade, setSelectedUnidade] = useState<Resident | null>(null);
   const [formData, setFormData] = useState({
+    nome: '',
+    documento: '',
+    tipoDocumento: 'CPF',
     placa: '',
     modelo: '',
     cor: '',
     unidadeDesc: '',
-    tipo: 'MORADOR',
+    tipo: 'VISITANTE',
     nomeProprietario: '',
     telefone: '',
     moradorId: ''
@@ -67,6 +77,9 @@ export default function VeiculosPage() {
     const handleClickOutside = (event: MouseEvent) => {
       if (moradorRef.current && !moradorRef.current.contains(event.target as Node)) {
         setShowMoradorDropdown(false);
+      }
+      if (unidadeRef.current && !unidadeRef.current.contains(event.target as Node)) {
+        setShowUnidadeDropdown(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -101,6 +114,36 @@ export default function VeiculosPage() {
     r.nome.toLowerCase().includes(moradorSearch.toLowerCase())
   ).slice(0, 10);
 
+  // Lista de unidades com bloco e numero preenchidos
+  const unidadesDisponiveis = residents.filter(r => r.bloco && r.numero);
+
+  const filteredUnidades = unidadesDisponiveis.filter(r => {
+    const blocoStr = r.bloco?.toString().trim() || '';
+    const numeroStr = r.numero?.toString().trim() || '';
+    const searchBloco = blocoSearch.trim();
+    const searchApartamento = apartamentoSearch.trim();
+
+    // Se nenhum campo foi preenchido, mostra todas as unidades disponíveis
+    if (!searchBloco && !searchApartamento) return true;
+
+    // Filtra por bloco se preenchido
+    if (searchBloco && !searchApartamento) {
+      return blocoStr.includes(searchBloco);
+    }
+
+    // Filtra por apartamento se preenchido
+    if (searchApartamento && !searchBloco) {
+      return numeroStr.includes(searchApartamento);
+    }
+
+    // Filtra por ambos se preenchidos
+    if (searchBloco && searchApartamento) {
+      return blocoStr.includes(searchBloco) && numeroStr.includes(searchApartamento);
+    }
+
+    return false;
+  }).slice(0, 15);
+
   const handleSelectMorador = (resident: Resident) => {
     setSelectedMorador(resident);
     setMoradorSearch(resident.nome);
@@ -116,6 +159,22 @@ export default function VeiculosPage() {
     setShowMoradorDropdown(false);
   };
 
+  const handleSelectUnidade = (resident: Resident) => {
+    setSelectedUnidade(resident);
+    const unidadeDesc = resident.bloco && resident.numero 
+      ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
+      : '';
+    setBlocoSearch(resident.bloco || '');
+    setApartamentoSearch(resident.numero || '');
+    setFormData({
+      ...formData,
+      unidadeDesc,
+      moradorId: resident.id,
+      telefone: resident.celular || ''
+    });
+    setShowUnidadeDropdown(false);
+  };
+
   const clearMoradorSelection = () => {
     setSelectedMorador(null);
     setMoradorSearch('');
@@ -128,15 +187,48 @@ export default function VeiculosPage() {
     });
   };
 
+  const clearUnidadeSelection = () => {
+    setSelectedUnidade(null);
+    setBlocoSearch('');
+    setApartamentoSearch('');
+    setFormData({
+      ...formData,
+      unidadeDesc: '',
+      moradorId: ''
+    });
+  };
+
   const handleSubmit = async () => {
     try {
+      // Validação básica
+      if (!formData.nome.trim() || !formData.documento.trim() || !formData.placa.trim() || !formData.unidadeDesc.trim()) {
+        alert('Por favor, preencha todos os campos obrigatórios (Nome, Documento, Placa, Unidade)');
+        return;
+      }
+
+      // Validar se moradorId está preenchido (referência à unidade)
+      if (!formData.moradorId) {
+        alert('Por favor, selecione uma unidade válida');
+        return;
+      }
+
+      // Para visitantes/prestadores, nome do condutor é obrigatório
+      if (formData.tipo !== 'MORADOR' && !formData.nomeProprietario.trim()) {
+        alert('Por favor, preencha o nome do condutor');
+        return;
+      }
+
+      const nomeProprietario = formData.tipo === 'MORADOR' 
+        ? formData.nome 
+        : formData.nomeProprietario;
+
       await supabase.from('vehicles_registry').insert({
         placa: formData.placa.toUpperCase(),
         modelo: formData.modelo || null,
         cor: formData.cor || null,
         unidadeDesc: formData.unidadeDesc || null,
         tipo: formData.tipo,
-        nomeProprietario: formData.nomeProprietario || null,
+        nomeProprietario: nomeProprietario || null,
         telefone: formData.telefone || null,
         moradorId: formData.moradorId || null,
         status: 'ATIVO'
@@ -144,17 +236,23 @@ export default function VeiculosPage() {
       
       setShowModal(false);
       setFormData({
+        nome: '',
+        documento: '',
+        tipoDocumento: 'CPF',
         placa: '',
         modelo: '',
         cor: '',
         unidadeDesc: '',
-        tipo: 'MORADOR',
+        tipo: 'VISITANTE',
         nomeProprietario: '',
         telefone: '',
         moradorId: ''
       });
       setSelectedMorador(null);
       setMoradorSearch('');
+      setSelectedUnidade(null);
+      setBlocoSearch('');
+      setApartamentoSearch('');
       fetchVehicles();
     } catch (err) {
       console.error(err);
@@ -336,157 +434,258 @@ export default function VeiculosPage() {
               initial={{ scale: 0.95 }}
               animate={{ scale: 1 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg"
+              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="text-xl font-bold">Novo Veículo</h3>
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 sticky top-0 bg-white dark:bg-slate-900 flex justify-between items-center">
+                <h3 className="text-xl font-bold">Novo Cadastro de Veículo</h3>
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
                   <X size={20} />
                 </button>
               </div>
 
-              <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Placa *</label>
-                  <input 
-                    type="text"
-                    value={formData.placa}
-                    onChange={(e) => setFormData({...formData, placa: e.target.value.toUpperCase()})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-mono"
-                    placeholder="AAA-0000"
-                    maxLength={8}
-                  />
+              <div className="p-6 space-y-6">
+                {/* SEÇÃO 1: DADOS PESSOAIS */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                    <User size={16} />
+                    DADOS PESSOAIS / CONDUTOR
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Nome Completo *</label>
+                      <input 
+                        type="text"
+                        value={formData.nome}
+                        onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        placeholder="Ex: João da Silva"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-2 text-primary">Tipo *</label>
+                        <select 
+                          value={formData.tipoDocumento}
+                          onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        >
+                          <option value="CPF">CPF</option>
+                          <option value="RG">RG</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-bold mb-2 text-primary">{formData.tipoDocumento} *</label>
+                        <input 
+                          type="text"
+                          value={formData.documento}
+                          onChange={(e) => setFormData({...formData, documento: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-mono"
+                          placeholder={formData.tipoDocumento === 'CPF' ? '000.000.000-00' : '00.000.000-0'}
+                          maxLength={formData.tipoDocumento === 'CPF' ? 14 : 12}
+                        />
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Modelo</label>
-                  <input 
-                    type="text"
-                    value={formData.modelo}
-                    onChange={(e) => setFormData({...formData, modelo: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="Ex: Honda Civic, Chevrolet Onix"
-                  />
-                </div>
+                {/* SEÇÃO 2: DADOS DO VEÍCULO */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                    <Car size={16} />
+                    DADOS DO VEÍCULO
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Placa *</label>
+                      <input 
+                        type="text"
+                        value={formData.placa}
+                        onChange={(e) => setFormData({...formData, placa: e.target.value.toUpperCase()})}
+                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-lg"
+                        placeholder="AAA-0000"
+                        maxLength={8}
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Cor</label>
-                  <input 
-                    type="text"
-                    value={formData.cor}
-                    onChange={(e) => setFormData({...formData, cor: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="Ex: Prata, Preto, Branco"
-                  />
-                </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Modelo</label>
+                        <input 
+                          type="text"
+                          value={formData.modelo}
+                          onChange={(e) => setFormData({...formData, modelo: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          placeholder="Ex: Honda Civic"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Cor</label>
+                        <input 
+                          type="text"
+                          value={formData.cor}
+                          onChange={(e) => setFormData({...formData, cor: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          placeholder="Ex: Prata"
+                        />
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Tipo</label>
-                  <select 
-                    value={formData.tipo}
-                    onChange={(e) => {
-                      const newTipo = e.target.value;
-                      setFormData({
-                        ...formData, 
-                        tipo: newTipo,
-                        nomeProprietario: newTipo === 'MORADOR' && selectedMorador ? selectedMorador.nome : ''
-                      });
-                    }}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                  >
-                    <option value="MORADOR">Veículo de Morador</option>
-                    <option value="VISITANTE">Veículo de Visitante</option>
-                    <option value="PRESTADOR">Veículo de Prestador</option>
-                    <option value="MUDANCA">Veículo de Mudança</option>
-                  </select>
-                </div>
-
-                <div ref={moradorRef} className="relative">
-                  <label className="block text-sm font-bold mb-2">
-                    Morador Vinculado (Destino) *
-                  </label>
-                  <div className="relative">
-                    <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                      type="text"
-                      value={moradorSearch}
-                      onChange={(e) => {
-                        setMoradorSearch(e.target.value);
-                        setShowMoradorDropdown(true);
-                      }}
-                      onFocus={() => setShowMoradorDropdown(true)}
-                      className="w-full pl-10 pr-10 p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                      placeholder="Buscar morador responsável da unidade..."
-                    />
-                    {selectedMorador && (
-                      <button 
-                        onClick={clearMoradorSelection}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500"
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Tipo de Veículo *</label>
+                      <select 
+                        value={formData.tipo}
+                        onChange={(e) => {
+                          const newTipo = e.target.value;
+                          setFormData({
+                            ...formData, 
+                            tipo: newTipo
+                          });
+                        }}
+                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
                       >
-                        <X size={16} />
-                      </button>
+                        <option value="VISITANTE">Veículo de Visitante</option>
+                        <option value="MORADOR">Veículo de Morador</option>
+                        <option value="PRESTADOR">Veículo de Prestador</option>
+                        <option value="MUDANCA">Veículo de Mudança</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* SEÇÃO 3: UNIDADE DE DESTINO */}
+                <div ref={unidadeRef} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 relative">
+                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
+                    <Building size={16} />
+                    UNIDADE DE DESTINO
+                  </h4>
+                  <div className="space-y-4">
+                    {/* Campos Bloco e Apartamento */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="relative">
+                        <label className="block text-sm font-bold mb-2 text-primary">Bloco (Número) *</label>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          value={blocoSearch}
+                          onChange={(e) => {
+                            setBlocoSearch(e.target.value);
+                            setShowUnidadeDropdown(true);
+                          }}
+                          onFocus={() => setShowUnidadeDropdown(true)}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold"
+                          placeholder="1, 2, A, B..."
+                        />
+                      </div>
+                      <div className="relative">
+                        <label className="block text-sm font-bold mb-2 text-primary">Apartamento (Número) *</label>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          value={apartamentoSearch}
+                          onChange={(e) => {
+                            setApartamentoSearch(e.target.value);
+                            setShowUnidadeDropdown(true);
+                          }}
+                          onFocus={() => setShowUnidadeDropdown(true)}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-semibold"
+                          placeholder="101, 201, 302..."
+                        />
+                      </div>
+                    </div>
+
+                    {/* Dropdown de Resultados */}
+                    {showUnidadeDropdown && filteredUnidades.length > 0 && (
+                      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        <div className="p-2">
+                          {!blocoSearch && !apartamentoSearch && (
+                            <div className="px-4 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-700">
+                              📋 SUGESTÕES DISPONÍVEIS:
+                            </div>
+                          )}
+                          {filteredUnidades.map((resident) => (
+                            <button
+                              key={resident.id}
+                              onClick={() => handleSelectUnidade(resident)}
+                              className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-0 rounded transition-colors"
+                            >
+                              <p className="font-semibold text-sm">
+                                Bloco {resident.bloco}, Apt {resident.numero}
+                              </p>
+                              <p className="text-xs text-slate-500">👤 {resident.nome}</p>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Mensagem quando não há resultados */}
+                    {showUnidadeDropdown && (blocoSearch || apartamentoSearch) && filteredUnidades.length === 0 && (
+                      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-4 text-center">
+                        <p className="text-sm text-yellow-700 dark:text-yellow-400 font-semibold mb-2">
+                          ❌ Nenhuma unidade encontrada
+                        </p>
+                        <p className="text-xs text-yellow-600 dark:text-yellow-500 mb-3">
+                          Bloco {blocoSearch || '?'} Apt {apartamentoSearch || '?'} - Verifique se está cadastrado
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setBlocoSearch('');
+                            setApartamentoSearch('');
+                          }}
+                          className="text-xs px-3 py-1.5 bg-yellow-200 dark:bg-yellow-700 text-yellow-900 dark:text-yellow-100 rounded hover:bg-yellow-300 transition-colors"
+                        >
+                          Ver Sugestões
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Mensagem se nenhuma unidade está cadastrada no sistema */}
+                    {showUnidadeDropdown && unidadesDisponiveis.length === 0 && (
+                      <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg p-4 text-center">
+                        <p className="text-sm text-red-700 dark:text-red-400 font-semibold">
+                          ⚠️ Nenhuma unidade cadastrada no sistema
+                        </p>
+                        <p className="text-xs text-red-600 dark:text-red-500 mt-1">
+                          Cadastre moradores com informações de Bloco e Apartamento em Moradores
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Confirmação da Unidade Selecionada */}
+                    {formData.unidadeDesc && (
+                      <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-blue-600 dark:text-blue-400 mb-1">Unidade Selecionada:</p>
+                          <p className="text-sm font-bold text-blue-900 dark:text-blue-100">{formData.unidadeDesc}</p>
+                        </div>
+                        <button 
+                          onClick={clearUnidadeSelection}
+                          className="text-blue-600 hover:text-red-600 transition-colors"
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
                     )}
                   </div>
-                  
-                  {showMoradorDropdown && filteredResidents.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                      {filteredResidents.map((resident) => (
-                        <button
-                          key={resident.id}
-                          onClick={() => handleSelectMorador(resident)}
-                          className="w-full text-left px-4 py-3 hover:bg-slate-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-0"
-                        >
-                          <p className="font-semibold text-sm">{resident.nome}</p>
-                          <p className="text-xs text-slate-500">
-                            {resident.bloco && resident.numero 
-                              ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
-                              : 'Sem unidade cadastrada'}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                {formData.tipo !== 'MORADOR' && (
-                  <div>
-                    <label className="block text-sm font-bold mb-2 text-primary">Nome do Condutor *</label>
-                    <input 
-                      type="text"
-                      value={formData.nomeProprietario}
-                      onChange={(e) => setFormData({...formData, nomeProprietario: e.target.value})}
-                      className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                      placeholder="Nome do Visitante/Prestador..."
-                    />
-                  </div>
-                )}
-
-                <div>
-                  <label className="block text-sm font-bold mb-2">Unidade Vinculada</label>
-                  <input 
-                    type="text"
-                    value={formData.unidadeDesc}
-                    readOnly
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500 font-bold"
-                    placeholder="Selecione um morador responsável"
-                  />
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 sticky bottom-0 bg-white dark:bg-slate-900 flex gap-3">
                 <button 
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm"
+                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
                 >
                   Cancelar
                 </button>
                 <button 
                   onClick={handleSubmit}
-                  disabled={!formData.placa || !formData.moradorId || (formData.tipo !== 'MORADOR' && !formData.nomeProprietario)}
-                  className="flex-1 py-3 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  disabled={!formData.nome || !formData.documento || !formData.placa || !formData.moradorId}
+                  className="flex-1 py-3 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 flex items-center justify-center gap-2"
                 >
                   <Save size={18} />
-                  Salvar
+                  Salvar Veículo
                 </button>
               </div>
             </motion.div>
