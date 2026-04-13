@@ -193,12 +193,18 @@ export default function VeiculosPage() {
         </motion.div>
 
         <div className="flex items-center gap-3">
-          <div className="bg-blue-100 dark:bg-blue-900/30 px-4 py-2 rounded-lg">
-            <span className="text-blue-700 dark:text-blue-400 font-bold text-sm">{moradorCount} moradores</span>
-          </div>
-          <div className="bg-green-100 dark:bg-green-900/30 px-4 py-2 rounded-lg">
-            <span className="text-green-700 dark:text-green-400 font-bold text-sm">{visitanteCount} visitantes</span>
-          </div>
+          <button 
+            onClick={() => setFilter(filter === 'MORADOR' ? 'TODOS' : 'MORADOR')}
+            className={`px-4 py-2 rounded-lg transition-all border-2 ${filter === 'MORADOR' ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
+          >
+            <span className={`font-bold text-sm ${filter === 'MORADOR' ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} moradores</span>
+          </button>
+          <button 
+            onClick={() => setFilter(filter === 'VISITANTE' ? 'TODOS' : 'VISITANTE')}
+            className={`px-4 py-2 rounded-lg transition-all border-2 ${filter === 'VISITANTE' ? 'bg-green-500 text-white border-green-600 shadow-md transform scale-105' : 'bg-green-100 dark:bg-green-900/30 border-transparent hover:bg-green-200 cursor-pointer'}`}
+          >
+            <span className={`font-bold text-sm ${filter === 'VISITANTE' ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} visitantes</span>
+          </button>
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -269,12 +275,14 @@ export default function VeiculosPage() {
                   </td>
                   <td className="p-4">
                     <div>
-                      <p className="text-sm">{vehicle.nomeProprietario || vehicle.nomeproprietario || '-'}</p>
+                      <p className="text-sm font-bold">{vehicle.nomeProprietario || vehicle.nomeproprietario || '-'}</p>
                       {vehicle.telefone && <p className="text-xs text-slate-400">{vehicle.telefone}</p>}
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm">{vehicle.unidadeDesc || vehicle.unidadedesc || '-'}</span>
+                    <span className="inline-block px-3 py-1.5 font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
+                      {vehicle.unidadeDesc || vehicle.unidadedesc || 'Sem destino'}
+                    </span>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
