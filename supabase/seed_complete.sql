@@ -45,8 +45,8 @@ INSERT INTO units (bloco, numero, tipo, status) VALUES
 INSERT INTO residents (
   bloco, apto, tipo, nome, celular, fone, fone_comercial, email, cpf, rg,
   local_trabalho, endereco_comercial, emergency_contact_nome, 
-  emergency_contact_fone, invoice_delivery, status, temWhatsApp, 
-  lgpdConsent, dataEntrada, dataSaida, observacoes
+  emergency_contact_fone, invoice_delivery, status, tem_whatsapp, 
+  lgpd_consent, data_entrada, data_saida, observacoes
 ) VALUES
 -- SCENARIO 1: Proprietário, com família, com 2 veículos, com dependentes
 ('01', '101', 'PROPRIETARIO', 'JOÃO SILVA SANTOS', '11999990001',
@@ -193,13 +193,10 @@ INSERT INTO service_providers (resident_id, nome, rg) VALUES
 -- Total: 4 service providers
 
 -- ============================================
--- 8. RE-ENABLE ROW LEVEL SECURITY
+-- 8. KEEP ROW LEVEL SECURITY DISABLED FOR DEVELOPMENT
 -- ============================================
-ALTER TABLE units ENABLE ROW LEVEL SECURITY;
-ALTER TABLE residents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE household_members ENABLE ROW LEVEL SECURITY;
-ALTER TABLE vehicles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE service_providers ENABLE ROW LEVEL SECURITY;
+-- RLS left disabled to allow application to work during development
+-- TODO: Configure proper RLS policies before production deployment
 
 -- ✅ Database successfully populated!
 -- Summary:
