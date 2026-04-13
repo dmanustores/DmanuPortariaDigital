@@ -123,7 +123,7 @@ export const saveResident = async (resident: Resident) => {
     }
 
     // Delete existing relations to ensure a clean state (Sync)
-    console.log('Deleting old relations for resident:', resident.id);
+    console.log('🗑️ Deleting old relations for resident:', resident.id);
     const delResults = await Promise.all([
       supabase.from('household_members').delete().eq('resident_id', resident.id),
       supabase.from('vehicles').delete().eq('resident_id', resident.id),
@@ -134,9 +134,9 @@ export const saveResident = async (resident: Resident) => {
 
     const delError = delResults.find(r => r.error)?.error;
     if (delError) {
-      console.error('Error clearing old relations:', delError);
+      console.error('❌ Error clearing old relations:', delError);
     } else {
-      console.log('Old relations deleted successfully');
+      console.log('✅ Old relations deleted successfully (5 tables cleared)');
     }
 
     // Insert relations
@@ -191,40 +191,61 @@ export const saveResident = async (resident: Resident) => {
     }
 
     if (resident.vehicles && resident.vehicles.length > 0) {
-      console.log('Inserting vehicles:', resident.vehicles);
+      console.log('Processing vehicles for resident:', resident.id);
+      
+      // Delete old vehicles
+      const delVehicles = await supabase.from('vehicles').delete().eq('resident_id', resident.id);
+      if(delVehicles.error) {
+        console.warn('Could not delete old vehicles:', delVehicles.error);
+      } else {
+        console.log('Old vehicles deleted');
+      }
+
+      // Prepare vehicle data
       const vehicleData = resident.vehicles.map((v: any) => {
         const { id, resident_id, created_at, ...rest } = v;
+        console.log('Vehicle to save - Modelo:', rest.modelo, 'Cor:', rest.cor, 'Placa:', rest.placa);
         return { ...rest, resident_id: resident.id };
       });
-      console.log('Vehicle data to insert:', vehicleData);
       
-      const vehicleResult = await supabase.from('vehicles').insert(vehicleData);
+      console.log('Inserting', vehicleData.length, 'vehicles');
+      const vehicleResult = await supabase.from('vehicles').insert(vehicleData).select();
+      
       if(vehicleResult.error) {
-        console.error('Error inserting vehicles:', vehicleResult.error);
+        console.error('❌ Error inserting vehicles:', vehicleResult.error);
         throw vehicleResult.error;
       }
-      console.log('Vehicles inserted successfully');
       
-      promises.push(Promise.resolve(vehicleResult));
-
-      promises.push(
-        supabase.from('vehicles_registry').insert(
-          resident.vehicles.map((v: any) => ({
-            placa: v.placa ? v.placa.toUpperCase() : '',
-            modelo: v.modelo || null,
-            cor: v.cor || null,
-            unidadedesc: `Bloco ${resident.bloco}, Apt ${resident.apto}`,
-            tipo: 'MORADOR',
-            nomeproprietario: resident.nome,
-            telefone: resident.celular || resident.fone || null,
-            moradorid: resident.id,
-            status: 'ATIVO'
-          }))
-        ).then(res => {
-          if(res.error) console.warn('Bloqueio previsto de RLS ao espelhar veículos globalmente:', res.error);
-          return { error: null }; // Ignora erro pra não travar a tela form do morador
-        })
-      );
+      const insertedVehicles = vehicleResult.data || [];
+      console.log('✅ Vehicles inserted successfully:', insertedVehicles);
+      
+      // Now insert into vehicles_registry using ACTUAL inserted vehicle data
+      if(insertedVehicles.length > 0) {
+        const registryData = insertedVehicles.map((v: any) => ({
+          placa: v.placa ? v.placa.toUpperCase() : '',
+          modelo: v.modelo || null,
+          cor: v.cor || null,
+          unidadedesc: `Bloco ${resident.bloco}, Apt ${resident.apto}`,
+          tipo: resident.tipo,
+          nomeproprietario: resident.nome,
+          telefone: resident.celular || resident.fone || null,
+          moradorid: resident.id,
+          status: 'ATIVO'
+        }));
+        
+        console.log('Syncing to vehicles_registry:', registryData);
+        
+        promises.push(
+          supabase.from('vehicles_registry').insert(registryData).then(res => {
+            if(res.error) {
+              console.warn('⚠️ RLS block when syncing to vehicles_registry:', res.error);
+              return { error: null };
+            }
+            console.log('✅ vehicles_registry synced');
+            return res;
+          })
+        );
+      }
     }
 
     if (resident.serviceProviders && resident.serviceProviders.length > 0) {

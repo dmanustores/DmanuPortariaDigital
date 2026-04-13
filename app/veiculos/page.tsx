@@ -38,7 +38,7 @@ interface Resident {
   id: string;
   nome: string;
   bloco?: string;
-  numero?: string;
+  apto?: string;
   celular?: string;
   foto?: string;
 }
@@ -49,7 +49,10 @@ export default function VeiculosPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
-  const [activeFilters, setActiveFilters] = useState<string[]>([]);
+  // Por padrão, todos os filtros vêm marcados
+  const [activeFilters, setActiveFilters] = useState<string[]>(['PROPRIETARIO', 'LOCATARIO', 'VISITANTE', 'PRESTADOR']);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
   const [moradorSearch, setMoradorSearch] = useState('');
   const [showMoradorDropdown, setShowMoradorDropdown] = useState(false);
   const [selectedMorador, setSelectedMorador] = useState<Resident | null>(null);
@@ -80,6 +83,9 @@ export default function VeiculosPage() {
       }
       if (unidadeRef.current && !unidadeRef.current.contains(event.target as Node)) {
         setShowUnidadeDropdown(false);
+      }
+      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
+        setShowFilterMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -118,9 +124,10 @@ export default function VeiculosPage() {
   const unidadesDisponiveis = residents.filter(r => r.bloco && r.apto);
 
   const filteredUnidades = unidadesDisponiveis.filter(r => {
-    const blocoStr = r.bloco?.toString().trim() || '';
-    const numeroStr = r.apto?.toString().trim() || '';
-    const searchBloco = blocoSearch.trim();
+    // Converte para string e remove espaços
+    const blocoStr = String(r.bloco).trim().padStart(2, '0');
+    const numeroStr = String(r.apto).trim();
+    const searchBloco = blocoSearch.trim().padStart(2, '0');
     const searchApartamento = apartamentoSearch.trim();
 
     // Se nenhum campo foi preenchido, mostra todas as unidades disponíveis
@@ -165,7 +172,7 @@ export default function VeiculosPage() {
       ? `Bloco ${resident.bloco}, Apt ${resident.apto}` 
       : '';
     setBlocoSearch(resident.bloco || '');
-    setApartamentoSearch(resident.numero || '');
+    setApartamentoSearch(resident.apto || '');
     setFormData({
       ...formData,
       unidadeDesc,
@@ -279,16 +286,41 @@ export default function VeiculosPage() {
     return matchSearch && matchFilter;
   });
 
-  const toggleFilter = (tipo: string) => {
-    if (activeFilters.includes(tipo)) {
-      setActiveFilters(activeFilters.filter(t => t !== tipo));
+  const toggleFilter = (filterCategory: string) => {
+    // Lógica especial: quando clica "MORADORES", adiciona PROPRIETARIO e LOCATARIO
+    let newFilters: string[];
+    
+    if (filterCategory === 'MORADORES') {
+      // Verifica se já tem moradores selecionados
+      const hasBothResident = activeFilters.includes('PROPRIETARIO') && activeFilters.includes('LOCATARIO');
+      
+      if (hasBothResident) {
+        // Remove ambos
+        newFilters = activeFilters.filter(t => t !== 'PROPRIETARIO' && t !== 'LOCATARIO');
+      } else {
+        // Remove se existir um parcial, depois adiciona os dois
+        newFilters = activeFilters.filter(t => t !== 'PROPRIETARIO' && t !== 'LOCATARIO');
+        newFilters = [...newFilters, 'PROPRIETARIO', 'LOCATARIO'];
+      }
     } else {
-      setActiveFilters([...activeFilters, tipo]);
+      // Para outros filtros, comportamento normal
+      if (activeFilters.includes(filterCategory)) {
+        newFilters = activeFilters.filter(t => t !== filterCategory);
+      } else {
+        newFilters = [...activeFilters, filterCategory];
+      }
     }
+    
+    setActiveFilters(newFilters);
   };
 
-  const moradorCount = vehicles.filter(v => v.tipo === 'MORADOR').length;
+  // Contar moradores: PROPRIETARIO + LOCATARIO
+  const moradorCount = vehicles.filter(v => v.tipo === 'PROPRIETARIO' || v.tipo === 'LOCATARIO').length;
   const visitanteCount = vehicles.filter(v => v.tipo === 'VISITANTE').length;
+  const prestadorCount = vehicles.filter(v => v.tipo === 'PRESTADOR').length;
+  
+  // Verificar se moradores estão filtrados (ambos PROPRIETARIO e LOCATARIO selecionados)
+  const moradoresAtivos = activeFilters.includes('PROPRIETARIO') && activeFilters.includes('LOCATARIO');
 
   return (
     <DashboardLayout>
@@ -298,19 +330,35 @@ export default function VeiculosPage() {
           <p className="text-slate-500 mt-1 text-sm">Controle de veículos do condomínio</p>
         </motion.div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* MORADORES: Proprietários + Locatários */}
           <button 
-            onClick={() => toggleFilter('MORADOR')}
-            className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('MORADOR') ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
+            onClick={() => toggleFilter('MORADORES')}
+            className={`px-4 py-2 rounded-lg transition-all border-2 ${moradoresAtivos ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
+            title="Proprietários e Locatários"
           >
-            <span className={`font-bold text-sm ${activeFilters.includes('MORADOR') ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} moradores</span>
+            <span className={`font-bold text-sm ${moradoresAtivos ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} Moradores</span>
           </button>
+
+          {/* VISITANTES */}
           <button 
             onClick={() => toggleFilter('VISITANTE')}
             className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('VISITANTE') ? 'bg-green-500 text-white border-green-600 shadow-md transform scale-105' : 'bg-green-100 dark:bg-green-900/30 border-transparent hover:bg-green-200 cursor-pointer'}`}
+            title="Visitantes do condomínio"
           >
-            <span className={`font-bold text-sm ${activeFilters.includes('VISITANTE') ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} visitantes</span>
+            <span className={`font-bold text-sm ${activeFilters.includes('VISITANTE') ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} Visitantes</span>
           </button>
+
+          {/* PRESTADORES */}
+          {prestadorCount > 0 && (
+            <button 
+              onClick={() => toggleFilter('PRESTADOR')}
+              className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('PRESTADOR') ? 'bg-amber-500 text-white border-amber-600 shadow-md transform scale-105' : 'bg-amber-100 dark:bg-amber-900/30 border-transparent hover:bg-amber-200 cursor-pointer'}`}
+              title="Prestadores de serviço"
+            >
+              <span className={`font-bold text-sm ${activeFilters.includes('PRESTADOR') ? 'text-white' : 'text-amber-700 dark:text-amber-400'}`}>{prestadorCount} Prestadores</span>
+            </button>
+          )}
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -334,22 +382,106 @@ export default function VeiculosPage() {
             className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
           />
         </div>
-        <select 
-          value={activeFilters.length === 1 ? activeFilters[0] : (activeFilters.length === 0 ? 'TODOS' : 'MISTO')}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === 'TODOS') setActiveFilters([]);
-            else if (val !== 'MISTO') setActiveFilters([val]);
-          }}
-          className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
-        >
-          <option value="TODOS">Todos</option>
-          {activeFilters.length > 1 && <option value="MISTO" disabled>Múltiplos Selecionados</option>}
-          <option value="MORADOR">Morador</option>
-          <option value="VISITANTE">Visitante</option>
-          <option value="PRESTADOR">Prestador</option>
-          <option value="MUDANCA">Mudança</option>
-        </select>
+
+        {/* Dropdown Filtro */}
+        <div className="relative" ref={filterRef}>
+          <button
+            onClick={() => setShowFilterMenu(!showFilterMenu)}
+            className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
+          >
+            Filtros ▼
+          </button>
+
+          {showFilterMenu && (
+            <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 p-4">
+              <div className="space-y-3">
+                {/* Proprietários */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.includes('PROPRIETARIO')}
+                    onChange={() => {
+                      if (activeFilters.includes('PROPRIETARIO')) {
+                        setActiveFilters(activeFilters.filter(f => f !== 'PROPRIETARIO'));
+                      } else {
+                        setActiveFilters([...activeFilters, 'PROPRIETARIO']);
+                      }
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">Proprietários</span>
+                </label>
+
+                {/* Locatários */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.includes('LOCATARIO')}
+                    onChange={() => {
+                      if (activeFilters.includes('LOCATARIO')) {
+                        setActiveFilters(activeFilters.filter(f => f !== 'LOCATARIO'));
+                      } else {
+                        setActiveFilters([...activeFilters, 'LOCATARIO']);
+                      }
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">Locatários</span>
+                </label>
+
+                {/* Visitantes */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.includes('VISITANTE')}
+                    onChange={() => {
+                      if (activeFilters.includes('VISITANTE')) {
+                        setActiveFilters(activeFilters.filter(f => f !== 'VISITANTE'));
+                      } else {
+                        setActiveFilters([...activeFilters, 'VISITANTE']);
+                      }
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">Visitantes</span>
+                </label>
+
+                {/* Prestadores */}
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={activeFilters.includes('PRESTADOR')}
+                    onChange={() => {
+                      if (activeFilters.includes('PRESTADOR')) {
+                        setActiveFilters(activeFilters.filter(f => f !== 'PRESTADOR'));
+                      } else {
+                        setActiveFilters([...activeFilters, 'PRESTADOR']);
+                      }
+                    }}
+                    className="w-4 h-4 rounded"
+                  />
+                  <span className="text-sm font-medium">Prestadores</span>
+                </label>
+
+                {/* Separador */}
+                <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
+                  <button
+                    onClick={() => setActiveFilters(['PROPRIETARIO', 'LOCATARIO', 'VISITANTE', 'PRESTADOR'])}
+                    className="w-full px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                  >
+                    Selecionar Todos
+                  </button>
+                  <button
+                    onClick={() => setActiveFilters([])}
+                    className="w-full px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mt-2"
+                  >
+                    Limpar Filtros
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
@@ -397,11 +529,15 @@ export default function VeiculosPage() {
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
-                      vehicle.tipo === 'MORADOR' 
+                      vehicle.tipo === 'PROPRIETARIO' 
                         ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                        : vehicle.tipo === 'LOCATARIO'
+                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                         : vehicle.tipo === 'VISITANTE'
                         ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
+                        : vehicle.tipo === 'PRESTADOR'
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                        : 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400'
                     }`}>
                       {vehicle.tipo}
                     </span>
