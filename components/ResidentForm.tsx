@@ -60,6 +60,8 @@ const residentSchema = z.object({
     cep: z.string().nullish(),
   }).optional(),
   lgpdConsent: z.boolean().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
 });
 
 type ResidentFormData = z.infer<typeof residentSchema>;
@@ -133,6 +135,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           cpf: m.cpf ? formatCPF(m.cpf) : '',
           rg: m.rg ? formatRG(m.rg) : ''
         })),
+        vehicles: initialData.vehicles || [],
         serviceProviders: initialData.serviceProviders || []
       });
     } else {
@@ -214,7 +217,8 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
       })),
-      createdAt: initialData?.createdAt || new Date().toISOString()
+      createdAt: initialData?.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     } as Resident);
   };
 
@@ -342,29 +346,29 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2">
               <Briefcase size={12} /> Local de Trabalho
-              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+              <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
             <input 
               {...register('localTrabalho')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('localTrabalho', e.target.value.toUpperCase())}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
           </div>
           <div className="space-y-2 md:col-span-2">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2">
               <Home size={12} /> Endereço Comercial
-              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+              <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
             <input 
               {...register('enderecoComercial')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('enderecoComercial', e.target.value.toUpperCase())}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
           </div>
         </div>
@@ -376,69 +380,75 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <Phone size={18} />
           <h3 className="font-bold text-sm uppercase">Contatos e Documentos</h3>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">Celular</label>
+        
+        {/* Contatos e Documentos - Todos em uma linha */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-8 items-start">
+          <div className="flex flex-col">
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2">Celular</label>
             <input 
               {...register('celular')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('celular', formatPhone(e.target.value))}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
-            {errors.celular && <p className="text-red-500 text-xs">{errors.celular.message}</p>}
-            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer">
+            {errors.celular && <p className="text-red-500 text-xs mt-1">{errors.celular.message}</p>}
+            <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer mt-2">
               <input 
                 type="checkbox" 
                 {...register('temWhatsApp')} 
                 disabled={isReadOnly} 
-                className="text-primary focus:ring-primary w-4 h-4 rounded" 
+                className="text-primary focus:ring-primary w-3 h-3 rounded" 
               />
-              Este número tem WhatsApp
+              <span className="text-[9px]">WhatsApp</span>
             </label>
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2 mb-2">
               Fone Fixo
-              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+              <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
             <input 
               {...register('fone')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('fone', formatPhone(e.target.value))}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2 mb-2">
               Fone Comercial
-              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+              <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
             <input 
               {...register('foneComercial')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('foneComercial', formatPhone(e.target.value))}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">CPF</label>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2">CPF</label>
             <input 
               {...register('cpf')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('cpf', formatCPF(e.target.value))}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
-            {errors.cpf && <p className="text-red-500 text-xs">{errors.cpf.message}</p>}
+            {errors.cpf && <p className="text-red-500 text-xs mt-1">{errors.cpf.message}</p>}
           </div>
-          <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">RG</label>
+
+          <div className="flex flex-col">
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2">RG</label>
             <input 
               {...register('rg')} 
               disabled={isReadOnly}
               onChange={(e) => setValue('rg', formatRG(e.target.value))}
-              className="w-full p-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
+              className="w-full p-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
             />
-            {errors.rg && <p className="text-red-500 text-xs">{errors.rg.message}</p>}
+            {errors.rg && <p className="text-red-500 text-xs mt-1">{errors.rg.message}</p>}
           </div>
         </div>
       </div>

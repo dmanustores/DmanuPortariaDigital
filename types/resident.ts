@@ -63,4 +63,5 @@ export interface Resident {
   invoiceAddress?: InvoiceAddress;
   lgpdConsent?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }

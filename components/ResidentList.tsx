@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Resident } from '@/types/resident';
-import { Edit2, Trash2, Home, User, Phone, Mail, Car, Users, Search, Eye } from 'lucide-react';
+import { Edit2, Trash2, Home, User, Phone, Mail, Car, Users, Search, Eye, Clock } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatPhone } from '@/lib/utils';
 
@@ -126,6 +126,17 @@ export const ResidentList: React.FC<ResidentListProps> = ({ residents, onEdit, o
                   <span>{resident.vehicles.length} Veículos</span>
                 </div>
               </div>
+            </div>
+
+            {/* Última Alteração - Discreto */}
+            <div className="flex items-center justify-end gap-1 pt-2 mt-2 border-t border-slate-100 dark:border-slate-800/50">
+              <Clock size={9} className="text-slate-300 dark:text-slate-600" />
+              <span className="text-[8px] text-slate-400 dark:text-slate-500">
+                {resident.updatedAt 
+                  ? new Date(resident.updatedAt).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric', year: '2-digit' })
+                  : new Date(resident.createdAt).toLocaleDateString('pt-BR', { month: 'short', day: 'numeric', year: '2-digit' })
+                }
+              </span>
             </div>
           </motion.div>
         ))}

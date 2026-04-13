@@ -48,14 +48,24 @@ export const getResidents = async (): Promise<Resident[]> => {
       fone: r.emergency_contact_fone
     },
     invoiceDelivery: r.invoice_delivery,
+    status: r.status || 'ATIVO',
+    temWhatsApp: r.tem_whatsapp || false,
+    lgpdConsent: r.lgpd_consent || false,
+    dataEntrada: r.data_entrada,
+    dataSaida: r.data_saida,
+    observacoes: r.observacoes,
     invoiceAddress: r.invoice_addresses?.[0] || undefined,
-    createdAt: r.created_at
+    createdAt: r.created_at,
+    updatedAt: r.updated_at
   }));
 };
 
 export const saveResident = async (resident: Resident) => {
   try {
     console.log('Saving resident data:', resident);
+    console.log('Vehicles to save:', resident.vehicles);
+    console.log('Number of vehicles:', resident.vehicles?.length);
+    
     // Validation: Check for duplicate CPF in the same unit (bloco/apto)
     // Only if it's a new resident or the CPF/Unit changed
     const { data: duplicate, error: checkError } = await supabase
@@ -92,6 +102,13 @@ export const saveResident = async (resident: Resident) => {
       emergency_contact_nome: resident.emergencyContact.nome,
       emergency_contact_fone: resident.emergencyContact.fone,
       invoice_delivery: resident.invoiceDelivery,
+      status: resident.status || 'ATIVO',
+      tem_whatsapp: resident.temWhatsApp || false,
+      lgpd_consent: resident.lgpdConsent || false,
+      data_entrada: resident.dataEntrada,
+      data_saida: resident.dataSaida,
+      observacoes: resident.observacoes,
+      updated_at: new Date().toISOString(),
       created_at: resident.createdAt
     };
 
@@ -106,6 +123,7 @@ export const saveResident = async (resident: Resident) => {
     }
 
     // Delete existing relations to ensure a clean state (Sync)
+    console.log('Deleting old relations for resident:', resident.id);
     const delResults = await Promise.all([
       supabase.from('household_members').delete().eq('resident_id', resident.id),
       supabase.from('vehicles').delete().eq('resident_id', resident.id),
@@ -117,6 +135,8 @@ export const saveResident = async (resident: Resident) => {
     const delError = delResults.find(r => r.error)?.error;
     if (delError) {
       console.error('Error clearing old relations:', delError);
+    } else {
+      console.log('Old relations deleted successfully');
     }
 
     // Insert relations
@@ -171,14 +191,21 @@ export const saveResident = async (resident: Resident) => {
     }
 
     if (resident.vehicles && resident.vehicles.length > 0) {
-      promises.push(
-        supabase.from('vehicles').insert(
-          resident.vehicles.map((v: any) => {
-            const { id, resident_id, created_at, ...rest } = v;
-            return { ...rest, resident_id: resident.id };
-          })
-        )
-      );
+      console.log('Inserting vehicles:', resident.vehicles);
+      const vehicleData = resident.vehicles.map((v: any) => {
+        const { id, resident_id, created_at, ...rest } = v;
+        return { ...rest, resident_id: resident.id };
+      });
+      console.log('Vehicle data to insert:', vehicleData);
+      
+      const vehicleResult = await supabase.from('vehicles').insert(vehicleData);
+      if(vehicleResult.error) {
+        console.error('Error inserting vehicles:', vehicleResult.error);
+        throw vehicleResult.error;
+      }
+      console.log('Vehicles inserted successfully');
+      
+      promises.push(Promise.resolve(vehicleResult));
 
       promises.push(
         supabase.from('vehicles_registry').insert(

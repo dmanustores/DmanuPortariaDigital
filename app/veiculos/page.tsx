@@ -89,7 +89,7 @@ export default function VeiculosPage() {
   const fetchResidents = async () => {
     const { data } = await supabase
       .from('residents')
-      .select('id, nome, bloco, numero, celular, foto')
+      .select('id, nome, bloco, apto, celular, foto')
       .order('nome');
     if (data) setResidents(data);
   };
@@ -114,12 +114,12 @@ export default function VeiculosPage() {
     r.nome.toLowerCase().includes(moradorSearch.toLowerCase())
   ).slice(0, 10);
 
-  // Lista de unidades com bloco e numero preenchidos
-  const unidadesDisponiveis = residents.filter(r => r.bloco && r.numero);
+  // Lista de unidades com bloco e apto preenchidos
+  const unidadesDisponiveis = residents.filter(r => r.bloco && r.apto);
 
   const filteredUnidades = unidadesDisponiveis.filter(r => {
     const blocoStr = r.bloco?.toString().trim() || '';
-    const numeroStr = r.numero?.toString().trim() || '';
+    const numeroStr = r.apto?.toString().trim() || '';
     const searchBloco = blocoSearch.trim();
     const searchApartamento = apartamentoSearch.trim();
 
@@ -152,8 +152,8 @@ export default function VeiculosPage() {
       nomeProprietario: formData.tipo === 'MORADOR' ? resident.nome : formData.nomeProprietario,
       telefone: formData.tipo === 'MORADOR' ? (resident.celular || '') : formData.telefone,
       moradorId: resident.id,
-      unidadeDesc: resident.bloco && resident.numero 
-        ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
+      unidadeDesc: resident.bloco && resident.apto 
+        ? `Bloco ${resident.bloco}, Apt ${resident.apto}` 
         : ''
     });
     setShowMoradorDropdown(false);
@@ -161,8 +161,8 @@ export default function VeiculosPage() {
 
   const handleSelectUnidade = (resident: Resident) => {
     setSelectedUnidade(resident);
-    const unidadeDesc = resident.bloco && resident.numero 
-      ? `Bloco ${resident.bloco}, Apt ${resident.numero}` 
+    const unidadeDesc = resident.bloco && resident.apto 
+      ? `Bloco ${resident.bloco}, Apt ${resident.apto}` 
       : '';
     setBlocoSearch(resident.bloco || '');
     setApartamentoSearch(resident.numero || '');
@@ -610,7 +610,7 @@ export default function VeiculosPage() {
                               className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 border-b border-slate-100 dark:border-slate-700 last:border-0 rounded transition-colors"
                             >
                               <p className="font-semibold text-sm">
-                                Bloco {resident.bloco}, Apt {resident.numero}
+                                Bloco {resident.bloco}, Apt {resident.apto}
                               </p>
                               <p className="text-xs text-slate-500">👤 {resident.nome}</p>
                             </button>
