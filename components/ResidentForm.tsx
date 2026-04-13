@@ -15,24 +15,24 @@ const residentSchema = z.object({
   apto: z.string().min(1, 'Obrigatório'),
   tipo: z.enum(['LOCATARIO', 'PROPRIETARIO']),
   nome: z.string().min(3, 'Nome muito curto'),
-  foto: z.string().optional(),
+  foto: z.string().nullish(),
   celular: z.string().min(10, 'Celular inválido'),
   temWhatsApp: z.boolean().optional(),
-  fone: z.string().optional(),
-  foneComercial: z.string().optional(),
+  fone: z.string().nullish(),
+  foneComercial: z.string().nullish(),
   email: z.string().email('Email inválido'),
-  localTrabalho: z.string().optional(),
-  enderecoComercial: z.string().optional(),
+  localTrabalho: z.string().nullish(),
+  enderecoComercial: z.string().nullish(),
   cpf: z.string().min(11, 'CPF inválido'),
   rg: z.string().min(5, 'RG inválido'),
   dataEntrada: z.string().min(1, 'Data de entrada obrigatória'),
-  dataSaida: z.string().optional(),
+  dataSaida: z.string().nullish(),
   status: z.enum(['ATIVO', 'INATIVO']),
-  observacoes: z.string().optional(),
+  observacoes: z.string().nullish(),
   householdMembers: z.array(z.object({
     nome: z.string(),
-    rg: z.string().optional(),
-    cpf: z.string().optional(),
+    rg: z.string().nullish(),
+    cpf: z.string().nullish(),
     parentesco: z.string(),
     isBaby: z.boolean().optional()
   })),
@@ -43,7 +43,7 @@ const residentSchema = z.object({
   })),
   serviceProviders: z.array(z.object({
     nome: z.string(),
-    rg: z.string()
+    rg: z.string().nullish()
   })),
   emergencyContact: z.object({
     nome: z.string().min(1, 'Obrigatório'),
@@ -51,13 +51,13 @@ const residentSchema = z.object({
   }),
   invoiceDelivery: z.enum(['CONDOMINIO', 'OUTRO']),
   invoiceAddress: z.object({
-    nome: z.string().optional(),
-    logradouro: z.string().optional(),
-    numero: z.string().optional(),
-    bairro: z.string().optional(),
-    cidade: z.string().optional(),
-    estado: z.string().optional(),
-    cep: z.string().optional(),
+    nome: z.string().nullish(),
+    logradouro: z.string().nullish(),
+    numero: z.string().nullish(),
+    bairro: z.string().nullish(),
+    cidade: z.string().nullish(),
+    estado: z.string().nullish(),
+    cep: z.string().nullish(),
   }).optional(),
   lgpdConsent: z.boolean().optional(),
 });
@@ -346,6 +346,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
               <Briefcase size={12} /> Local de Trabalho
+              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
             </label>
             <input 
               {...register('localTrabalho')} 
@@ -357,6 +358,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <div className="space-y-2 md:col-span-2">
             <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
               <Home size={12} /> Endereço Comercial
+              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
             </label>
             <input 
               {...register('enderecoComercial')} 
@@ -374,7 +376,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <Phone size={18} />
           <h3 className="font-bold text-sm uppercase">Contatos e Documentos</h3>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-6">
           <div className="space-y-2">
             <label className="text-xs font-bold uppercase text-slate-500">Celular</label>
             <input 
@@ -395,7 +397,10 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             </label>
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">Fone Fixo</label>
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+              Fone Fixo
+              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+            </label>
             <input 
               {...register('fone')} 
               disabled={isReadOnly}
@@ -404,7 +409,10 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             />
           </div>
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">Fone Comercial</label>
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-1">
+              Fone Comercial
+              <span className="text-[10px] font-normal text-slate-400 bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded-full ml-1">(Opcional)</span>
+            </label>
             <input 
               {...register('foneComercial')} 
               disabled={isReadOnly}
