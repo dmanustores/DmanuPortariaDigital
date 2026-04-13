@@ -93,11 +93,21 @@ export default function VeiculosPage() {
   }, []);
 
   const fetchResidents = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('residents')
       .select('id, nome, bloco, apto, celular, foto')
       .order('nome');
-    if (data) setResidents(data);
+    if (error) {
+      console.error('❌ Erro ao buscar moradores:', error);
+    }
+    if (data) {
+      console.log('✅ Moradores carregados:', data.length, 'total');
+      console.log('📋 Exemplo de morador:', data[0]);
+      console.log('📋 Moradores com bloco/apto:', data.filter(r => r.bloco && r.apto).length);
+      setResidents(data);
+    } else {
+      console.log('⚠️ Nenhum morador retornado do banco');
+    }
   };
 
   const fetchVehicles = async () => {
@@ -122,6 +132,16 @@ export default function VeiculosPage() {
 
   // Lista de unidades com bloco e apto preenchidos
   const unidadesDisponiveis = residents.filter(r => r.bloco && r.apto);
+  
+  useEffect(() => {
+    console.log('📊 Debug Info:');
+    console.log('- Total residents:', residents.length);
+    console.log('- Residents com bloco/apto:', unidadesDisponiveis.length);
+    if (residents.length > 0 && unidadesDisponiveis.length === 0) {
+      console.warn('⚠️ ATENÇÃO: Moradores foram carregados mas NENHUM tem bloco/apto preenchido!');
+      console.log('Sample resident sem bloco/apto:', residents[0]);
+    }
+  }, [residents]);
 
   const filteredUnidades = unidadesDisponiveis.filter(r => {
     // Converte para string e remove espaços
