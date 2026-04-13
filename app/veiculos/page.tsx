@@ -47,7 +47,7 @@ export default function VeiculosPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState('TODOS');
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [moradorSearch, setMoradorSearch] = useState('');
   const [showMoradorDropdown, setShowMoradorDropdown] = useState(false);
   const [selectedMorador, setSelectedMorador] = useState<Resident | null>(null);
@@ -177,9 +177,17 @@ export default function VeiculosPage() {
       (v.modelo?.toLowerCase().includes(search.toLowerCase())) ||
       (nameToSearch.toLowerCase().includes(search.toLowerCase())) ||
       (unitToSearch.toLowerCase().includes(search.toLowerCase()));
-    const matchFilter = filter === 'TODOS' || v.tipo === filter;
+    const matchFilter = activeFilters.length === 0 || activeFilters.includes(v.tipo);
     return matchSearch && matchFilter;
   });
+
+  const toggleFilter = (tipo: string) => {
+    if (activeFilters.includes(tipo)) {
+      setActiveFilters(activeFilters.filter(t => t !== tipo));
+    } else {
+      setActiveFilters([...activeFilters, tipo]);
+    }
+  };
 
   const moradorCount = vehicles.filter(v => v.tipo === 'MORADOR').length;
   const visitanteCount = vehicles.filter(v => v.tipo === 'VISITANTE').length;
@@ -194,16 +202,16 @@ export default function VeiculosPage() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => setFilter(filter === 'MORADOR' ? 'TODOS' : 'MORADOR')}
-            className={`px-4 py-2 rounded-lg transition-all border-2 ${filter === 'MORADOR' ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
+            onClick={() => toggleFilter('MORADOR')}
+            className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('MORADOR') ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
           >
-            <span className={`font-bold text-sm ${filter === 'MORADOR' ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} moradores</span>
+            <span className={`font-bold text-sm ${activeFilters.includes('MORADOR') ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} moradores</span>
           </button>
           <button 
-            onClick={() => setFilter(filter === 'VISITANTE' ? 'TODOS' : 'VISITANTE')}
-            className={`px-4 py-2 rounded-lg transition-all border-2 ${filter === 'VISITANTE' ? 'bg-green-500 text-white border-green-600 shadow-md transform scale-105' : 'bg-green-100 dark:bg-green-900/30 border-transparent hover:bg-green-200 cursor-pointer'}`}
+            onClick={() => toggleFilter('VISITANTE')}
+            className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('VISITANTE') ? 'bg-green-500 text-white border-green-600 shadow-md transform scale-105' : 'bg-green-100 dark:bg-green-900/30 border-transparent hover:bg-green-200 cursor-pointer'}`}
           >
-            <span className={`font-bold text-sm ${filter === 'VISITANTE' ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} visitantes</span>
+            <span className={`font-bold text-sm ${activeFilters.includes('VISITANTE') ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} visitantes</span>
           </button>
           <motion.button 
             whileHover={{ scale: 1.05 }}
@@ -229,11 +237,16 @@ export default function VeiculosPage() {
           />
         </div>
         <select 
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+          value={activeFilters.length === 1 ? activeFilters[0] : (activeFilters.length === 0 ? 'TODOS' : 'MISTO')}
+          onChange={(e) => {
+            const val = e.target.value;
+            if (val === 'TODOS') setActiveFilters([]);
+            else if (val !== 'MISTO') setActiveFilters([val]);
+          }}
           className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
         >
           <option value="TODOS">Todos</option>
+          {activeFilters.length > 1 && <option value="MISTO" disabled>Múltiplos Selecionados</option>}
           <option value="MORADOR">Morador</option>
           <option value="VISITANTE">Visitante</option>
           <option value="PRESTADOR">Prestador</option>
