@@ -34,7 +34,8 @@ const Turnos = [
   { value: 'A', label: 'Turno A (06:00-14:00)', hours: '06:00 - 14:00' },
   { value: 'B', label: 'Turno B (14:00-22:00)', hours: '14:00 - 22:00' },
   { value: 'C', label: 'Turno C (22:00-06:00)', hours: '22:00 - 06:00' },
-  { value: 'D', label: 'Folga', hours: 'folga' },
+  { value: 'ADM', label: 'Administrativo (Horário Livre)', hours: 'Livre' },
+  { value: 'D', label: 'Folga', hours: 'Folga' },
 ];
 
 const Roles = [
@@ -58,8 +59,8 @@ export default function AdminPage() {
     email: '',
     senha: '',
     confirmarSenha: '',
-    role: 'Porteiro',
-    turno: 'A',
+    role: 'Admin',
+    turno: 'ADM',
   });
   const [saving, setSaving] = useState(false);
 
@@ -71,10 +72,37 @@ export default function AdminPage() {
   }, []);
 
   const fetchCurrentUser = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const { data } = await supabase.from('operators').select('role').eq('id', session.user.id).single();
-      if (data) setCurrentUserRole(data.role);
+    try {
+      // Primeiro tenta pelo Supabase Auth
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data, error } = await supabase
+          .from('operators')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        
+        if (data && !error) {
+          setCurrentUserRole(data.role);
+          return;
+        }
+      }
+
+      // Se não encontrou no banco ou não tem sessão, verifica o login local (Master Owner)
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth) {
+        const authData = JSON.parse(localAuth);
+        if (authData.role === 'Owner') {
+          setCurrentUserRole('Owner');
+        }
+      }
+    } catch (e) {
+      console.warn('Erro ao identificar role do usuário:', e);
+      // Fallback para Owner se estiver no modo local
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth?.includes('"role":"Owner"')) {
+        setCurrentUserRole('Owner');
+      }
     }
   };
 
@@ -120,7 +148,7 @@ export default function AdminPage() {
       setFormData({ nome: operator.nome, email: '', senha: '', confirmarSenha: '', role: operator.role, turno: operator.turno });
     } else {
       setEditingOperator(null);
-      setFormData({ nome: '', email: '', senha: '', confirmarSenha: '', role: 'Porteiro', turno: 'A' });
+      setFormData({ nome: '', email: '', senha: '', confirmarSenha: '', role: 'Admin', turno: 'ADM' });
     }
     setErrors({});
     setShowModal(true);
@@ -342,7 +370,9 @@ export default function AdminPage() {
                         Turno {operator.turno}
                       </span>
                     </td>
-                    <td className="p-4 text-sm text-slate-500">{turnoInfo.hours}</td>
+                    <td className="p-4 text-sm text-slate-500">
+                      {operator.role === 'Admin' || operator.role === 'Owner' ? 'Horário Livre' : turnoInfo.hours}
+                    </td>
                     <td className="p-4">
                       { (currentUserRole === 'Owner' || (operator.role !== 'Admin' && operator.role !== 'Owner')) ? (
                         <div className="flex justify-end gap-2">
@@ -473,10 +503,10 @@ export default function AdminPage() {
                   <label className="block text-sm font-bold mb-2">Função *</label>
                   <select 
                     value={formData.role}
-                    onChange={(e) => setFormData({...formData, role: e.target.value, turno: (e.target.value === 'Admin' || e.target.value === 'Owner') ? '' : 'A'})}
+                    onChange={(e) => setFormData({...formData, role: e.target.value, turno: (e.target.value === 'Admin' || e.target.value === 'Owner') ? 'ADM' : 'A'})}
                     className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
                   >
-                    {Roles.filter(role => currentUserRole === 'Owner' || (role.value !== 'Admin' && role.value !== 'Owner')).map(role => (
+                    {Roles.filter(role => role.value !== 'Owner').map(role => (
                       <option key={role.value} value={role.value}>{role.label}</option>
                     ))}
                   </select>

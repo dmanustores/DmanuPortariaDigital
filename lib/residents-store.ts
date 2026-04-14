@@ -127,91 +127,61 @@ export const saveResident = async (resident: Resident) => {
 
     // Delete existing relations to ensure a clean state (Sync)
     console.log('🗑️ Deleting old relations for resident:', resident.id);
-    const delResults = await Promise.all([
-      { name: 'household_members', res: await supabase.from('household_members').delete().eq('resident_id', resident.id) },
-      { name: 'vehicles', res: await supabase.from('vehicles').delete().eq('resident_id', resident.id) },
-      { name: 'service_providers', res: await supabase.from('service_providers').delete().eq('resident_id', resident.id) },
-      { name: 'invoice_addresses', res: await supabase.from('invoice_addresses').delete().eq('resident_id', resident.id) },
-      { name: 'vehicles_registry', res: await supabase.from('vehicles_registry').delete().eq('moradorid', resident.id) }
-    ]);
+    // Limpa relações antigas antes de reinserir (Essencial para evitar duplicados na Edição)
+    if (resident.id) {
+      console.log('Cleaning old relations for resident:', resident.id);
+      const delResults = await Promise.all([
+        supabase.from('household_members').delete().eq('resident_id', resident.id),
+        supabase.from('vehicles').delete().eq('resident_id', resident.id),
+        supabase.from('service_providers').delete().eq('resident_id', resident.id),
+        supabase.from('invoice_addresses').delete().eq('resident_id', resident.id),
+        supabase.from('vehicles_registry').delete().eq('moradorid', resident.id)
+      ]);
 
-    const failedDel = delResults.find(r => r.res.error);
-    if (failedDel) {
-      console.error(`❌ Error clearing old relations in ${failedDel.name}:`, failedDel.res.error.message, failedDel.res.error.details);
-      // We log but continue to try saving others, though ideally we should handle this.
-    } else {
-      console.log('✅ Old relations deleted successfully (5 tables cleared)');
+      const failedDel = delResults.find(r => r.error);
+      if (failedDel) {
+        console.error(`❌ Erro ao limpar relações antigas:`, failedDel.error.message);
+        // Se falhar o delete por RLS (ex: Owner não logado), interrompemos para não duplicar
+        throw new Error(`Não foi possível atualizar as relações: ${failedDel.error.message}. Verifique suas permissões.`);
+      }
+      console.log('✅ Relações antigas limpas com sucesso.');
     }
 
     // Insert relations
     const promises = [];
 
-    // Sincroniza e força atualização da unidade residente (Tolerante a falhas RLS)
-    if (resident.bloco && resident.apto) {
-      promises.push((async () => {
-        try {
-          // Normaliza bloco para garantir vínculo (ex: "3" -> "03")
-          const normalizedBloco = resident.bloco.padStart(2, '0');
-          
-          const { data: existingUnit } = await supabase
-            .from('units')
-            .select('id')
-            .eq('bloco', normalizedBloco)
-            .eq('numero', resident.apto)
-            .maybeSingle();
-
-          if (existingUnit) {
-            // Se encontrou a unidade, marca como OCUPADA
-            await supabase.from('units').update({ 
-              status: 'OCUPADA'
-            }).eq('id', existingUnit.id);
-            console.log(`🏠 Unit ${normalizedBloco}-${resident.apto} status updated to OCUPADA`);
-          } else {
-            // Se não encontrou, talvez a unidade não exista, tentamos criar ou apenas logar
-            console.warn(`⚠️ Unit ${normalizedBloco}-${resident.apto} not found in 'units' table.`);
-          }
-        } catch (unitErr) {
-          console.error('Error syncing unit status:', unitErr);
-        }
-      })());
-    }
-
+    // 1. Membros da Casa (Dependentes)
     if (resident.householdMembers && resident.householdMembers.length > 0) {
+      console.log('Inserindo dependentes:', resident.householdMembers.length);
+      const memberData = resident.householdMembers.map((m: any) => {
+        const { id, resident_id, created_at, isBaby, ...rest } = m;
+        return { 
+          ...rest, 
+          resident_id: resident.id,
+          rg: m.rg || (m.isBaby ? 'BEBE' : ''),
+          cpf: m.cpf ? m.cpf.replace(/\D/g, '') : null
+        };
+      });
+
       promises.push(
-        supabase.from('household_members').insert(
-          resident.householdMembers.map((m: any) => {
-            // Omit 'isBaby' as it is not in the DB schema
-            const { id, resident_id, created_at, isBaby, ...rest } = m;
-            return { 
-              ...rest, 
-              resident_id: resident.id,
-              // rg is mandatory in DB, so we ensure it's not null
-              // If it's a baby, we store 'BEBE' in the RG field
-              rg: m.rg || (m.isBaby ? 'BEBE' : ''),
-              cpf: m.cpf ? m.cpf.replace(/\D/g, '') : null
-            };
-          })
-        )
+        supabase.from('household_members').insert(memberData).then(res => {
+          if (res.error) console.error('Erro ao inserir dependentes:', res.error);
+          return res;
+        })
       );
     }
 
+    // 2. Veículos e Registro de Veículos
     if (resident.vehicles && resident.vehicles.length > 0) {
-      console.log('Processing vehicles for resident:', resident.id);
+      console.log('Processando veículos:', resident.vehicles.length);
       
-      // Delete old vehicles
-      const delVehicles = await supabase.from('vehicles').delete().eq('resident_id', resident.id);
-      if(delVehicles.error) {
-        console.warn('Could not delete old vehicles:', delVehicles.error);
-      } else {
-        console.log('Old vehicles deleted');
-      }
-
-      // Prepare vehicle data
       const vehicleData = resident.vehicles.map((v: any) => {
         const { id, resident_id, created_at, ...rest } = v;
-        console.log('Vehicle to save - Modelo:', rest.modelo, 'Cor:', rest.cor, 'Placa:', rest.placa);
         return { ...rest, resident_id: resident.id };
       });
+
+      // Aqui não precisamos deletar de novo, já limpamos acima no bloco principal
+      promises.push((async () => {
       
       console.log('Inserting', vehicleData.length, 'vehicles');
       const vehicleResult = await supabase.from('vehicles').insert(vehicleData).select();
@@ -266,9 +236,10 @@ export const saveResident = async (resident: Resident) => {
           })
         );
       }
-    }
+    })());
+  }
 
-    if (resident.serviceProviders && resident.serviceProviders.length > 0) {
+  if (resident.serviceProviders && resident.serviceProviders.length > 0) {
       promises.push(
         supabase.from('service_providers').insert(
           resident.serviceProviders.map((s: any) => {
@@ -291,7 +262,7 @@ export const saveResident = async (resident: Resident) => {
 
     if (promises.length > 0) {
       const results = await Promise.all(promises);
-      const errorResult = results.find(r => r && r.error);
+      const errorResult = results.find((r: any) => r && r.error);
       if (errorResult?.error) {
         console.error('Error saving resident relations:', errorResult.error);
         throw errorResult.error;
@@ -316,7 +287,7 @@ export const deleteResident = async (id: string) => {
     ]);
 
     // Check if any relation deletion failed
-    const failedRel = rels.find(r => r.res.error);
+    const failedRel = rels.find((r: any) => r.res.error);
     if (failedRel) {
       console.error(`Error deleting resident relations in ${failedRel.name}:`, failedRel.res.error.message);
       throw new Error(`Erro ao remover dados vinculados (${failedRel.name}): ${failedRel.res.error.message}`);
@@ -342,28 +313,6 @@ export const deleteResident = async (id: string) => {
 
     const deletedResident = data[0];
     console.log('Successfully deleted resident and all relations:', id);
-
-    // 3. Sincronismo Reverso: Se for o último morador da unidade, volta o status para VAGA
-    if (deletedResident.bloco && deletedResident.apto) {
-      try {
-        const { count } = await supabase
-          .from('residents')
-          .select('id', { count: 'exact', head: true })
-          .eq('bloco', deletedResident.bloco)
-          .eq('apto', deletedResident.apto);
-
-        if (count === 0) {
-          console.log(`🧹 Unit ${deletedResident.bloco}-${deletedResident.apto} is now empty. Setting to VAGA.`);
-          await supabase
-            .from('units')
-            .update({ status: 'VAGA' })
-            .eq('bloco', deletedResident.bloco)
-            .eq('numero', deletedResident.apto);
-        }
-      } catch (syncErr) {
-        console.error('Error updating unit status after deletion:', syncErr);
-      }
-    }
   } catch (error) {
     console.error('Fatal error in deleteResident:', error);
     throw error;
