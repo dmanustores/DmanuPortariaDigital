@@ -16,7 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
-import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
+import { lookupUnitId, getCurrentOperatorId, capitalize } from '@/lib/utils';
 
 interface Package {
   id: string;
@@ -42,58 +42,109 @@ export default function EncomendasPage() {
   const [filter, setFilter] = useState('TODOS');
   const [retiradoPor, setRetiradoPor] = useState('');
   const [operatorId, setOperatorId] = useState<string | null>(null);
+  const [residents, setResidents] = useState<any[]>([]);
+  const [blocoSearch, setBlocoSearch] = useState('');
+  const [apartamentoSearch, setApartamentoSearch] = useState('');
+  const [showUnidadeDropdown, setShowUnidadeDropdown] = useState(false);
+  const [selectedUnidade, setSelectedUnidade] = useState<any | null>(null);
+
   const [formData, setFormData] = useState({
-    unidadeDesc: '',
     transportadora: '',
     numero: '',
     volumes: 1,
     observacoes: ''
   });
 
-  useEffect(() => {
-    fetchPackages();
-    getCurrentOperatorId(supabase).then(setOperatorId);
-  }, []);
+  const fetchResidents = async () => {
+    const { data } = await supabase
+      .from('residents')
+      .select('id, nome, bloco, apto')
+      .order('nome');
+    if (data) setResidents(data);
+  };
 
   const fetchPackages = async () => {
     setLoading(true);
     const { data } = await supabase
       .from('packages')
       .select('*')
-      .order('horaRecebimento', { ascending: false })
+      .order('recebida_em', { ascending: false })
       .limit(100);
     
     if (data) setPackages(data);
     setLoading(false);
   };
 
-  const handleSubmit = async () => {
-    try {
-      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+  useEffect(() => {
+    fetchPackages();
+    fetchResidents();
+    getCurrentOperatorId(supabase).then(setOperatorId);
+  }, []);
 
-      await supabase.from('packages').insert({
-        unidadeId: unitId,
-        unidadeDesc: formData.unidadeDesc || null,
+  // Filtragem de unidades para o dropdown
+  const unidadesDisponiveis = residents.filter(r => r.bloco && r.apto);
+  const filteredUnidades = unidadesDisponiveis.filter(r => {
+    const blocoStr = String(r.bloco).trim().padStart(2, '0');
+    const numeroStr = String(r.apto).trim();
+    const searchBloco = blocoSearch.trim().padStart(2, '0');
+    const searchApt = apartamentoSearch.trim();
+
+    if (!searchBloco && !searchApt) return true;
+    if (searchBloco && !searchApt) return blocoStr.includes(searchBloco);
+    if (searchApt && !searchBloco) return numeroStr.includes(searchApt);
+    return blocoStr.includes(searchBloco) && numeroStr.includes(searchApt);
+  }).slice(0, 10);
+
+  const handleSelectUnidade = (resident: any) => {
+    setSelectedUnidade(resident);
+    setBlocoSearch(resident.bloco || '');
+    setApartamentoSearch(resident.apto || '');
+    setShowUnidadeDropdown(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!selectedUnidade || !formData.transportadora) {
+      alert('Por favor, selecione a unidade e a transportadora.');
+      return;
+    }
+
+    try {
+      const unidadeDesc = `Bloco ${selectedUnidade.bloco}, Apt ${selectedUnidade.apto}`;
+      
+      const { error } = await supabase.from('packages').insert({
+        unidade_id: selectedUnidade.id,
+        unidade_desc: unidadeDesc,
         transportadora: formData.transportadora,
         numero: formData.numero || null,
         volumes: formData.volumes,
         observacoes: formData.observacoes || null,
-        operadorRecebimento: operatorId,
-        status: 'AGUARDANDO'
+        operador_recebimento_id: operatorId,
+        status: 'AGUARDANDO',
+        recebida_em: new Date().toISOString()
       });
+
+      if (error) throw error;
       
+      alert('✅ Encomenda registrada com sucesso!');
       setShowModal(false);
-      setFormData({
-        unidadeDesc: '',
-        transportadora: '',
-        numero: '',
-        volumes: 1,
-        observacoes: ''
-      });
+      resetForm();
       fetchPackages();
-    } catch (err) {
-      console.error(err);
+    } catch (err: any) {
+      console.error('❌ Erro ao salvar encomenda:', err);
+      alert('Erro ao salvar encomenda: ' + (err.message || 'Verifique sua conexão'));
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      transportadora: '',
+      numero: '',
+      volumes: 1,
+      observacoes: ''
+    });
+    setBlocoSearch('');
+    setApartamentoSearch('');
+    setSelectedUnidade(null);
   };
 
   const handleRetire = async () => {
@@ -212,9 +263,9 @@ export default function EncomendasPage() {
                   </td>
                   <td className="p-4">
                     <span className="text-sm text-slate-500">
-                      {new Date(pkg.horaRecebimento).toLocaleString('pt-BR', { 
+                      {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleString('pt-BR', { 
                         day: '2-digit', hour: '2-digit', minute: '2-digit' 
-                      })}
+                      }) : '-'}
                     </span>
                   </td>
                   <td className="p-4">
@@ -282,15 +333,75 @@ export default function EncomendasPage() {
               </div>
 
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-bold mb-2">Unidade *</label>
-                  <input 
-                    type="text"
-                    value={formData.unidadeDesc}
-                    onChange={(e) => setFormData({...formData, unidadeDesc: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                    placeholder="Bloco/Apto"
-                  />
+                <div className="relative">
+                  <label className="block text-sm font-bold mb-2">Unidade Destinatária *</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">BLOCO</span>
+                      <input 
+                        type="text"
+                        value={blocoSearch}
+                        onChange={(e) => { 
+                          setBlocoSearch(e.target.value); 
+                          setShowUnidadeDropdown(true);
+                          setSelectedUnidade(null);
+                        }}
+                        onFocus={() => setShowUnidadeDropdown(true)}
+                        placeholder="00"
+                        className="w-full pl-14 pr-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold"
+                      />
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs font-bold">APTO</span>
+                      <input 
+                        type="text"
+                        value={apartamentoSearch}
+                        onChange={(e) => { 
+                          setApartamentoSearch(e.target.value); 
+                          setShowUnidadeDropdown(true);
+                          setSelectedUnidade(null);
+                        }}
+                        onFocus={() => setShowUnidadeDropdown(true)}
+                        placeholder="000"
+                        className="w-full pl-14 pr-3 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold"
+                      />
+                    </div>
+                  </div>
+
+                  {showUnidadeDropdown && filteredUnidades.length > 0 && (
+                    <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl z-[60] max-h-60 overflow-y-auto">
+                      {filteredUnidades.map((r: any) => (
+                        <button
+                          key={r.id}
+                          onClick={() => handleSelectUnidade(r)}
+                          className="w-full p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 flex items-center justify-between border-b border-slate-100 dark:border-slate-700 last:border-0"
+                        >
+                          <div>
+                            <p className="font-black text-slate-900 dark:text-white">Bloco {r.bloco} - Apt {r.apto}</p>
+                            <p className="text-xs text-slate-500 uppercase">{r.nome}</p>
+                          </div>
+                          <Plus size={16} className="text-primary" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {selectedUnidade && (
+                    <div className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-xl flex items-center justify-between animate-in fade-in slide-in-from-top-1">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xs uppercase">
+                          {selectedUnidade.nome.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="text-sm font-black text-slate-900 dark:text-white">Bloco {selectedUnidade.bloco} - Apt {selectedUnidade.apto}</p>
+                          <p className="text-[10px] text-slate-500 uppercase font-bold tracking-wider">{selectedUnidade.nome}</p>
+                        </div>
+                      </div>
+                      <button onClick={resetForm} className="p-1 hover:bg-primary/10 rounded-lg text-primary">
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 <div>
