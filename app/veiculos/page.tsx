@@ -114,9 +114,23 @@ export default function VeiculosPage() {
 
   const fetchVehicles = async () => {
     setLoading(true);
+    // Use aliases to map DB lowercase columns to camelCase interface properties
     const { data } = await supabase
       .from('vehicles_registry')
-      .select('*')
+      .select(`
+        id,
+        placa,
+        modelo,
+        cor,
+        unidadeId:unidadeid,
+        unidadeDesc:unidadedesc,
+        tipo,
+        nomeProprietario:nomeproprietario,
+        telefone,
+        moradorId:moradorid,
+        status,
+        created_at
+      `)
       .order('created_at', { ascending: false });
     
     if (data) setVehicles(data);

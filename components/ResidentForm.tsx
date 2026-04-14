@@ -382,7 +382,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         </div>
         
         {/* Contatos e Documentos - Todos em uma linha */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-8 items-end">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-8 items-start">
           <div className="flex flex-col">
             <label className="text-xs font-bold uppercase text-slate-500 mb-2 min-h-[2rem] flex items-end">Celular</label>
             <input 

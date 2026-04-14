@@ -125,16 +125,17 @@ export const saveResident = async (resident: Resident) => {
     // Delete existing relations to ensure a clean state (Sync)
     console.log('🗑️ Deleting old relations for resident:', resident.id);
     const delResults = await Promise.all([
-      supabase.from('household_members').delete().eq('resident_id', resident.id),
-      supabase.from('vehicles').delete().eq('resident_id', resident.id),
-      supabase.from('service_providers').delete().eq('resident_id', resident.id),
-      supabase.from('invoice_addresses').delete().eq('resident_id', resident.id),
-      supabase.from('vehicles_registry').delete().eq('moradorid', resident.id)
+      { name: 'household_members', res: await supabase.from('household_members').delete().eq('resident_id', resident.id) },
+      { name: 'vehicles', res: await supabase.from('vehicles').delete().eq('resident_id', resident.id) },
+      { name: 'service_providers', res: await supabase.from('service_providers').delete().eq('resident_id', resident.id) },
+      { name: 'invoice_addresses', res: await supabase.from('invoice_addresses').delete().eq('resident_id', resident.id) },
+      { name: 'vehicles_registry', res: await supabase.from('vehicles_registry').delete().eq('moradorid', resident.id) }
     ]);
 
-    const delError = delResults.find(r => r.error)?.error;
-    if (delError) {
-      console.error('❌ Error clearing old relations:', delError);
+    const failedDel = delResults.find(r => r.res.error);
+    if (failedDel) {
+      console.error(`❌ Error clearing old relations in ${failedDel.name}:`, failedDel.res.error.message, failedDel.res.error.details);
+      // We log but continue to try saving others, though ideally we should handle this.
     } else {
       console.log('✅ Old relations deleted successfully (5 tables cleared)');
     }
@@ -221,10 +222,25 @@ export const saveResident = async (resident: Resident) => {
       
       // Now insert into vehicles_registry using ACTUAL inserted vehicle data
       if(insertedVehicles.length > 0) {
+        // Resolve unit ID for the registry
+        let unitId: string | null = null;
+        try {
+          const { data: unitData } = await supabase
+            .from('units')
+            .select('id')
+            .eq('bloco', resident.bloco)
+            .eq('numero', resident.apto)
+            .maybeSingle();
+          unitId = unitData?.id || null;
+        } catch (e) {
+          console.warn('Could not resolve unitId for registry:', e);
+        }
+
         const registryData = insertedVehicles.map((v: any) => ({
           placa: v.placa ? v.placa.toUpperCase() : '',
           modelo: v.modelo || null,
           cor: v.cor || null,
+          unidadeid: unitId,
           unidadedesc: `Bloco ${resident.bloco}, Apt ${resident.apto}`,
           tipo: resident.tipo,
           nomeproprietario: resident.nome,
@@ -238,7 +254,7 @@ export const saveResident = async (resident: Resident) => {
         promises.push(
           supabase.from('vehicles_registry').insert(registryData).then((res: any) => {
             if(res.error) {
-              console.warn('⚠️ RLS block when syncing to vehicles_registry:', res.error);
+              console.warn('⚠️ Error syncing to vehicles_registry:', res.error);
               return { error: null };
             }
             console.log('✅ vehicles_registry synced');
@@ -288,18 +304,18 @@ export const deleteResident = async (id: string) => {
   try {
     // 1. Delete relations first to avoid foreign key constraints issues
     const rels = await Promise.all([
-      supabase.from('household_members').delete().eq('resident_id', id),
-      supabase.from('vehicles').delete().eq('resident_id', id),
-      supabase.from('service_providers').delete().eq('resident_id', id),
-      supabase.from('invoice_addresses').delete().eq('resident_id', id),
-      supabase.from('vehicles_registry').delete().eq('moradorid', id)
+      { name: 'household_members', res: await supabase.from('household_members').delete().eq('resident_id', id) },
+      { name: 'vehicles', res: await supabase.from('vehicles').delete().eq('resident_id', id) },
+      { name: 'service_providers', res: await supabase.from('service_providers').delete().eq('resident_id', id) },
+      { name: 'invoice_addresses', res: await supabase.from('invoice_addresses').delete().eq('resident_id', id) },
+      { name: 'vehicles_registry', res: await supabase.from('vehicles_registry').delete().eq('moradorid', id) }
     ]);
 
     // Check if any relation deletion failed
-    const relError = rels.find(r => r.error)?.error;
-    if (relError) {
-      console.error('Error deleting resident relations:', relError);
-      throw new Error(`Erro ao remover dados vinculados: ${relError.message}`);
+    const failedRel = rels.find(r => r.res.error);
+    if (failedRel) {
+      console.error(`Error deleting resident relations in ${failedRel.name}:`, failedRel.res.error.message);
+      throw new Error(`Erro ao remover dados vinculados (${failedRel.name}): ${failedRel.res.error.message}`);
     }
 
     // 2. Delete the main resident record
