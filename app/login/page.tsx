@@ -62,34 +62,25 @@ export default function LoginPage() {
 
       if (data.user) {
         // Fetch operator profile
-        let profile = await supabase
+        const { data: profile } = await supabase
           .from('operators')
           .select('*')
           .eq('id', data.user.id)
           .single();
 
-        // Auto-cria perfil se não existir (fallback)
-        if (!profile) {
-          const email = data.user.email || username;
-          const nome = username.includes('@') ? username.split('@')[0] : username;
-          
-          await supabase.from('operators').insert({
-            id: data.user.id,
-            nome: nome,
-            role: 'Porteiro',
-            turno: 'A'
-          });
-          
-          profile = { nome, role: 'Porteiro', turno: 'A' };
+        if (profile?.status === 'bloqueado') {
+          throw new Error('Seu acesso foi bloqueado pela administração. Entre em contato com o síndico.');
         }
 
+        // Se o perfil não existir, profile continuará null, e os fallbacks abaixo tratarão isso.
+        
         // Session timeout: 4 horas
         const sessionExpiry = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
         
         localStorage.setItem('portaria_auth', JSON.stringify({
-          user: profile?.nome || data.user.email,
-          role: profile?.role || 'Porteiro',
-          turno: profile?.turno || 'A',
+          user: profile?.nome || data.user.email || 'Usuário',
+          role: profile?.role || (data.user.email === 'dmanu.stores@gmail.com' ? 'Owner' : 'Pendente'),
+          turno: profile?.turno || (profile?.role === 'Admin' ? 'ADM' : 'A'),
           loginTime: new Date().toISOString(),
           sessionExpiry
         }));

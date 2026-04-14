@@ -40,19 +40,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
 
   useEffect(() => {
     const fetchProfile = async () => {
-      // First check localStorage (works for Owner/login without Supabase)
-      const localAuth = localStorage.getItem('portaria_auth');
-      if (localAuth) {
-        const parsed = JSON.parse(localAuth);
-        setOperator({
-          nome: parsed.user,
-          role: parsed.role,
-          turno: parsed.turno
-        });
-        return;
-      }
-
-      // Fallback to Supabase session
+      // 1. Tenta buscar direto do banco de dados (Sempre a fonte da verdade)
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         const { data: profile } = await supabase
@@ -67,7 +55,19 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
             role: profile.role,
             turno: profile.turno
           });
+          return;
         }
+      }
+
+      // 2. Fallback para localStorage (apenas se não houver sessão Supabase)
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth) {
+        const parsed = JSON.parse(localAuth);
+        setOperator({
+          nome: parsed.user,
+          role: parsed.role,
+          turno: parsed.turno
+        });
       }
     };
 
@@ -117,14 +117,17 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
         )}
       </AnimatePresence>
 
-      <aside className={`
-        fixed lg:static inset-y-0 left-0 z-50
-        w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-screen
-        transition-transform duration-300 ease-in-out
-        ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
-        <div className="p-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <aside 
+        suppressHydrationWarning
+        className={`
+          fixed lg:static inset-y-0 left-0 z-50
+          w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col h-screen
+          transition-transform duration-300 ease-in-out
+          ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+      >
+        <div className="p-6 flex items-center justify-between" suppressHydrationWarning>
+          <div className="flex items-center gap-3" suppressHydrationWarning>
             <div className="bg-primary size-10 rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20">
               <Building2 size={20} />
             </div>
@@ -156,23 +159,6 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
               </Link>
             );
           })}
-          {adminItems.map((item) => {
-            const isActive = activePath === item.href;
-            return (
-              <Link
-                key={item.label}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
-                  isActive 
-                    ? 'bg-red-500 text-white font-medium shadow-md shadow-red-500/10' 
-                    : 'text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20'
-                }`}
-              >
-                <item.icon size={20} />
-                <span className="text-sm">{item.label}</span>
-              </Link>
-            );
-          })}
         </nav>
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
@@ -183,7 +169,9 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate">{operator?.nome || 'Operador'}</p>
               <p className="text-[10px] text-slate-500">
-                {operator ? `${operator.role} - Turno ${operator.turno}` : 'Carregando...'}
+                {operator ? (
+                  `${operator.role} - ${operator.turno === 'ADM' ? 'Horário Livre' : `Turno ${operator.turno}`}`
+                ) : 'Carregando...'}
               </p>
             </div>
             <Settings size={18} className="text-slate-400 cursor-pointer hover:text-primary transition-colors" onClick={() => router.push('/admin')} />

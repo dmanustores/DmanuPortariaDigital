@@ -7,15 +7,20 @@ import {
   Pencil, 
   Trash2, 
   Clock,
-  UserCheck,
-  X,
-  Save,
-  Search,
-  Shield,
-  Eye,
-  EyeOff,
   Mail,
-  Lock
+  Lock,
+  Ban,
+  Key,
+  RefreshCcw,
+  CheckCircle2,
+  AlertCircle,
+  Search,
+  UserCheck,
+  Shield,
+  X,
+  EyeOff,
+  Eye,
+  Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
@@ -27,6 +32,7 @@ interface Operator {
   email?: string;
   role: string;
   turno: string;
+  status?: 'ativo' | 'bloqueado';
   created_at: string;
 }
 
@@ -64,7 +70,22 @@ export default function AdminPage() {
   });
   const [saving, setSaving] = useState(false);
 
-  const [currentUserRole, setCurrentUserRole] = useState<string>('');
+  const [currentUserRole, setCurrentUserRole] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const localAuth = localStorage.getItem('portaria_auth');
+      if (localAuth) {
+        try {
+          const auth = JSON.parse(localAuth);
+          console.log('Role detectada no inicializador:', auth.role);
+          return auth.role || '';
+        } catch { return ''; }
+      }
+    }
+    return '';
+  });
+
+  const [currentUserId, setCurrentUserId] = useState<string>('');
+  const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
 
   useEffect(() => {
     fetchOperators();
@@ -73,8 +94,21 @@ export default function AdminPage() {
 
   const fetchCurrentUser = async () => {
     try {
-      // Primeiro tenta pelo Supabase Auth
       const { data: { session } } = await supabase.auth.getSession();
+      
+      if (session?.user) {
+        setCurrentUserId(session.user.id);
+        const email = session?.user?.email;
+        if (email) setCurrentUserEmail(email);
+
+        // Regra Master: Se o e-mail for o master, força ser Owner
+        if (email === 'dmanu.stores@gmail.com') {
+          console.log('Detectado e-mail Master, forçando role Owner');
+          setCurrentUserRole('Owner');
+          return;
+        }
+      }
+
       if (session?.user) {
         const { data, error } = await supabase
           .from('operators')
@@ -88,21 +122,17 @@ export default function AdminPage() {
         }
       }
 
-      // Se não encontrou no banco ou não tem sessão, verifica o login local (Master Owner)
       const localAuth = localStorage.getItem('portaria_auth');
       if (localAuth) {
         const authData = JSON.parse(localAuth);
-        if (authData.role === 'Owner') {
-          setCurrentUserRole('Owner');
+        if (authData.role) {
+          setCurrentUserRole(authData.role);
+          // Caso especial para o login Master legado
+          if (authData.user === 'Owner Master') setCurrentUserRole('Owner');
         }
       }
     } catch (e) {
-      console.warn('Erro ao identificar role do usuário:', e);
-      // Fallback para Owner se estiver no modo local
-      const localAuth = localStorage.getItem('portaria_auth');
-      if (localAuth?.includes('"role":"Owner"')) {
-        setCurrentUserRole('Owner');
-      }
+      console.warn('Erro fetchCurrentUser:', e);
     }
   };
 
@@ -115,6 +145,56 @@ export default function AdminPage() {
     
     if (data) setOperators(data);
     setLoading(false);
+  };
+
+  const handleToggleStatus = async (operator: Operator) => {
+    const newStatus = operator.status === 'bloqueado' ? 'ativo' : 'bloqueado';
+    
+    // Confirmação para bloqueio
+    if (newStatus === 'bloqueado' && !confirm(`Deseja realmente BLOQUEAR o acesso de ${operator.nome}?`)) return;
+
+    const { error } = await supabase
+      .from('operators')
+      .update({ status: newStatus })
+      .eq('id', operator.id);
+
+    if (error) {
+      alert('Erro ao atualizar status: ' + error.message);
+    } else {
+      fetchOperators();
+    }
+  };
+
+  const handleResetPassword = async (operator: Operator) => {
+    const newPassword = prompt(`Defina a nova senha para ${operator.nome}:`, 'portaria123');
+    if (!newPassword) return;
+
+    if (newPassword.length < 6) {
+      alert('A senha deve ter pelo menos 6 caracteres.');
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.rpc('admin_reset_password', {
+        user_id_to_reset: operator.id,
+        new_password: newPassword
+      });
+
+      if (error) throw error;
+      
+      if (data?.success) {
+        alert(`✅ Sucesso! A nova senha de ${operator.nome} agora é: ${newPassword}`);
+      } else {
+        alert(`❌ Erro: ${data?.message || 'Falha ao resetar senha.'}`);
+      }
+      
+    } catch (err: any) {
+      console.error('Erro no reset:', err);
+      alert('Erro ao resetar: ' + (err.message || 'Ocorreu um erro inesperado.'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const validateForm = () => {
@@ -374,14 +454,59 @@ export default function AdminPage() {
                       {operator.role === 'Admin' || operator.role === 'Owner' ? 'Horário Livre' : turnoInfo.hours}
                     </td>
                     <td className="p-4">
+                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
+                        operator.status === 'bloqueado' 
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' 
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'
+                      }`}>
+                        {operator.status === 'bloqueado' ? 'Bloqueado' : 'Ativo'}
+                      </span>
+                    </td>
+                    <td className="p-4">
                       { (currentUserRole === 'Owner' || (operator.role !== 'Admin' && operator.role !== 'Owner')) ? (
-                        <div className="flex justify-end gap-2">
+                        <div className="flex justify-end gap-1">
+                          {/* Reset Senha */}
+                          <button 
+                            onClick={() => handleResetPassword(operator)}
+                            title="Resetar Senha"
+                            className="p-2 hover:bg-amber-50 dark:hover:bg-amber-900/20 rounded-lg transition-colors"
+                          >
+                            <Key size={16} className="text-amber-500" />
+                          </button>
+
+                          {/* Bloqueio - Escondido para o próprio usuário e para Owners */}
+                          {operator.id !== currentUserId && operator.role !== 'Owner' && (
+                            <button 
+                              onClick={() => handleToggleStatus(operator)}
+                              title={operator.status === 'bloqueado' ? 'Ativar' : 'Bloquear'}
+                              className={`p-2 rounded-lg transition-colors ${
+                                operator.status === 'bloqueado' 
+                                  ? 'hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-500' 
+                                  : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-500'
+                              }`}
+                            >
+                              {operator.status === 'bloqueado' ? <CheckCircle2 size={16} /> : <Ban size={16} />}
+                            </button>
+                          )}
+
                           <button 
                             onClick={() => openModal(operator)}
+                            title="Editar"
                             className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors"
                           >
                             <Pencil size={16} className="text-slate-400" />
                           </button>
+
+                          {/* Exclusão - Escondida para o próprio usuário e para Owners */}
+                          {operator.id !== currentUserId && operator.role !== 'Owner' && (
+                            <button 
+                              onClick={() => handleDelete(operator.id)}
+                              title="Excluir"
+                              className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                            >
+                              <Trash2 size={16} className="text-red-400" />
+                            </button>
+                          )}
                           {operator.role !== 'Owner' && (
                             <button 
                               onClick={() => handleDelete(operator.id)}

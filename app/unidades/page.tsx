@@ -79,6 +79,13 @@ export default function UnidadesPage() {
     observacoes: ''
   });
 
+  // Estados para o Gerador Flexível
+  const [configBlocks, setConfigBlocks] = useState(22);
+  const [configFloors, setConfigFloors] = useState(5);
+  const [configAptsPerFloor, setConfigAptsPerFloor] = useState(4);
+  const [numberingPattern, setNumberingPattern] = useState<'FLOOR_BASED' | 'SEQUENTIAL'>('FLOOR_BASED');
+  const [blockPrefix, setBlockPrefix] = useState('0'); // Prefixo para padding do bloco
+
   useEffect(() => {
     fetchUnits();
     fetchRole();
@@ -163,14 +170,21 @@ export default function UnidadesPage() {
 
   const generateUnits = async () => {
     setGenerating(true);
+    setGeneratedCount(0);
     const newUnits = [];
     
-    for (let bloco = 1; bloco <= TOTAL_BLOCOS; bloco++) {
-      for (let andar = 1; andar <= TOTAL_ANDARES; andar++) {
-        for (let apt = 1; apt <= APARTAMENTOS_POR_ANDAR; apt++) {
+    for (let b = 1; b <= configBlocks; b++) {
+      let sequentialCounter = 1;
+      for (let f = 1; f <= configFloors; f++) {
+        for (let a = 1; a <= configAptsPerFloor; a++) {
+          const blocoStr = String(b).padStart(2, blockPrefix === '0' ? '0' : '');
+          const numeroStr = numberingPattern === 'FLOOR_BASED' 
+            ? `${f}${a.toString().padStart(2, '0')}`
+            : String(sequentialCounter++).padStart(2, '0');
+
           newUnits.push({
-            bloco: String(bloco).padStart(2, '0'),
-            numero: `${andar}${apt.toString().padStart(2, '0')}`,
+            bloco: blocoStr,
+            numero: numeroStr,
             tipo: 'RESIDENCIAL',
             status: 'VAGA',
             vagasgaragem: 1,
@@ -313,10 +327,10 @@ export default function UnidadesPage() {
     manutencao: units.filter(u => u.status === 'MANUTENCAO').length
   };
 
-  const isAdmin = operatorRole === 'Admin';
+  const isAdmin = operatorRole === 'Admin' || operatorRole === 'Owner';
 
   return (
-    <DashboardLayout>
+    <DashboardLayout suppressHydrationWarning>
       <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
           <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
@@ -329,7 +343,7 @@ export default function UnidadesPage() {
         </motion.div>
 
         <div className="flex items-center gap-3">
-          {isAdmin && units.length < TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR && (
+          {isAdmin && units.length === 0 && (
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -342,7 +356,7 @@ export default function UnidadesPage() {
           )}
           
           <span className="text-sm font-bold text-slate-500">
-            {units.length} / {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} unidades
+            {units.length} unidades cadastradas
           </span>
 
           {isAdmin && (
@@ -456,7 +470,6 @@ export default function UnidadesPage() {
             .filter(bloco => filtered.some(u => u.bloco === bloco))
             .map((bloco) => {
               const blocoUnitsFiltered = filtered.filter(u => u.bloco === bloco);
-              const isExpanded = expandedBlocks.has(bloco);
               const occupied = blocoUnitsFiltered.filter(u => u.status === 'OCUPADA').length;
               const totalInFilter = blocoUnitsFiltered.length;
               const percentage = (occupied / Math.max(totalInFilter, 1)) * 100;
@@ -489,7 +502,6 @@ export default function UnidadesPage() {
                   </button>
                 </div>
 
-                {/* Occupancy Progress Bar */}
                 <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full mb-4 overflow-hidden">
                   <motion.div 
                     initial={{ width: 0 }}
@@ -553,7 +565,6 @@ export default function UnidadesPage() {
 
           <div className="text-center mb-4">
             <h3 className="text-xl font-black">Bloco {selectedBloco}</h3>
-            <p className="text-sm text-slate-500">5 andares × 4 apartamentos = 20 unidades</p>
           </div>
 
           <div className="flex flex-col gap-3">
@@ -604,204 +615,8 @@ export default function UnidadesPage() {
               </div>
             ))}
           </div>
-
-          <div className="mt-6 flex justify-center">
-            <button
-              onClick={() => {
-                const existingUnits = units.filter(u => u.bloco === selectedBloco).length;
-                if (existingUnits < 20) {
-                  alert('Este bloco ainda tem unidades vazias. Clique nos apartamentos "+ Add" para criar.');
-                }
-              }}
-              className="text-sm text-primary font-bold"
-            >
-              Ver detalhes do bloco →
-            </button>
-          </div>
         </div>
       )}
-
-      <div className="flex flex-wrap gap-2 mb-6">
-        <button
-          onClick={() => setFilterStatus(filterStatus === 'OCUPADA' ? '' : 'OCUPADA')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            filterStatus === 'OCUPADA' 
-              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-2 border-green-500' 
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-green-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-green-500"></span>
-          {stats.occupied} Ocupadas
-        </button>
-        <button
-          onClick={() => setFilterStatus(filterStatus === 'VAGA' ? '' : 'VAGA')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            filterStatus === 'VAGA' 
-              ? 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300 border-2 border-slate-500' 
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-slate-400"></span>
-          {stats.vacant} Vagas
-        </button>
-        <button
-          onClick={() => setFilterStatus(filterStatus === 'OBRAS' ? '' : 'OBRAS')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            filterStatus === 'OBRAS' 
-              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-2 border-amber-500' 
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-amber-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-          {stats.obras} Em Obras
-        </button>
-        <button
-          onClick={() => setFilterStatus(filterStatus === 'MANUTENCAO' ? '' : 'MANUTENCAO')}
-          className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
-            filterStatus === 'MANUTENCAO' 
-              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border-2 border-red-500' 
-              : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-red-400'
-          }`}
-        >
-          <span className="w-2 h-2 rounded-full bg-red-500"></span>
-          {stats.manutencao} Manutenção
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
-          <Building2 size={48} className="mx-auto mb-4 opacity-50" />
-          <p>Nenhuma unidade encontrada para este filtro</p>
-          <button 
-            onClick={() => { setSearch(''); setFilterBloco(''); setFilterStatus(''); setFilterTipo(''); }}
-            className="mt-4 px-4 py-2 bg-primary text-white rounded-lg font-bold text-sm"
-          >
-            Limpar filtros
-          </button>
-        </div>
-      ) : viewMode === 'planta' ? (
-        <div className="text-center py-12 text-slate-400">
-          <Home size={48} className="mx-auto mb-4 opacity-50" />
-          <p>Selecione um bloco acima para ver a planta</p>
-        </div>
-      ) : viewMode === 'grid' ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {filtered.map((unit) => {
-            const statusConfig = getStatusConfig(unit.status);
-            return (
-              <motion.div
-                key={unit.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: unit.status === 'MANUTENCAO' ? 0.5 : 1, y: 0 }}
-                whileHover={{ scale: 1.02 }}
-                className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden cursor-pointer hover:shadow-xl transition-all ${
-                  unit.status === 'VAGA' ? 'border-dashed border-slate-300 dark:border-slate-600' : ''
-                }`}
-                style={{ borderLeftColor: statusConfig.color, borderLeftWidth: '4px' }}
-                onClick={() => openDetail(unit)}
-              >
-                {unit.status === 'OBRAS' && (
-                  <div className="absolute top-2 right-2 bg-amber-500 text-white p-1 rounded-full">
-                    <Wrench size={12} />
-                  </div>
-                )}
-                
-                {unit.status === 'OCUPADA' && (
-                  <div className="absolute top-3 right-3">
-                    <span className="w-2 h-2 rounded-full bg-green-500 inline-block animate-pulse"></span>
-                  </div>
-                )}
-
-                <div className="p-4 text-center">
-                  <p className="text-3xl font-black text-slate-900 dark:text-white">{unit.numero}</p>
-                  <p className="text-sm text-slate-500 dark:text-slate-400">Bloco {unit.bloco}</p>
-                  
-                  <div className="mt-3">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
-                      {statusConfig.label}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="border-t border-slate-100 dark:border-slate-800 p-3 flex items-center justify-center gap-4 text-xs text-slate-500 font-bold">
-                  <span className="flex items-center gap-1" title="Moradores"><Users size={12} className="text-primary" /> {unit.totalMoradores || 0}</span>
-                  <span className="flex items-center gap-1" title="Veículos Ativos"><Car size={12} className="text-amber-500" /> {unit.totalVehicles || 0} <span className="opacity-50 font-normal ml-1">/ {unit.vagasGaragem || 0} vagas</span></span>
-                  <span className="flex items-center gap-1" title="Encomendas"><Package size={12} /> 0</span>
-                </div>
-
-                {isAdmin && (
-                  <div className="flex border-t border-slate-100 dark:border-slate-800">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); openEdit(unit); }}
-                      className="flex-1 py-2 text-xs font-bold text-primary hover:bg-primary/10"
-                    >
-                      <Edit size={14} className="inline mr-1" />Editar
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }}
-                      className="flex-1 py-2 text-xs font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 border-l border-slate-100 dark:border-slate-800"
-                    >
-                      <Trash2 size={14} className="inline mr-1" />Excluir
-                    </button>
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50 dark:bg-slate-800">
-              <tr>
-                <th className="text-left p-3 font-bold text-slate-500">Bloco</th>
-                <th className="text-left p-3 font-bold text-slate-500 text-lg uppercase">Unidade</th>
-                <th className="text-left p-3 font-bold text-slate-500">Status</th>
-                <th className="text-center p-3 font-bold text-primary">Moradores</th>
-                <th className="text-center p-3 font-bold text-amber-500">Veículos</th>
-                <th className="text-center p-3 font-bold text-slate-500">Encomendas</th>
-                {isAdmin && <th className="text-right p-3 font-bold text-slate-500">Ações</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((unit) => {
-                const statusConfig = getStatusConfig(unit.status);
-                return (
-                  <tr key={unit.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onClick={() => openDetail(unit)}>
-                    <td className="p-3 font-semibold text-slate-600 dark:text-slate-300">Bloco {unit.bloco}</td>
-                    <td className="p-3 font-black text-xl text-slate-900 dark:text-white">{unit.numero}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
-                        {statusConfig.label}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center font-bold text-primary">{unit.totalMoradores || 0}</td>
-                    <td className="p-3 text-center">
-                      <span className="font-bold text-amber-500">{unit.totalVehicles || 0} </span>
-                      <span className="text-xs text-slate-400">/ {unit.vagasGaragem || 0}</span>
-                    </td>
-                    <td className="p-3 text-center text-slate-400">0</td>
-                    {isAdmin && (
-                      <td className="p-3 text-right">
-                        <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2">Editar</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }} className="text-red-500 text-xs font-bold">Excluir</button>
-                      </td>
-                    )}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="text-center mt-6 text-slate-400 text-sm">
-        Total: {filtered.length} unidades
-      </div>
 
       <AnimatePresence>
         {showModal && (
@@ -987,7 +802,6 @@ export default function UnidadesPage() {
                   <div className="text-center py-8 text-slate-400">
                     <Users size={40} className="mx-auto mb-2 opacity-50" />
                     <p>Unidade sem moradores vinculados no momento</p>
-                    <p className="text-xs mt-2">Vá no menu Moradores para adicionar um link a este Apartamento.</p>
                   </div>
                 )}
               </div>
@@ -1038,60 +852,98 @@ export default function UnidadesPage() {
                     <h3 className="text-2xl font-black text-slate-900 dark:text-white">
                       Gerador de Unidades
                     </h3>
-                    <p className="text-slate-500 text-sm">Crie todas as {TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR} unidades do condomínio</p>
+                    <p className="text-slate-500 text-sm">Configure a estrutura base do condomínio</p>
                   </div>
                 </div>
 
-                <div className="bg-slate-50 dark:bg-slate-800 rounded-xl p-4 space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Blocos:</span>
-                    <span className="font-bold">{TOTAL_BLOCOS}</span>
+                <div className="p-6 space-y-4">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Qtd. Blocos</label>
+                      <input 
+                        type="number" 
+                        value={configBlocks}
+                        onChange={(e) => setConfigBlocks(Number(e.target.value))}
+                        className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Andares</label>
+                      <input 
+                        type="number" 
+                        value={configFloors}
+                        onChange={(e) => setConfigFloors(Number(e.target.value))}
+                        className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Aptos/Andar</label>
+                      <input 
+                        type="number" 
+                        value={configAptsPerFloor}
+                        onChange={(e) => setConfigAptsPerFloor(Number(e.target.value))}
+                        className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-bold"
+                      />
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Andares por bloco:</span>
-                    <span className="font-bold">{TOTAL_ANDARES}</span>
+
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-400 mb-2">Padrão de Numeração</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button 
+                        onClick={() => setNumberingPattern('FLOOR_BASED')}
+                        className={`p-3 rounded-xl border text-xs font-bold transition-all ${numberingPattern === 'FLOOR_BASED' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
+                      >
+                        Hoteleiro (101, 102...)
+                      </button>
+                      <button 
+                        onClick={() => setNumberingPattern('SEQUENTIAL')}
+                        className={`p-3 rounded-xl border text-xs font-bold transition-all ${numberingPattern === 'SEQUENTIAL' ? 'border-primary bg-primary/5 text-primary' : 'border-slate-200 dark:border-slate-700 text-slate-500'}`}
+                      >
+                        Sequencial (1, 2, 3...)
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Apartamentos por andar:</span>
-                    <span className="font-bold">{APARTAMENTOS_POR_ANDAR}</span>
-                  </div>
-                  <div className="border-t border-slate-200 dark:border-slate-700 pt-2 mt-2">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500 font-bold">Total de unidades:</span>
-                      <span className="font-black text-primary text-lg">{TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR}</span>
+
+                  <div className="bg-slate-900 rounded-xl p-4 border border-slate-800">
+                    <p className="text-[10px] font-black uppercase text-slate-500 mb-2">Resumo da Geração</p>
+                    <div className="flex justify-between items-center">
+                      <div className="text-white">
+                        <span className="text-2xl font-black">{configBlocks * configFloors * configAptsPerFloor}</span>
+                        <span className="text-xs ml-2 text-slate-400">unidades totais</span>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] text-primary font-black uppercase">Exemplo de Unidade:</p>
+                        <p className="text-sm font-bold text-white">
+                          Bloco {String(1).padStart(2, blockPrefix === '0' ? '0' : '')} - {numberingPattern === 'FLOOR_BASED' ? '101' : '01'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <p className="text-xs text-slate-400 mt-4">
-                  Padrão: Bloco 01-22, Apartamentos 101-504 (andar + número)
-                </p>
-              </div>
-
-              <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
-                <button 
-                  onClick={() => setShowWizard(false)}
-                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={generateUnits}
-                  disabled={generating}
-                  className="flex-1 py-3 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {generating ? (
-                    <>
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      Gerando... ({generatedCount}/{TOTAL_BLOCOS * TOTAL_ANDARES * APARTAMENTOS_POR_ANDAR})
-                    </>
-                  ) : (
-                    <>
-                      <Wand2 size={18} />
-                      Gerar Todas
-                    </>
-                  )}
-                </button>
+                <div className="p-6 bg-slate-50 dark:bg-slate-800/50 flex gap-3">
+                  <button 
+                    onClick={() => setShowWizard(false)}
+                    className="flex-1 py-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={generateUnits}
+                    disabled={generating}
+                    className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/20 flex items-center justify-center gap-2"
+                  >
+                    {generating ? (
+                      <>Gerando ({generatedCount})...</>
+                    ) : (
+                      <>
+                        <Wand2 size={18} />
+                        Gerar Todas
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

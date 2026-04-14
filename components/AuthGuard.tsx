@@ -29,12 +29,42 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     };
 
     const checkAuth = async () => {
-      if (verifyLocalAuth()) return;
+      // 1. Verifica LocalAuth primeiro para rapidez
+      const localAuth = localStorage.getItem('portaria_auth');
+      let isLocalValid = false;
+      if (localAuth) {
+        try {
+          const parsed = JSON.parse(localAuth);
+          if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
+            isLocalValid = true;
+          }
+        } catch {
+          localStorage.removeItem('portaria_auth');
+        }
+      }
 
-      // Fallback to Supabase session
+      // 2. Busca do Supabase e valida status no banco (Proteção em tempo real)
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (!session) {
+      const userToVerify = session?.user?.id;
+      if (userToVerify) {
+        const { data: profile } = await supabase
+          .from('operators')
+          .select('status')
+          .eq('id', userToVerify)
+          .single();
+
+        if (profile?.status === 'bloqueado') {
+          // EXPULSÃO IMEDIATA
+          await supabase.auth.signOut();
+          localStorage.removeItem('portaria_auth');
+          setIsAuthenticated(false);
+          router.push('/login?error=blocked');
+          return;
+        }
+      }
+
+      if (!session && !isLocalValid) {
         if (pathname !== '/login') {
           router.push('/login');
         }
@@ -65,8 +95,14 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
-        <div className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
+      <div 
+        className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center"
+        suppressHydrationWarning
+      >
+        <div 
+          className="w-10 h-10 border-4 border-primary/20 border-t-primary rounded-full animate-spin"
+          suppressHydrationWarning
+        ></div>
       </div>
     );
   }

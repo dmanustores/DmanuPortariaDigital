@@ -9,15 +9,16 @@ import AuthGuard from './AuthGuard';
 interface DashboardLayoutProps {
   children: React.ReactNode;
   headerTitle?: string;
+  suppressHydrationWarning?: boolean;
 }
 
-export const DashboardLayout = ({ children, headerTitle }: DashboardLayoutProps) => {
+export const DashboardLayout = ({ children, headerTitle, suppressHydrationWarning }: DashboardLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const pathname = usePathname();
 
   return (
     <AuthGuard>
-      <div className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
+      <div suppressHydrationWarning={suppressHydrationWarning} className="flex h-screen overflow-hidden bg-background-light dark:bg-background-dark">
         <Sidebar 
           isOpen={isSidebarOpen} 
           onClose={() => setIsSidebarOpen(false)} 
