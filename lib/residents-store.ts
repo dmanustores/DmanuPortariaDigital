@@ -85,9 +85,12 @@ export const saveResident = async (resident: Resident) => {
       throw new Error(`Já existe um morador cadastrado com este CPF (${resident.cpf}) para a unidade Bloco ${resident.bloco} - Apto ${resident.apto} (${duplicate.nome}).`);
     }
 
+    // Normalização inicial do bloco para garantir padrão 01, 02... no banco
+    const normalizedBloco = resident.bloco.padStart(2, '0');
+
     const residentData = {
       id: resident.id,
-      bloco: resident.bloco,
+      bloco: normalizedBloco,
       apto: resident.apto,
       tipo: resident.tipo,
       nome: resident.nome,
@@ -147,28 +150,29 @@ export const saveResident = async (resident: Resident) => {
     if (resident.bloco && resident.apto) {
       promises.push((async () => {
         try {
+          // Normaliza bloco para garantir vínculo (ex: "3" -> "03")
+          const normalizedBloco = resident.bloco.padStart(2, '0');
+          
           const { data: existingUnit } = await supabase
             .from('units')
             .select('id')
-            .eq('bloco', resident.bloco)
+            .eq('bloco', normalizedBloco)
             .eq('numero', resident.apto)
             .maybeSingle();
 
           if (existingUnit) {
-            await supabase.from('units').update({ status: 'OCUPADA' }).eq('id', existingUnit.id);
+            // Se encontrou a unidade, marca como OCUPADA
+            await supabase.from('units').update({ 
+              status: 'OCUPADA'
+            }).eq('id', existingUnit.id);
+            console.log(`🏠 Unit ${normalizedBloco}-${resident.apto} status updated to OCUPADA`);
           } else {
-            await supabase.from('units').insert({
-              bloco: resident.bloco,
-              numero: resident.apto,
-              tipo: 'RESIDENCIAL',
-              status: 'OCUPADA',
-              vagasgaragem: 1
-            });
+            // Se não encontrou, talvez a unidade não exista, tentamos criar ou apenas logar
+            console.warn(`⚠️ Unit ${normalizedBloco}-${resident.apto} not found in 'units' table.`);
           }
-        } catch(e) {
-          console.warn('Silent skip no espelho de unidades:', e);
+        } catch (unitErr) {
+          console.error('Error syncing unit status:', unitErr);
         }
-        return { error: null }; // Previne quebra geral caso a trigger de Unidade falhe.
       })());
     }
 
@@ -333,12 +337,33 @@ export const deleteResident = async (id: string) => {
 
     if (!data || data.length === 0) {
       console.warn('No resident found with ID to delete:', id);
-      // If it wasn't found, maybe it was already deleted or the ID is wrong
-      // We'll throw to let the user know something is off
       throw new Error('O registro do morador não foi encontrado para exclusão.');
     }
 
+    const deletedResident = data[0];
     console.log('Successfully deleted resident and all relations:', id);
+
+    // 3. Sincronismo Reverso: Se for o último morador da unidade, volta o status para VAGA
+    if (deletedResident.bloco && deletedResident.apto) {
+      try {
+        const { count } = await supabase
+          .from('residents')
+          .select('id', { count: 'exact', head: true })
+          .eq('bloco', deletedResident.bloco)
+          .eq('apto', deletedResident.apto);
+
+        if (count === 0) {
+          console.log(`🧹 Unit ${deletedResident.bloco}-${deletedResident.apto} is now empty. Setting to VAGA.`);
+          await supabase
+            .from('units')
+            .update({ status: 'VAGA' })
+            .eq('bloco', deletedResident.bloco)
+            .eq('numero', deletedResident.apto);
+        }
+      } catch (syncErr) {
+        console.error('Error updating unit status after deletion:', syncErr);
+      }
+    }
   } catch (error) {
     console.error('Fatal error in deleteResident:', error);
     throw error;

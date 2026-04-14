@@ -99,7 +99,7 @@ export default function VeiculosPage() {
   const fetchResidents = async () => {
     const { data, error } = await supabase
       .from('residents')
-      .select('id, nome, bloco, apto, celular, foto, tipo')
+      .select('id, nome, bloco, apto, celular, tipo')
       .order('nome');
     if (error) {
       console.error('❌ Erro ao buscar moradores:', error);
@@ -247,27 +247,32 @@ export default function VeiculosPage() {
 
   const handleSubmit = async () => {
     try {
-      // Validação básica
-      if (!formData.nome.trim() || !formData.documento.trim() || !formData.placa.trim() || !formData.unidadeDesc.trim()) {
-        alert('Por favor, preencha todos os campos obrigatórios (Nome, Documento, Placa, Unidade)');
+      // 1. Validação: Nome (Condutor)
+      if (!formData.nome.trim()) {
+        alert('Por favor, preencha o Nome Completo do condutor.');
         return;
       }
 
-      // Validar se moradorId está preenchido (referência à unidade)
-      if (!formData.moradorId) {
-        alert('Por favor, selecione uma unidade válida');
+      // 2. Validação: Documento (CPF ou RG)
+      if (!formData.documento.trim()) {
+        alert(`Por favor, preencha o ${formData.tipoDocumento} do condutor.`);
         return;
       }
 
-      // Para visitantes/prestadores, nome do condutor é obrigatório
-      if (formData.tipo !== 'MORADOR' && !formData.nomeProprietario.trim()) {
-        alert('Por favor, preencha o nome do condutor');
+      // 3. Validação: Placa
+      if (!formData.placa.trim()) {
+        alert('Por favor, preencha a Placa do veículo.');
         return;
       }
 
-      const nomeProprietario = formData.tipo === 'MORADOR' 
-        ? formData.nome 
-        : formData.nomeProprietario;
+      // 4. Validação: Unidade de Destino
+      if (!formData.unidadeDesc.trim() || !formData.moradorId) {
+        alert('Por favor, selecione uma Unidade de Destino válida.');
+        return;
+      }
+
+      // O nomeProprietario para o banco de dados será sempre o campo "nome" preenchido no topo
+      const nomeFinal = formData.nome.trim();
 
       // Lookup real unit ID
       let unitId: string | null = null;
@@ -285,43 +290,50 @@ export default function VeiculosPage() {
         }
       }
 
-      await supabase.from('vehicles_registry').insert({
+      const { error: insertError } = await supabase.from('vehicles_registry').insert({
         placa: formData.placa.toUpperCase(),
         modelo: formData.modelo || null,
         cor: formData.cor || null,
-        unidadeId: unitId,
-        unidadeDesc: formData.unidadeDesc || null,
+        unidadeid: unitId,
+        unidadedesc: formData.unidadeDesc || null,
         tipo: formData.tipo,
-        nomeProprietario: nomeProprietario || null,
+        nomeproprietario: nomeFinal,
         telefone: formData.telefone || null,
-        moradorId: formData.moradorId || null,
+        moradorid: formData.moradorId || null,
         status: 'ATIVO'
       });
+
+      if (insertError) throw insertError;
       
+      alert('Veículo cadastrado com sucesso!');
       setShowModal(false);
-      setFormData({
-        nome: '',
-        documento: '',
-        tipoDocumento: 'CPF',
-        placa: '',
-        modelo: '',
-        cor: '',
-        unidadeDesc: '',
-        tipo: 'VISITANTE',
-        nomeProprietario: '',
-        telefone: '',
-        moradorId: ''
-      });
-      setSelectedMorador(null);
-      setMoradorSearch('');
-      setSelectedUnidade(null);
-      setBlocoSearch('');
-      setApartamentoSearch('');
+      resetForm();
       fetchVehicles();
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao salvar veículo');
+    } catch (err: any) {
+      console.error('❌ Erro ao salvar veículo:', err);
+      alert('Erro ao salvar veículo: ' + (err.message || 'Erro desconhecido'));
     }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      nome: '',
+      documento: '',
+      tipoDocumento: 'CPF',
+      placa: '',
+      modelo: '',
+      cor: '',
+      unidadeDesc: '',
+      tipo: 'VISITANTE',
+      nomeProprietario: '',
+      telefone: '',
+      moradorId: ''
+    });
+    setMoradorSearch('');
+    setSelectedMorador(null);
+    setBlocoSearch('');
+    setApartamentoSearch('');
+    setSelectedUnidade(null);
   };
 
   const handleDelete = async (id: string) => {

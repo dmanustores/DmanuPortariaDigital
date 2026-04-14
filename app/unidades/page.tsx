@@ -130,7 +130,12 @@ export default function UnidadesPage() {
 
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
-        const primaryResidents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero).map((r: any) => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
+        const primaryResidents = residentsData?.filter((r: any) => {
+          // Normaliza blocos para comparação (remove zeros à esquerda)
+          const rBloco = String(r.bloco || '').replace(/^0+/, '');
+          const uBloco = String(u.bloco || '').replace(/^0+/, '');
+          return rBloco === uBloco && String(r.apto) === String(u.numero);
+        }).map((r: any) => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
         
         let allResidents: any[] = [...primaryResidents];
         let totalVehicles = 0;
@@ -168,7 +173,7 @@ export default function UnidadesPage() {
             numero: `${andar}${apt.toString().padStart(2, '0')}`,
             tipo: 'RESIDENCIAL',
             status: 'VAGA',
-            vagasGaragem: 1,
+            vagasgaragem: 1,
             observacoes: null
           });
         }
@@ -200,7 +205,7 @@ export default function UnidadesPage() {
           numero: formData.numero,
           tipo: formData.tipo,
           status: formData.status,
-          vagasGaragem: formData.vagasGaragem,
+          vagasgaragem: formData.vagasGaragem,
           observacoes: formData.observacoes || null
         }).eq('id', selectedUnit.id);
       } else {
@@ -209,7 +214,7 @@ export default function UnidadesPage() {
           numero: formData.numero,
           tipo: formData.tipo,
           status: formData.status,
-          vagasGaragem: formData.vagasGaragem,
+          vagasgaragem: formData.vagasGaragem,
           observacoes: formData.observacoes || null
         });
       }

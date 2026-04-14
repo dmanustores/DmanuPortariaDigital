@@ -249,12 +249,15 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <label className="text-xs font-bold uppercase text-slate-500">Bloco</label>
+            <label className="text-xs font-bold uppercase text-slate-500 flex justify-between">
+              Bloco
+              <span className="text-[9px] text-primary lowercase font-normal italic">usar 01, 02...</span>
+            </label>
             <input 
               {...register('bloco')} 
               disabled={isReadOnly}
-              className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70" 
-              placeholder="Ex: 05" 
+              className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70 focus:ring-2 focus:ring-primary/20" 
+              placeholder="Ex: 01" 
             />
             {errors.bloco && <p className="text-red-500 text-xs">{errors.bloco.message}</p>}
           </div>

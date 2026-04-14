@@ -61,28 +61,40 @@ export const ResidentList: React.FC<ResidentListProps> = ({ residents, onEdit, o
                   </div>
                 </div>
               </div>
-              <div className="flex gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
-                <button 
-                  onClick={() => onView?.(resident)} 
-                  className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
-                  title="Visualizar"
-                >
-                  <Eye size={14} />
-                </button>
-                <button 
-                  onClick={() => onEdit(resident)} 
-                  className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
-                  title="Editar"
-                >
-                  <Edit2 size={14} />
-                </button>
-                <button 
-                  onClick={() => onDelete(resident.id)} 
-                  className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
-                  title="Excluir"
-                >
-                  <Trash2 size={14} />
-                </button>
+              <div className="flex items-start gap-2">
+                <div className="flex flex-col items-end gap-1">
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter shadow-sm border ${
+                    resident.tipo === 'PROPRIETARIO' 
+                      ? 'bg-blue-500/10 text-blue-600 border-blue-500/20' 
+                      : 'bg-purple-500/10 text-purple-600 border-purple-500/20'
+                  }`}>
+                    {resident.tipo === 'PROPRIETARIO' ? 'Proprietário' : 'Locatário'}
+                  </span>
+                  
+                  <div className="flex gap-0.5 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity shrink-0">
+                    <button 
+                      onClick={() => onView?.(resident)} 
+                      className="p-1.5 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-md transition-colors"
+                      title="Visualizar"
+                    >
+                      <Eye size={14} />
+                    </button>
+                    <button 
+                      onClick={() => onEdit(resident)} 
+                      className="p-1.5 text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-md transition-colors"
+                      title="Editar"
+                    >
+                      <Edit2 size={14} />
+                    </button>
+                    <button 
+                      onClick={() => onDelete(resident.id)} 
+                      className="p-1.5 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-md transition-colors"
+                      title="Excluir"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
