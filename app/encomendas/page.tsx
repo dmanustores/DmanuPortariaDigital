@@ -20,15 +20,15 @@ import { lookupUnitId, getCurrentOperatorId, capitalize } from '@/lib/utils';
 
 interface Package {
   id: string;
-  unidadeDesc?: string;
+  unidade_desc?: string;
   transportadora: string;
   numero?: string;
   volumes: number;
   status: string;
-  motivoRecusa?: string;
-  RetiradoPor?: string;
-  horaRecebimento: string;
-  horaRetirada?: string;
+  motivo_recusa?: string;
+  retirado_por?: string;
+  recebida_em: string;
+  retirada_em?: string;
   observacoes?: string;
 }
 
@@ -152,9 +152,9 @@ export default function EncomendasPage() {
     
     await supabase.from('packages').update({
       status: 'RETIRADA',
-      RetiradoPor: retiradoPor,
-      horaRetirada: new Date().toISOString(),
-      operadorRetirada: operatorId
+      retirado_por: retiradoPor,
+      hora_retirada: new Date().toISOString(),
+      operador_retirada_id: operatorId
     }).eq('id', selectedPackage.id);
     
     setShowRetireModal(false);
@@ -166,7 +166,7 @@ export default function EncomendasPage() {
   const handleReject = async (id: string, motivo: string) => {
     await supabase.from('packages').update({
       status: 'RECUSADA',
-      motivoRecusa: motivo
+      motivo_recusa: motivo
     }).eq('id', id);
     fetchPackages();
   };
@@ -175,7 +175,7 @@ export default function EncomendasPage() {
 
   const filtered = packages.filter(p => {
     const matchSearch = !search || 
-      (p.unidadeDesc?.toLowerCase().includes(search.toLowerCase())) ||
+      (p.unidade_desc?.toLowerCase().includes(search.toLowerCase())) ||
       (p.transportadora.toLowerCase().includes(search.toLowerCase()));
     const matchFilter = filter === 'TODOS' || p.status === filter;
     return matchSearch && matchFilter;
@@ -249,7 +249,7 @@ export default function EncomendasPage() {
               ) : filtered.map((pkg) => (
                 <tr key={pkg.id} className="border-t border-slate-100 dark:border-slate-800">
                   <td className="p-4">
-                    <span className="font-semibold text-sm">{pkg.unidadeDesc || '-'}</span>
+                    <span className="font-semibold text-sm">{pkg.unidade_desc || '-'}</span>
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-2">
@@ -298,8 +298,8 @@ export default function EncomendasPage() {
                         </button>
                       </div>
                     )}
-                    {pkg.status === 'RETIRADA' && pkg.RetiradoPor && (
-                      <span className="text-xs text-slate-400">Retirado por: {pkg.RetiradoPor}</span>
+                    {pkg.status === 'RETIRADA' && pkg.retirado_por && (
+                      <span className="text-xs text-slate-400">Retirado por: {pkg.retirado_por}</span>
                     )}
                   </td>
                 </tr>
@@ -460,22 +460,22 @@ export default function EncomendasPage() {
                 </div>
               </div>
 
-              <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
-                <button 
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={handleSubmit}
-                  disabled={!formData.unidadeDesc || !formData.transportadora}
-                  className="flex-1 py-3 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  <Save size={18} />
-                  Registrar
-                </button>
-              </div>
+                <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+                  <button 
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    onClick={handleSubmit}
+                    disabled={!selectedUnidade || !formData.transportadora}
+                    className="flex-1 py-3 bg-primary text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  >
+                    <Save size={18} />
+                    Registrar
+                  </button>
+                </div>
             </motion.div>
           </motion.div>
         )}
@@ -506,7 +506,7 @@ export default function EncomendasPage() {
 
               <div className="p-6 space-y-4">
                 <p className="text-sm text-slate-500">
-                  Encomenda para: <strong className="text-slate-900 dark:text-white">{selectedPackage?.unidadeDesc}</strong>
+                  Encomenda para: <strong className="text-slate-900 dark:text-white">{selectedPackage?.unidade_desc}</strong>
                 </p>
                 
                 <div>
