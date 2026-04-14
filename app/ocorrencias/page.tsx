@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
 
 interface Occurrence {
   id: string;
@@ -52,6 +53,7 @@ export default function OcorrenciasPage() {
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     tipo: 'MANUTENCAO',
     titulo: '',
@@ -74,16 +76,21 @@ export default function OcorrenciasPage() {
 
   useEffect(() => {
     fetchOccurrences();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const handleSubmit = async () => {
     try {
+      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+
       await supabase.from('occurrences').insert({
         tipo: formData.tipo,
         titulo: formData.titulo,
         descricao: formData.descricao || null,
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc || null,
         prioridade: formData.prioridade,
+        operadorId: operatorId,
         status: 'Aberta'
       });
       

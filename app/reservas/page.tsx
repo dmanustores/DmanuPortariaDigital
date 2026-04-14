@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
 
 interface CommonArea {
   id: string;
@@ -47,6 +48,7 @@ export default function ReservasPage() {
   const [showAreaModal, setShowAreaModal] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     areaId: '',
     areaNome: '',
@@ -74,14 +76,18 @@ export default function ReservasPage() {
 
   useEffect(() => {
     fetchData();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const handleSubmit = async () => {
     try {
       const area = areas.find(a => a.id === formData.areaId);
+      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+
       await supabase.from('reservations').insert({
         areaId: formData.areaId,
         areaNome: area?.nome || formData.areaNome,
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc,
         responsavelNome: formData.responsavelNome,
         responsavelTelefone: formData.responsavelTelefone || null,
@@ -90,6 +96,7 @@ export default function ReservasPage() {
         horaFim: formData.horaFim,
         finalidade: formData.finalidade || null,
         observacoes: formData.observacoes || null,
+        operadorId: operatorId,
         status: 'PENDENTE'
       });
       

@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { getCurrentOperatorId } from '@/lib/utils';
 
 interface Vehicle {
   id: string;
@@ -26,6 +27,7 @@ interface Vehicle {
   modelo: string;
   cor: string;
   unidadeDesc?: string;
+  unidadeId?: string;
   tipo: string;
   nomeProprietario?: string;
   telefone?: string;
@@ -41,6 +43,7 @@ interface Resident {
   apto?: string;
   celular?: string;
   foto?: string;
+  tipo?: string; // PROPRIETARIO | LOCATARIO
 }
 
 export default function VeiculosPage() {
@@ -48,6 +51,7 @@ export default function VeiculosPage() {
   const [residents, setResidents] = useState<Resident[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   // Por padrão, todos os filtros vêm marcados
   const [activeFilters, setActiveFilters] = useState<string[]>(['PROPRIETARIO', 'LOCATARIO', 'VISITANTE', 'PRESTADOR']);
@@ -95,15 +99,13 @@ export default function VeiculosPage() {
   const fetchResidents = async () => {
     const { data, error } = await supabase
       .from('residents')
-      .select('id, nome, bloco, apto, celular, foto')
+      .select('id, nome, bloco, apto, celular, foto, tipo')
       .order('nome');
     if (error) {
       console.error('❌ Erro ao buscar moradores:', error);
     }
     if (data) {
       console.log('✅ Moradores carregados:', data.length, 'total');
-      console.log('📋 Exemplo de morador:', data[0]);
-      console.log('📋 Moradores com bloco/apto:', data.filter(r => r.bloco && r.apto).length);
       setResidents(data);
     } else {
       console.log('⚠️ Nenhum morador retornado do banco');
@@ -124,6 +126,7 @@ export default function VeiculosPage() {
   useEffect(() => {
     fetchVehicles();
     fetchResidents();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const filteredResidents = residents.filter(r => 
@@ -174,11 +177,14 @@ export default function VeiculosPage() {
   const handleSelectMorador = (resident: Resident) => {
     setSelectedMorador(resident);
     setMoradorSearch(resident.nome);
+    // Auto-set tipo based on resident type (PROPRIETARIO or LOCATARIO)
+    const tipoResidente = resident.tipo === 'PROPRIETARIO' ? 'PROPRIETARIO' : 'LOCATARIO';
     setFormData({
       ...formData,
-      nomeProprietario: formData.tipo === 'MORADOR' ? resident.nome : formData.nomeProprietario,
-      telefone: formData.tipo === 'MORADOR' ? (resident.celular || '') : formData.telefone,
+      nomeProprietario: resident.nome,
+      telefone: resident.celular || '',
       moradorId: resident.id,
+      tipo: tipoResidente,
       unidadeDesc: resident.bloco && resident.apto 
         ? `Bloco ${resident.bloco}, Apt ${resident.apto}` 
         : ''
@@ -249,10 +255,27 @@ export default function VeiculosPage() {
         ? formData.nome 
         : formData.nomeProprietario;
 
+      // Lookup real unit ID
+      let unitId: string | null = null;
+      if (formData.unidadeDesc) {
+        const blocoMatch = formData.unidadeDesc.match(/bloco\s*([0-9a-z]+)/i);
+        const aptoMatch  = formData.unidadeDesc.match(/apt[o]?\s*([0-9a-z]+)/i);
+        if (blocoMatch && aptoMatch) {
+          const { data: unitData } = await supabase
+            .from('units')
+            .select('id')
+            .eq('bloco', blocoMatch[1].padStart(2, '0'))
+            .eq('numero', aptoMatch[1])
+            .maybeSingle();
+          unitId = unitData?.id ?? null;
+        }
+      }
+
       await supabase.from('vehicles_registry').insert({
         placa: formData.placa.toUpperCase(),
         modelo: formData.modelo || null,
         cor: formData.cor || null,
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc || null,
         tipo: formData.tipo,
         nomeProprietario: nomeProprietario || null,
@@ -295,8 +318,8 @@ export default function VeiculosPage() {
   };
 
   const filtered = vehicles.filter(v => {
-    const nameToSearch = v.nomeProprietario || v.nomeproprietario || '';
-    const unitToSearch = v.unidadeDesc || v.unidadedesc || '';
+    const nameToSearch = v.nomeProprietario || '';
+    const unitToSearch = v.unidadeDesc || '';
     const matchSearch = !search || 
       v.placa.toLowerCase().includes(search.toLowerCase()) ||
       (v.modelo?.toLowerCase().includes(search.toLowerCase())) ||
@@ -538,13 +561,13 @@ export default function VeiculosPage() {
                   </td>
                   <td className="p-4">
                     <div>
-                      <p className="text-sm font-bold">{vehicle.nomeProprietario || vehicle.nomeproprietario || '-'}</p>
+                      <p className="text-sm font-bold">{vehicle.nomeProprietario || '-'}</p>
                       {vehicle.telefone && <p className="text-xs text-slate-400">{vehicle.telefone}</p>}
                     </div>
                   </td>
                   <td className="p-4">
                     <span className="inline-block px-3 py-1.5 font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
-                      {vehicle.unidadeDesc || vehicle.unidadedesc || 'Sem destino'}
+                      {vehicle.unidadeDesc || 'Sem destino'}
                     </span>
                   </td>
                   <td className="p-4">
@@ -701,7 +724,8 @@ export default function VeiculosPage() {
                         className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
                       >
                         <option value="VISITANTE">Veículo de Visitante</option>
-                        <option value="MORADOR">Veículo de Morador</option>
+                        <option value="PROPRIETARIO">Veículo de Proprietário</option>
+                        <option value="LOCATARIO">Veículo de Locatário</option>
                         <option value="PRESTADOR">Veículo de Prestador</option>
                         <option value="MUDANCA">Veículo de Mudança</option>
                       </select>

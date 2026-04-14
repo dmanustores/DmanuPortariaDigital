@@ -236,7 +236,7 @@ export const saveResident = async (resident: Resident) => {
         console.log('Syncing to vehicles_registry:', registryData);
         
         promises.push(
-          supabase.from('vehicles_registry').insert(registryData).then(res => {
+          supabase.from('vehicles_registry').insert(registryData).then((res: any) => {
             if(res.error) {
               console.warn('⚠️ RLS block when syncing to vehicles_registry:', res.error);
               return { error: null };

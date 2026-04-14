@@ -17,6 +17,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { getCurrentOperatorId } from '@/lib/utils';
 
 interface Notice {
   id: string;
@@ -43,6 +44,7 @@ export default function AvisosPage() {
   const [selectedNotice, setSelectedNotice] = useState<Notice | null>(null);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('ATIVO');
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     titulo: '',
     conteudo: '',
@@ -64,6 +66,7 @@ export default function AvisosPage() {
 
   useEffect(() => {
     fetchNotices();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const handleSubmit = async () => {
@@ -73,6 +76,7 @@ export default function AvisosPage() {
         conteudo: formData.conteudo,
         tipo: formData.tipo,
         validade: formData.validade || null,
+        publicadoPor: operatorId,
         status: 'ATIVO'
       });
       

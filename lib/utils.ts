@@ -41,3 +41,41 @@ export const capitalize = (value: string) => {
 export const stripNonDigits = (value: string) => {
   return value.replace(/\D/g, '');
 };
+
+/**
+ * Given a free-text unit description like "Bloco 01, Apt 101" or "Bloco 1 Apto 201",
+ * queries the `units` table and returns the matching UUID (or null if not found).
+ */
+export const lookupUnitId = async (
+  supabase: any,
+  unidadeDesc: string
+): Promise<string | null> => {
+  if (!unidadeDesc) return null;
+
+  // Match "Bloco XX" and "Apt(o) YY"
+  const blocoMatch = unidadeDesc.match(/bloco\s*([0-9a-z]+)/i);
+  const aptoMatch  = unidadeDesc.match(/apt[o]?\s*([0-9a-z]+)/i);
+
+  if (!blocoMatch || !aptoMatch) return null;
+
+  const bloco  = blocoMatch[1].padStart(2, '0');
+  const numero = aptoMatch[1];
+
+  const { data } = await supabase
+    .from('units')
+    .select('id')
+    .eq('bloco', bloco)
+    .eq('numero', numero)
+    .maybeSingle();
+
+  return data?.id ?? null;
+};
+
+/**
+ * Returns the UUID of the currently authenticated operator (auth.uid()),
+ * or null if there is no active session.
+ */
+export const getCurrentOperatorId = async (supabase: any): Promise<string | null> => {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+};

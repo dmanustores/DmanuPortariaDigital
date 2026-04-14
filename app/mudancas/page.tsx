@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { lookupUnitId } from '@/lib/utils';
 
 interface Move {
   id: string;
@@ -67,7 +68,10 @@ export default function MudancasPage() {
 
   const handleSubmit = async () => {
     try {
+      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+
       await supabase.from('moves').insert({
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc,
         responsavelNome: formData.responsavelNome,
         responsavelTelefone: formData.responsavelTelefone || null,

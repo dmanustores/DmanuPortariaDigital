@@ -19,6 +19,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
 
 interface Access {
   id: string;
@@ -47,6 +48,7 @@ export default function AcessosPage() {
   const [showModal, setShowModal] = useState(false);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     tipo: 'VISITANTE',
     nome: '',
@@ -61,6 +63,7 @@ export default function AcessosPage() {
 
   useEffect(() => {
     fetchAccesses();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const fetchAccesses = async () => {
@@ -77,16 +80,20 @@ export default function AcessosPage() {
 
   const handleSubmit = async () => {
     try {
+      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+
       await supabase.from('accesses').insert({
         tipo: formData.tipo,
         nome: formData.nome,
         documento: formData.documento || null,
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc || null,
         liberadoPor: formData.liberadoPor || null,
         empresa: formData.empresa || null,
         veiculoPlaca: formData.veiculoPlaca || null,
         veiculoModelo: formData.veiculoModelo || null,
         veiculoCor: formData.veiculoCor || null,
+        operadorId: operatorId,
         status: 'DENTRO'
       });
       

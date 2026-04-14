@@ -39,6 +39,10 @@ interface Unit {
   veiculos?: any[];
   encomendas?: any[];
   primaryResident?: string;
+  // Runtime-computed fields populated in fetchUnits()
+  allResidents?: { nome: string; label: string }[];
+  totalMoradores?: number;
+  totalVehicles?: number;
 }
 
 const blocos = Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -126,7 +130,7 @@ export default function UnidadesPage() {
 
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
-        const primaryResidents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero).map(r => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
+        const primaryResidents = residentsData?.filter((r: any) => r.bloco === u.bloco && r.apto === u.numero).map((r: any) => ({ ...r, label: 'TITULAR RESPONSÁVEL' })) || [];
         
         let allResidents: any[] = [...primaryResidents];
         let totalVehicles = 0;

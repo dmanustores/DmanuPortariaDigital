@@ -16,6 +16,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
 
 interface Package {
   id: string;
@@ -40,6 +41,7 @@ export default function EncomendasPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
   const [retiradoPor, setRetiradoPor] = useState('');
+  const [operatorId, setOperatorId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     unidadeDesc: '',
     transportadora: '',
@@ -50,6 +52,7 @@ export default function EncomendasPage() {
 
   useEffect(() => {
     fetchPackages();
+    getCurrentOperatorId(supabase).then(setOperatorId);
   }, []);
 
   const fetchPackages = async () => {
@@ -66,12 +69,16 @@ export default function EncomendasPage() {
 
   const handleSubmit = async () => {
     try {
+      const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
+
       await supabase.from('packages').insert({
+        unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc || null,
         transportadora: formData.transportadora,
         numero: formData.numero || null,
         volumes: formData.volumes,
         observacoes: formData.observacoes || null,
+        operadorRecebimento: operatorId,
         status: 'AGUARDANDO'
       });
       
@@ -95,7 +102,8 @@ export default function EncomendasPage() {
     await supabase.from('packages').update({
       status: 'RETIRADA',
       RetiradoPor: retiradoPor,
-      horaRetirada: new Date().toISOString()
+      horaRetirada: new Date().toISOString(),
+      operadorRetirada: operatorId
     }).eq('id', selectedPackage.id);
     
     setShowRetireModal(false);

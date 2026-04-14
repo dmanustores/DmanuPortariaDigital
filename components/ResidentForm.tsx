@@ -382,9 +382,9 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         </div>
         
         {/* Contatos e Documentos - Todos em uma linha */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-8 items-start">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 lg:gap-8 items-end">
           <div className="flex flex-col">
-            <label className="text-xs font-bold uppercase text-slate-500 mb-2">Celular</label>
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2 min-h-[2rem] flex items-end">Celular</label>
             <input 
               {...register('celular')} 
               disabled={isReadOnly}
@@ -404,7 +404,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2 mb-2">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-end gap-2 mb-2 min-h-[2rem]">
               Fone Fixo
               <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
@@ -417,7 +417,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-bold uppercase text-slate-500 flex items-center gap-2 mb-2">
+            <label className="text-xs font-bold uppercase text-slate-500 flex items-end gap-2 mb-2 min-h-[2rem]">
               Fone Comercial
               <span className="text-[9px] font-semibold text-slate-500 border border-slate-300 dark:border-slate-600 px-1.5 py-0.5 rounded">opcional</span>
             </label>
@@ -430,7 +430,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-bold uppercase text-slate-500 mb-2">CPF</label>
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2 min-h-[2rem] flex items-end">CPF</label>
             <input 
               {...register('cpf')} 
               disabled={isReadOnly}
@@ -441,7 +441,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           </div>
 
           <div className="flex flex-col">
-            <label className="text-xs font-bold uppercase text-slate-500 mb-2">RG</label>
+            <label className="text-xs font-bold uppercase text-slate-500 mb-2 min-h-[2rem] flex items-end">RG</label>
             <input 
               {...register('rg')} 
               disabled={isReadOnly}
