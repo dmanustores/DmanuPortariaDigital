@@ -682,26 +682,42 @@ export default function UnidadesPage() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((unit) => {
+              {filtered.map((unit, index) => {
                 const statusConfig = getStatusConfig(unit.status);
+                const isNewBlock = index === 0 || filtered[index - 1].bloco !== unit.bloco;
+                
                 return (
-                  <tr key={unit.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 cursor-pointer" onClick={() => openDetail(unit)}>
-                    <td className="p-3 font-semibold text-slate-600 dark:text-slate-300">Bloco {unit.bloco}</td>
-                    <td className="p-3 font-black text-xl text-slate-900 dark:text-white">{unit.numero}</td>
-                    <td className="p-3">
-                      <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
-                        {statusConfig.label}
-                      </span>
-                    </td>
-                    <td className="p-3 text-center font-bold text-primary">{unit.totalMoradores || 0}</td>
-                    <td className="p-3 text-center font-bold text-amber-500">{unit.totalVehicles || 0}</td>
-                    {isAdmin && (
-                      <td className="p-3 text-right">
-                        <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2">Editar</button>
-                        <button onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }} className="text-red-500 text-xs font-bold">Excluir</button>
-                      </td>
+                  <React.Fragment key={unit.id}>
+                    {isNewBlock && (
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-700">
+                        <td colSpan={isAdmin ? 6 : 5} className="px-4 py-2">
+                          <div className="flex items-center gap-2">
+                            <Building2 size={14} className="text-primary" />
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                              Bloco {unit.bloco}
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                  </tr>
+                    <tr className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 cursor-pointer transition-colors" onClick={() => openDetail(unit)}>
+                      <td className="p-3 font-semibold text-slate-400 dark:text-slate-500 text-xs italic">Bloco {unit.bloco}</td>
+                      <td className="p-3 font-black text-xl text-slate-900 dark:text-white">{unit.numero}</td>
+                      <td className="p-3">
+                        <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold`} style={{ backgroundColor: statusConfig.bgColor, color: statusConfig.textColor }}>
+                          {statusConfig.label}
+                        </span>
+                      </td>
+                      <td className="p-3 text-center font-bold text-primary">{unit.totalMoradores || 0}</td>
+                      <td className="p-3 text-center font-bold text-amber-500">{unit.totalVehicles || 0}</td>
+                      {isAdmin && (
+                        <td className="p-3 text-right">
+                          <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2 hover:underline">Editar</button>
+                          <button onClick={(e) => { e.stopPropagation(); handleDelete(unit.id); }} className="text-red-500 text-xs font-bold hover:underline">Excluir</button>
+                        </td>
+                      )}
+                    </tr>
+                  </React.Fragment>
                 );
               })}
             </tbody>

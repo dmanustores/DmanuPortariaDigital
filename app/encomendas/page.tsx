@@ -28,8 +28,12 @@ interface Package {
   motivo_recusa?: string;
   retirado_por?: string;
   recebida_em: string;
-  retirada_em?: string;
+  hora_retirada?: string;
+  hora_recusa?: string;
   observacoes?: string;
+  operador_recebe?: { nome: string };
+  operador_retira?: { nome: string };
+  operador_recusa?: { nome: string };
 }
 
 export default function EncomendasPage() {
@@ -41,6 +45,8 @@ export default function EncomendasPage() {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('TODOS');
   const [retiradoPor, setRetiradoPor] = useState('');
+  const [motivoRecusa, setMotivoRecusa] = useState('');
+  const [showRejectModal, setShowRejectModal] = useState(false);
   const [operatorId, setOperatorId] = useState<string | null>(null);
   const [residents, setResidents] = useState<any[]>([]);
   const [blocoSearch, setBlocoSearch] = useState('');
@@ -67,7 +73,12 @@ export default function EncomendasPage() {
     setLoading(true);
     const { data } = await supabase
       .from('packages')
-      .select('*')
+      .select(`
+        *,
+        operador_recebe:operators!operador_recebimento_id(nome),
+        operador_retira:operators!operador_retirada_id(nome),
+        operador_recusa:operators!operador_recusa_id(nome)
+      `)
       .order('recebida_em', { ascending: false })
       .limit(100);
     
@@ -130,8 +141,9 @@ export default function EncomendasPage() {
       resetForm();
       fetchPackages();
     } catch (err: any) {
-      console.error('❌ Erro ao salvar encomenda:', err);
-      alert('Erro ao salvar encomenda: ' + (err.message || 'Verifique sua conexão'));
+      console.error('❌ Erro completo ao salvar encomenda:', err);
+      const errorMsg = err.message || err.error_description || 'Erro desconhecido';
+      alert('Erro ao salvar encomenda: ' + errorMsg);
     }
   };
 
@@ -163,12 +175,27 @@ export default function EncomendasPage() {
     fetchPackages();
   };
 
-  const handleReject = async (id: string, motivo: string) => {
-    await supabase.from('packages').update({
-      status: 'RECUSADA',
-      motivo_recusa: motivo
-    }).eq('id', id);
-    fetchPackages();
+  const handleReject = async () => {
+    if (!selectedPackage || !motivoRecusa) return;
+
+    try {
+      const { error } = await supabase.from('packages').update({
+        status: 'RECUSADA',
+        motivo_recusa: motivoRecusa,
+        hora_recusa: new Date().toISOString(),
+        operador_recusa_id: operatorId
+      }).eq('id', selectedPackage.id);
+
+      if (error) throw error;
+
+      setShowRejectModal(false);
+      setSelectedPackage(null);
+      setMotivoRecusa('');
+      fetchPackages();
+    } catch (err: any) {
+      console.error('❌ Erro ao recusar encomenda:', err);
+      alert('Erro ao recusar: ' + (err.message || 'Verifique sua conexão'));
+    }
   };
 
   const pending = packages.filter(p => p.status === 'AGUARDANDO').length;
@@ -236,9 +263,9 @@ export default function EncomendasPage() {
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Unidade</th>
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Transportadora</th>
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Volumes</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Recebimento</th>
+                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Recebimento</th>
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                <th className="text-right p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
+                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
               </tr>
             </thead>
             <tbody>
@@ -262,11 +289,19 @@ export default function EncomendasPage() {
                     <span className="text-sm">{pkg.volumes}</span>
                   </td>
                   <td className="p-4">
-                    <span className="text-sm text-slate-500">
-                      {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleString('pt-BR', { 
-                        day: '2-digit', hour: '2-digit', minute: '2-digit' 
-                      }) : '-'}
-                    </span>
+                    <div className="flex flex-col items-center leading-tight">
+                      <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">
+                        {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleDateString('pt-BR') : '-'}
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                      </span>
+                      {pkg.operador_recebe?.nome && (
+                        <span className="text-[9px] uppercase font-bold text-primary mt-1">
+                          RECEBIDO: {pkg.operador_recebe.nome.split(' ')[0]}
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                     <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
@@ -278,7 +313,7 @@ export default function EncomendasPage() {
                        pkg.status === 'RETIRADA' ? 'Retirada' : 'Recusada'}
                     </span>
                   </td>
-                  <td className="p-4 text-right">
+                  <td className="p-4 text-center">
                     {pkg.status === 'AGUARDANDO' && (
                       <div className="flex justify-end gap-2">
                         <button 
@@ -291,7 +326,10 @@ export default function EncomendasPage() {
                           Registrar Retirada
                         </button>
                         <button 
-                          onClick={() => handleReject(pkg.id, 'Recusada pelo porteiro')}
+                          onClick={() => {
+                            setSelectedPackage(pkg);
+                            setShowRejectModal(true);
+                          }}
                           className="text-xs font-bold text-red-600 hover:underline"
                         >
                           Recusar
@@ -299,7 +337,35 @@ export default function EncomendasPage() {
                       </div>
                     )}
                     {pkg.status === 'RETIRADA' && pkg.retirado_por && (
-                      <span className="text-xs text-slate-400">Retirado por: {pkg.retirado_por}</span>
+                      <div className="flex flex-col items-center leading-tight">
+                        <span className="text-xs font-bold text-green-600 mb-1">
+                          Retirado por: {pkg.retirado_por}
+                        </span>
+                        <span className="text-[10px] text-slate-500 uppercase font-medium">
+                          {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleDateString('pt-BR') : ''} - {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </span>
+                        {pkg.operador_retira?.nome && (
+                          <span className="text-[9px] uppercase font-bold text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full">
+                            Porteiro: {pkg.operador_retira.nome.split(' ')[0]}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {pkg.status === 'RECUSADA' && (
+                      <div className="flex flex-col items-center leading-tight">
+                        <span className="text-[10px] uppercase font-black text-red-600">Recusada</span>
+                        <span className="text-xs font-bold text-red-600 mb-1">
+                          "{pkg.motivo_recusa}"
+                        </span>
+                        <span className="text-[10px] text-slate-500 uppercase font-medium">
+                          {pkg.hora_recusa ? `${new Date(pkg.hora_recusa).toLocaleDateString('pt-BR')} - ${new Date(pkg.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '-'}
+                        </span>
+                        {pkg.operador_recusa?.nome && (
+                          <span className="text-[9px] uppercase font-bold text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full">
+                            Porteiro: {pkg.operador_recusa.nome.split(' ')[0]}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </td>
                 </tr>
@@ -409,7 +475,7 @@ export default function EncomendasPage() {
                   <select 
                     value={formData.transportadora}
                     onChange={(e) => setFormData({...formData, transportadora: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    className="w-full p-3 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
                   >
                     <option value="">Selecione...</option>
                     <option value="Correios">Correios</option>
@@ -535,6 +601,65 @@ export default function EncomendasPage() {
                 >
                   <CheckCircle size={18} />
                   Confirmar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      {/* Modal Recusa */}
+      <AnimatePresence>
+        {showRejectModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowRejectModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md"
+            >
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-xl font-bold text-red-600">Recusar Encomenda</h3>
+                <button onClick={() => setShowRejectModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <p className="text-sm text-slate-500">
+                  Unidade: <strong className="text-slate-900 dark:text-white">{selectedPackage?.unidade_desc}</strong>
+                </p>
+                
+                <div>
+                  <label className="block text-sm font-bold mb-2">Motivo da Recusa *</label>
+                  <textarea 
+                    value={motivoRecusa}
+                    onChange={(e) => setMotivoRecusa(e.target.value)}
+                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg h-32 resize-none"
+                    placeholder="Ex: Destinatário não mora mais aqui, Embalagem avariada, etc..."
+                  />
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 flex gap-3">
+                <button 
+                  onClick={() => setShowRejectModal(false)}
+                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 rounded-lg font-bold text-sm"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleReject}
+                  disabled={!motivoRecusa}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-lg font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <AlertTriangle size={18} />
+                  Confirmar Recusa
                 </button>
               </div>
             </motion.div>

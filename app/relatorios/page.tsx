@@ -36,7 +36,7 @@ interface PackageRecord {
   destinatario: string;
   unidade: string;
   recebida_em: string;
-  retirada_em?: string;
+  hora_retirada?: string;
   status: string;
 }
 
@@ -279,8 +279,8 @@ export default function RelatoriosPage() {
         const exits = data.filter(d => d.data_saida && d.data_entrada).length;
         return { total: data.length, entradas: entries, saidas: exits };
       case 'encomendas':
-        const pending = data.filter(d => d.status === 'Pendente').length;
-        const delivered = data.filter(d => d.status === 'Retirada').length;
+        const pending = data.filter(d => d.status === 'Pendente' || d.status === 'AGUARDANDO').length;
+        const delivered = data.filter(d => d.status === 'Retirada' || d.status === 'RETIRADA').length;
         return { total: data.length, pendentes: pending, retiradas: delivered };
       case 'ocorrencias':
         const open = data.filter(d => d.status === 'Aberta').length;
