@@ -11,12 +11,19 @@ import {
   Clock,
   X,
   Save,
-  AlertTriangle
+  AlertTriangle,
+  Truck as TruckIcon,
+  MessageSquare,
+  Check,
+  Eye,
+  CheckCircle2,
+  Ban
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
 import { lookupUnitId, getCurrentOperatorId, capitalize } from '@/lib/utils';
+import { sendWhatsAppMessage } from '@/lib/whatsapp-service';
 
 interface Package {
   id: string;
@@ -34,6 +41,9 @@ interface Package {
   operador_recebe?: { nome: string };
   operador_retira?: { nome: string };
   operador_recusa?: { nome: string };
+  whatsapp_enviado: boolean;
+  whatsapp_lido: boolean;
+  whatsapp_mensagem_id?: string;
 }
 
 export default function EncomendasPage() {
@@ -64,7 +74,7 @@ export default function EncomendasPage() {
   const fetchResidents = async () => {
     const { data } = await supabase
       .from('residents')
-      .select('id, nome, bloco, apto')
+      .select('id, nome, bloco, apto, celular, tem_whatsapp')
       .order('nome');
     if (data) setResidents(data);
   };
@@ -122,7 +132,7 @@ export default function EncomendasPage() {
     try {
       const unidadeDesc = `Bloco ${selectedUnidade.bloco}, Apt ${selectedUnidade.apto}`;
       
-      const { error } = await supabase.from('packages').insert({
+      const { data, error } = await supabase.from('packages').insert({
         unidade_id: selectedUnidade.id,
         unidade_desc: unidadeDesc,
         transportadora: formData.transportadora,
@@ -132,11 +142,32 @@ export default function EncomendasPage() {
         operador_recebimento_id: operatorId,
         status: 'AGUARDANDO',
         recebida_em: new Date().toISOString()
-      });
+      }).select().single();
 
       if (error) throw error;
-      
-      alert('✅ Encomenda registrada com sucesso!');
+
+      // Sugerir envio de WhatsApp se o morador tiver
+      if (selectedUnidade.tem_whatsapp && selectedUnidade.celular && data) {
+        if (confirm('✅ Encomenda registrada! Deseja enviar o aviso via WhatsApp para o morador agora?')) {
+          const now = new Date();
+          const hour = now.getHours();
+          const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+          const obsSuffix = formData.observacoes ? `\n\n*Observações:* ${formData.observacoes}` : '';
+          
+          const message = `${greeting} ${selectedUnidade.nome.split(' ')[0]}, uma nova encomenda da *${formData.transportadora}* chegou para você na Portaria!${obsSuffix}`;
+          const whatsappUrl = `https://api.whatsapp.com/send?phone=${selectedUnidade.celular.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
+          
+          // Abre em nova aba
+          window.open(whatsappUrl, '_blank');
+          
+          // Marca como enviado no banco
+          await supabase.from('packages').update({
+            whatsapp_enviado: true
+          }).eq('id', data.id);
+        }
+      } else {
+        alert('✅ Encomenda registrada com sucesso!');
+      }
       setShowModal(false);
       resetForm();
       fetchPackages();
@@ -196,6 +227,44 @@ export default function EncomendasPage() {
       console.error('❌ Erro ao recusar encomenda:', err);
       alert('Erro ao recusar: ' + (err.message || 'Verifique sua conexão'));
     }
+  };
+
+  const toggleWhatsAppLido = async (pkg: Package) => {
+    if (pkg.whatsapp_lido) return;
+
+    const { error } = await supabase
+      .from('packages')
+      .update({ whatsapp_lido: true })
+      .eq('id', pkg.id);
+    
+    if (!error) {
+      fetchPackages();
+    }
+  };
+
+  const handleManualWhatsApp = async (pkg: Package) => {
+    // Busca o morador para pegar o telefone (se não estiver no pkg)
+    const resident = residents.find(r => r.id === (pkg as any).unidade_id);
+    if (!resident?.celular) {
+      alert('Morador não possui celular cadastrado!');
+      return;
+    }
+
+    const now = new Date();
+    const hour = now.getHours();
+    const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+    const obsSuffix = pkg.observacoes ? `\n\n*Observações:* ${pkg.observacoes}` : '';
+
+    const message = `${greeting} ${resident.nome.split(' ')[0]}, uma nova encomenda da *${pkg.transportadora}* chegou para você na Portaria!${obsSuffix}`;
+    const whatsappUrl = `https://api.whatsapp.com/send?phone=${resident.celular.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
+    
+    window.open(whatsappUrl, '_blank');
+    
+    await supabase.from('packages').update({
+      whatsapp_enviado: true
+    }).eq('id', pkg.id);
+    
+    fetchPackages();
   };
 
   const pending = packages.filter(p => p.status === 'AGUARDANDO').length;
@@ -265,6 +334,7 @@ export default function EncomendasPage() {
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Volumes</th>
                 <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Recebimento</th>
                 <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
+                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">WhatsApp</th>
                 <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
               </tr>
             </thead>
@@ -314,46 +384,89 @@ export default function EncomendasPage() {
                     </span>
                   </td>
                   <td className="p-4 text-center">
+                    <div className="flex flex-col items-center justify-center gap-1">
+                      {pkg.whatsapp_enviado ? (
+                        <button 
+                          onClick={() => toggleWhatsAppLido(pkg)}
+                          className={`flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-lg border border-green-100 dark:border-green-800 transition-all ${
+                            pkg.whatsapp_lido ? 'cursor-default' : 'hover:scale-105 cursor-pointer'
+                          }`}
+                          title={pkg.whatsapp_lido ? "Mensagem confirmada como lida" : "Clique para marcar como lida"}
+                        >
+                          {pkg.whatsapp_lido ? (
+                            <>
+                              <Eye size={12} className="text-primary animate-pulse" />
+                              <span className="text-[10px] font-black text-primary uppercase leading-none">Lida</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check size={12} className="text-green-600" />
+                              <span className="text-[10px] font-bold text-green-600 uppercase leading-none">Enviada</span>
+                            </>
+                          )}
+                        </button>
+                      ) : pkg.status === 'AGUARDANDO' ? (
+                        <button 
+                          onClick={() => handleManualWhatsApp(pkg)}
+                          className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-primary/10 hover:border-primary/30 transition-all group"
+                          title="Clique para enviar notificação via WhatsApp"
+                        >
+                          <MessageSquare size={12} className="text-slate-400 group-hover:text-primary" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase leading-none group-hover:text-primary">Notificar</span>
+                        </button>
+                      ) : (
+                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 opacity-30 grayscale cursor-not-allowed">
+                          <MessageSquare size={12} className="text-slate-400" />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">-</span>
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="p-4 text-center">
                     {pkg.status === 'AGUARDANDO' && (
-                      <div className="flex justify-end gap-2">
+                      <div className="flex justify-center gap-1.5">
                         <button 
                           onClick={() => {
                             setSelectedPackage(pkg);
                             setShowRetireModal(true);
                           }}
-                          className="text-xs font-bold text-green-600 hover:underline"
+                          title="Registrar Retirada"
+                          className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-800/50"
                         >
-                          Registrar Retirada
+                          <CheckCircle2 size={18} />
                         </button>
                         <button 
                           onClick={() => {
                             setSelectedPackage(pkg);
                             setShowRejectModal(true);
                           }}
-                          className="text-xs font-bold text-red-600 hover:underline"
+                          title="Recusar Encomenda"
+                          className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-800/50"
                         >
-                          Recusar
+                          <Ban size={18} />
                         </button>
                       </div>
                     )}
+
                     {pkg.status === 'RETIRADA' && pkg.retirado_por && (
                       <div className="flex flex-col items-center leading-tight">
-                        <span className="text-xs font-bold text-green-600 mb-1">
+                        <span className="text-xs font-bold text-emerald-600 mb-1">
                           Retirado por: {pkg.retirado_por}
                         </span>
                         <span className="text-[10px] text-slate-500 uppercase font-medium">
                           {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleDateString('pt-BR') : ''} - {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                         {pkg.operador_retira?.nome && (
-                          <span className="text-[9px] uppercase font-bold text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full">
-                            Porteiro: {pkg.operador_retira.nome.split(' ')[0]}
+                          <span className="text-[9px] uppercase font-black text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full text-center">
+                            PORTEIRO: {pkg.operador_retira.nome.toUpperCase()}
                           </span>
                         )}
                       </div>
                     )}
+
                     {pkg.status === 'RECUSADA' && (
                       <div className="flex flex-col items-center leading-tight">
-                        <span className="text-[10px] uppercase font-black text-red-600">Recusada</span>
+                        <span className="text-[10px] uppercase font-black text-red-600 block mb-1">RECUSADA</span>
                         <span className="text-xs font-bold text-red-600 mb-1">
                           "{pkg.motivo_recusa}"
                         </span>
@@ -361,8 +474,8 @@ export default function EncomendasPage() {
                           {pkg.hora_recusa ? `${new Date(pkg.hora_recusa).toLocaleDateString('pt-BR')} - ${new Date(pkg.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '-'}
                         </span>
                         {pkg.operador_recusa?.nome && (
-                          <span className="text-[9px] uppercase font-bold text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full">
-                            Porteiro: {pkg.operador_recusa.nome.split(' ')[0]}
+                          <span className="text-[9px] uppercase font-black text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full text-center">
+                            PORTEIRO: {pkg.operador_recusa.nome.toUpperCase()}
                           </span>
                         )}
                       </div>
