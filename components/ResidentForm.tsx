@@ -276,7 +276,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             <select 
               {...register('tipo')} 
               disabled={isReadOnly}
-              className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70"
+              className="w-full p-2.5 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg text-sm disabled:opacity-70"
             >
               <option value="PROPRIETARIO">Proprietário</option>
               <option value="LOCATARIO">Locatário</option>

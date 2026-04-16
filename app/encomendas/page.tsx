@@ -315,7 +315,7 @@ export default function EncomendasPage() {
         <select 
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+          className="px-4 py-3 bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg"
         >
           <option value="TODOS">Todos</option>
           <option value="AGUARDANDO">Aguardando</option>

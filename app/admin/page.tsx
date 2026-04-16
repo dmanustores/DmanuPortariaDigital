@@ -629,7 +629,7 @@ export default function AdminPage() {
                   <select 
                     value={formData.role}
                     onChange={(e) => setFormData({...formData, role: e.target.value, turno: (e.target.value === 'Admin' || e.target.value === 'Owner') ? 'ADM' : 'A'})}
-                    className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                    className="w-full p-3 bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
                   >
                     {Roles.filter(role => role.value !== 'Owner').map(role => (
                       <option key={role.value} value={role.value}>{role.label}</option>
@@ -643,7 +643,7 @@ export default function AdminPage() {
                     <select 
                       value={formData.turno}
                       onChange={(e) => setFormData({...formData, turno: e.target.value})}
-                      className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+                      className="w-full p-3 bg-slate-50 text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
                     >
                       {Turnos.map(turno => (
                         <option key={turno.value} value={turno.value}>{turno.label}</option>

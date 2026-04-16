@@ -673,7 +673,7 @@ export default function VeiculosPage() {
                         <select 
                           value={formData.tipoDocumento}
                           onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
                         >
                           <option value="CPF">CPF</option>
                           <option value="RG">RG</option>
@@ -747,7 +747,7 @@ export default function VeiculosPage() {
                             tipo: newTipo
                           });
                         }}
-                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
                       >
                         <option value="VISITANTE">Veículo de Visitante</option>
                         <option value="PROPRIETARIO">Veículo de Proprietário</option>
