@@ -60,7 +60,7 @@ export const getResidents = async (): Promise<Resident[]> => {
   }));
 };
 
-export const saveResident = async (resident: Resident) => {
+export const saveResident = async (resident: Resident, allowDuplicateCPF: boolean = false) => {
   try {
     console.log('Saving resident data:', resident);
     console.log('Vehicles to save:', resident.vehicles);
@@ -81,8 +81,8 @@ export const saveResident = async (resident: Resident) => {
       console.error('Error checking for duplicate CPF:', checkError);
     }
 
-    if (duplicate) {
-      throw new Error(`Já existe um morador cadastrado com este CPF (${resident.cpf}) para a unidade Bloco ${resident.bloco} - Apto ${resident.apto} (${duplicate.nome}).`);
+    if (duplicate && !allowDuplicateCPF) {
+      throw new Error(`DUPLICATE_CPF:Já existe um morador cadastrado com este CPF (${resident.cpf}) para a unidade Bloco ${resident.bloco} - Apto ${resident.apto} (${duplicate.nome}).`);
     }
 
     // Normalização inicial do bloco para garantir padrão 01, 02... no banco

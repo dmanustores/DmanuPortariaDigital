@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { motion } from 'motion/react';
 import { 
   Building2, KeySquare, Car, FileText, CheckCircle2,
-  AlertCircle, Search, Edit, X
+  AlertCircle, Search, Edit, X, User
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { formatPlate } from '@/lib/utils';
@@ -49,6 +49,8 @@ export default function VagasPage() {
      status: 'LIVRE',
      locadorId: ''
   });
+
+  const [searchTitular, setSearchTitular] = useState('');
 
   const fetchVagas = async () => {
     setLoading(true);
@@ -123,6 +125,7 @@ export default function VagasPage() {
        status: vaga.status,
        locadorId: vaga.alugada_para_morador_id || ''
      });
+     setSearchTitular(''); // Reset search
      setShowEditModal(true);
   };
 
@@ -154,6 +157,13 @@ export default function VagasPage() {
      setShowEditModal(false);
      fetchVagas();
   };
+
+  const filteredResidents = allResidents.filter(r => 
+    !searchTitular || 
+    (r.nome && r.nome.toLowerCase().includes(searchTitular.toLowerCase())) ||
+    (r.bloco && r.bloco.toLowerCase().includes(searchTitular.toLowerCase())) ||
+    (r.apto && r.apto.toLowerCase().includes(searchTitular.toLowerCase()))
+  );
 
   return (
     <DashboardLayout>
@@ -231,9 +241,9 @@ export default function VagasPage() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {loading ? (
-                   <tr><td colSpan={5} className="text-center py-8 text-slate-500">Carregando mapa de vagas...</td></tr>
+                   <tr><td colSpan={6} className="text-center py-8 text-slate-500">Carregando mapa de vagas...</td></tr>
                 ) : sortedFiltered.length === 0 ? (
-                   <tr><td colSpan={5} className="text-center py-8 text-slate-500">Nenhuma vaga localizada. Execute a Migration no banco de dados.</td></tr>
+                   <tr><td colSpan={6} className="text-center py-8 text-slate-500">Nenhuma vaga localizada. Execute a Migration no banco de dados.</td></tr>
                 ) : sortedFiltered.map((vaga, index, array) => {
                   const isNewBlock = index === 0 || array[index - 1].unidade.bloco !== vaga.unidade.bloco;
                   return (
@@ -250,8 +260,17 @@ export default function VagasPage() {
                       )}
                       <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-3 font-black text-slate-900 dark:text-white">{vaga.codigo}</td>
-                        <td className="px-6 py-3 text-slate-500">
-                           Apt {vaga.unidade.numero}
+                        <td className="px-6 py-3 pt-4">
+                          {allResidents.some(r => r.bloco === vaga.unidade.bloco && r.apto === vaga.unidade.numero) ? (
+                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 text-[11px] font-bold uppercase tracking-wide shadow-sm tooltip" title="Morador cadastrado na unidade">
+                               <User size={12} className="text-indigo-500 dark:text-indigo-400" />
+                               Apt {vaga.unidade.numero}
+                             </span>
+                          ) : (
+                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide">
+                               Apt {vaga.unidade.numero}
+                             </span>
+                          )}
                         </td>
                         <td className="px-6 py-3">
                           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
@@ -374,18 +393,30 @@ export default function VagasPage() {
                   {formData.status === 'ALUGADA' && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                       <label className="block text-sm font-bold mb-2 text-purple-600">Morador Locatário (Destino)</label>
-                      <select
-                        value={formData.locadorId}
-                        onChange={(e) => setFormData({...formData, locadorId: e.target.value})}
-                        className="w-full p-3 border border-purple-200 dark:border-purple-800/30 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-sm text-purple-900 dark:text-purple-300 font-bold focus:ring-2 focus:ring-purple-500/20 outline-none"
-                      >
-                        <option value="">Selecione o titular...</option>
-                        {allResidents.map(r => (
-                          <option key={r.id} value={r.id}>
-                            Locatário: {r.nome} (Bl {r.bloco}, Ap {r.apto})
-                          </option>
-                        ))}
-                      </select>
+                      <div className="space-y-2">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
+                          <input 
+                              type="text" 
+                              placeholder="Buscar por nome, bloco ou apto..." 
+                              value={searchTitular}
+                              onChange={(e) => setSearchTitular(e.target.value)}
+                              className="w-full text-xs pl-9 pr-3 py-2.5 border border-purple-200 dark:border-purple-800/30 rounded-lg bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20"
+                          />
+                        </div>
+                        <select
+                          value={formData.locadorId}
+                          onChange={(e) => setFormData({...formData, locadorId: e.target.value})}
+                          className="w-full p-3 border border-purple-200 dark:border-purple-800/30 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-sm text-purple-900 dark:text-purple-300 font-bold focus:ring-2 focus:ring-purple-500/20 outline-none"
+                        >
+                          <option value="">Selecione o titular...</option>
+                          {filteredResidents.map(r => (
+                            <option key={r.id} value={r.id}>
+                              Locatário: {r.nome?.split(' ')[0]} {r.nome?.split(' ').pop()} (Bl {r.bloco}, Ap {r.apto})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </motion.div>
                   )}
                 </div>

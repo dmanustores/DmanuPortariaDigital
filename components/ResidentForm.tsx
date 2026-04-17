@@ -676,9 +676,11 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
                   className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
                 >
                   <option value="">Nenhuma Vaga Vinculada</option>
-                  {availableVagas.map(v => (
-                    <option key={v.id} value={v.id} disabled={v.status !== 'LIVRE' && v.veiculo_id !== field.id}>
-                      {v.codigo} — {v.status === 'LIVRE' || v.veiculo_id === field.id ? 'DISPONÍVEL' : `OCUPADA`}
+                  {availableVagas
+                    .filter(v => v.status === 'LIVRE' || v.veiculo_id === field.id)
+                    .map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.codigo}
                     </option>
                   ))}
                 </select>

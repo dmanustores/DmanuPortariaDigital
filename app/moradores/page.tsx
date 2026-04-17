@@ -35,7 +35,24 @@ export default function MoradoresPage() {
       setIsReadOnly(false);
     } catch (error: any) {
       console.error('Failed to save resident:', error);
-      alert(error.message || 'Erro ao salvar morador. Por favor, tente novamente.');
+      if (error.message && error.message.startsWith('DUPLICATE_CPF:')) {
+        const msg = error.message.replace('DUPLICATE_CPF:', '');
+        if (window.confirm(`${msg}\n\nDeseja cadastrar mesmo assim?`)) {
+          try {
+            await saveResident(resident, true);
+            const data = await getResidents();
+            setResidents(data);
+            setIsFormOpen(false);
+            setEditingResident(undefined);
+            setIsReadOnly(false);
+          } catch (forceError: any) {
+            console.error('Failed to forcefully save resident:', forceError);
+            alert(forceError.message || 'Erro ao salvar morador. Por favor, tente novamente.');
+          }
+        }
+      } else {
+        alert(error.message || 'Erro ao salvar morador. Por favor, tente novamente.');
+      }
     }
   };
 
