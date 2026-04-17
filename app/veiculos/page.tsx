@@ -993,34 +993,46 @@ export default function VeiculosPage() {
       <AnimatePresence>
         {showSettings && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6 shadow-2xl">
               <div className="flex items-center gap-3 mb-6">
                 <ShieldCheck className="text-primary" />
-                <h3 className="text-xl font-black">Configurações de Acesso</h3>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white">Configurações de Acesso</h3>
               </div>
               
               <div className="mb-6">
-                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Tempo Limite de Permanência (Horas)</label>
+                <label className="block text-xs font-black uppercase tracking-widest text-slate-500 dark:text-slate-400 mb-3">Tempo Limite de Permanência (Horas)</label>
                 <div className="flex items-center gap-4">
                   <input 
                     type="number"
                     defaultValue={settings.tempo_alerta_permanencia / 60}
                     id="limitInput"
-                    className="w-24 p-4 bg-slate-50 border border-slate-200 rounded-xl text-lg font-black text-center"
+                    min={1}
+                    max={72}
+                    className="w-28 p-4 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-2xl font-black text-center text-slate-900 dark:text-white focus:ring-2 focus:ring-primary/30 outline-none transition-all"
                   />
-                  <span className="font-bold text-slate-500">Horas</span>
+                  <div>
+                    <span className="text-lg font-bold text-slate-700 dark:text-slate-300">Horas</span>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">por veículo visitante</p>
+                  </div>
                 </div>
-                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Veículos que excederem este tempo entrarão em alerta e aba de pendências.</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-3 font-bold uppercase leading-relaxed bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/50 rounded-lg p-2">
+                  ⚠️ Veículos que excederem este tempo entrarão em alerta e aba de pendências.
+                </p>
               </div>
 
               <div className="flex gap-3">
-                <button onClick={() => setShowSettings(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-sm">Cancelar</button>
+                <button 
+                  onClick={() => setShowSettings(false)} 
+                  className="flex-1 py-3 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl font-bold text-sm transition-colors"
+                >
+                  Cancelar
+                </button>
                 <button 
                   onClick={() => {
                     const val = (document.getElementById('limitInput') as HTMLInputElement).value;
                     saveConfig(parseInt(val) * 60);
                   }}
-                  className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm"
+                  className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
                 >
                   Salvar Alterações
                 </button>
