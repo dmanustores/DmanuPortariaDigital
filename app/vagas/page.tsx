@@ -50,7 +50,8 @@ export default function VagasPage() {
      locadorId: ''
   });
 
-  const [searchTitular, setSearchTitular] = useState('');
+  const [blocoTitularSearch, setBlocoTitularSearch] = useState('');
+  const [aptoTitularSearch, setAptoTitularSearch] = useState('');
 
   const fetchVagas = async () => {
     setLoading(true);
@@ -125,7 +126,8 @@ export default function VagasPage() {
        status: vaga.status,
        locadorId: vaga.alugada_para_morador_id || ''
      });
-     setSearchTitular(''); // Reset search
+     setBlocoTitularSearch(''); // Reset search
+     setAptoTitularSearch('');
      setShowEditModal(true);
   };
 
@@ -159,10 +161,8 @@ export default function VagasPage() {
   };
 
   const filteredResidents = allResidents.filter(r => 
-    !searchTitular || 
-    (r.nome && r.nome.toLowerCase().includes(searchTitular.toLowerCase())) ||
-    (r.bloco && r.bloco.toLowerCase().includes(searchTitular.toLowerCase())) ||
-    (r.apto && r.apto.toLowerCase().includes(searchTitular.toLowerCase()))
+    (!blocoTitularSearch || (r.bloco && r.bloco.toLowerCase().includes(blocoTitularSearch.toLowerCase()))) &&
+    (!aptoTitularSearch || (r.apto && r.apto.toLowerCase().includes(aptoTitularSearch.toLowerCase())))
   );
 
   return (
@@ -394,15 +394,27 @@ export default function VagasPage() {
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                       <label className="block text-sm font-bold mb-2 text-purple-600">Morador Locatário (Destino)</label>
                       <div className="space-y-2">
-                        <div className="relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-4" />
-                          <input 
-                              type="text" 
-                              placeholder="Buscar por nome, bloco ou apto..." 
-                              value={searchTitular}
-                              onChange={(e) => setSearchTitular(e.target.value)}
-                              className="w-full text-xs pl-9 pr-3 py-2.5 border border-purple-200 dark:border-purple-800/30 rounded-lg bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20"
-                          />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Bloco</label>
+                            <input 
+                                type="text" 
+                                placeholder={allResidents.length > 0 ? `Ex: ${allResidents[Math.floor(allResidents.length / 2)].bloco || '02'}` : "Ex: 02"}
+                                value={blocoTitularSearch}
+                                onChange={(e) => setBlocoTitularSearch(e.target.value)}
+                                className="w-full text-xs px-3 py-2 border border-purple-200 dark:border-purple-800/30 rounded-lg bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20 font-bold"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-widest ml-1">Unidade / Apto</label>
+                            <input 
+                                type="text" 
+                                placeholder={allResidents.length > 0 ? `Ex: ${allResidents[Math.floor(allResidents.length / 2)].apto || '302'}` : "Ex: 302"}
+                                value={aptoTitularSearch}
+                                onChange={(e) => setAptoTitularSearch(e.target.value)}
+                                className="w-full text-xs px-3 py-2 border border-purple-200 dark:border-purple-800/30 rounded-lg bg-white dark:bg-slate-900 outline-none focus:ring-2 focus:ring-purple-500/20 font-bold"
+                            />
+                          </div>
                         </div>
                         <select
                           value={formData.locadorId}
@@ -410,10 +422,21 @@ export default function VagasPage() {
                           className="w-full p-3 border border-purple-200 dark:border-purple-800/30 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-sm text-purple-900 dark:text-purple-300 font-bold focus:ring-2 focus:ring-purple-500/20 outline-none"
                         >
                           <option value="">Selecione o titular...</option>
-                          {filteredResidents.map(r => (
-                            <option key={r.id} value={r.id}>
-                              Locatário: {r.nome?.split(' ')[0]} {r.nome?.split(' ').pop()} (Bl {r.bloco}, Ap {r.apto})
-                            </option>
+                          {Object.entries(
+                            filteredResidents.reduce((acc: Record<string, any[]>, r: any) => {
+                              const b = r.bloco || 'Sem Bloco';
+                              if (!acc[b]) acc[b] = [];
+                              acc[b].push(r);
+                              return acc;
+                            }, {})
+                          ).sort(([a], [b]) => a.localeCompare(b)).map(([bloco, res]) => (
+                            <optgroup key={bloco} label={`Bloco ${bloco}`}>
+                               {(res as any[]).sort((a: any, b: any) => (a.apto || '').localeCompare(b.apto || '')).map((r: any) => (
+                                 <option key={r.id} value={r.id}>
+                                   Ap {r.apto} — {r.nome?.split(' ')[0]} {r.nome?.split(' ').pop()}
+                                 </option>
+                               ))}
+                            </optgroup>
                           ))}
                         </select>
                       </div>

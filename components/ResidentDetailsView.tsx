@@ -25,19 +25,31 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
 
   const [vagasGaragem, setVagasGaragem] = useState<number | null>(null);
   const [vagasVehicleMap, setVagasVehicleMap] = useState<Record<string, string>>({});
+  const [rentedOutCount, setRentedOutCount] = useState(0);
 
   useEffect(() => {
     async function fetchVagas() {
       if (!resident.bloco || !resident.apto) return;
       const { data } = await supabase
         .from('units')
-        .select('vagasgaragem')
+        .select('id, vagasgaragem')
         .eq('bloco', resident.bloco.padStart(2, '0'))
         .eq('numero', resident.apto)
         .maybeSingle();
 
       if (data) {
         setVagasGaragem(data.vagasgaragem || 0);
+
+        // Buscar as vagas originais da unidade para saber se o morador emprestou
+        const { data: vagasDaUnidade } = await supabase
+          .from('vagas')
+          .select('status, alugada_para_morador_id')
+          .eq('unidade_id', data.id);
+          
+        if (vagasDaUnidade) {
+            const alugadas = vagasDaUnidade.filter((v: any) => v.status === 'ALUGADA' && v.alugada_para_morador_id && v.alugada_para_morador_id !== resident.id).length;
+            setRentedOutCount(alugadas);
+        }
       }
       
       const vehicleIds = resident.vehicles?.map(v => v.id).filter(Boolean);
@@ -188,9 +200,16 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
                 <Car size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Veículos Cadastrados</h3>
                 {vagasGaragem !== null && (
-                  <span className={`ml-auto px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
-                    LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
-                  </span>
+                  <div className="flex gap-2 ml-auto">
+                    <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
+                      LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
+                    </span>
+                    {rentedOutCount > 0 && (
+                      <span className="bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0">
+                         Vaga Emprestada
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
               

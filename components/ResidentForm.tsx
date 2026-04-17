@@ -183,6 +183,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
   const apto = watch('apto');
   const [vagasGaragem, setVagasGaragem] = React.useState<number | null>(null);
   const [availableVagas, setAvailableVagas] = React.useState<any[]>([]);
+  const [unitId, setUnitId] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     async function fetchVagas() {
@@ -199,12 +200,13 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
         .maybeSingle();
 
       if (unitData) {
+        setUnitId(unitData.id);
         setVagasGaragem(unitData.vagasgaragem || 0);
 
         // Fetch vagas tied to this unit + vagas rented by this user
         const { data: vagasData } = await supabase
           .from('vagas')
-          .select('id, codigo, status, veiculo_id')
+          .select('id, codigo, status, veiculo_id, unidade_id, alugada_para_morador_id')
           .or(`unidade_id.eq.${unitData.id},alugada_para_morador_id.eq.${initialData?.id || '00000000-0000-0000-0000-000000000000'}`);
         
         if (vagasData) {
@@ -215,7 +217,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
            let modified = false;
            const newVehicles = currentVehicles.map((v: any) => {
               if (v.id) {
-                 const assignedSpot = vagasData.find(vg => vg.veiculo_id === v.id);
+                 const assignedSpot = vagasData.find((vg: any) => vg.veiculo_id === v.id);
                  if (assignedSpot && v.vaga_id !== assignedSpot.id) {
                     modified = true;
                     return { ...v, vaga_id: assignedSpot.id };
@@ -229,6 +231,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
            }
         }
       } else {
+        setUnitId(null);
         setVagasGaragem(null);
         setAvailableVagas([]);
       }
@@ -617,9 +620,16 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             <Car size={18} />
             <h3 className="font-bold text-sm uppercase">Veículos</h3>
             {vagasGaragem !== null && (
-              <span className={`ml-2 px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${vehicleFields.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
-                LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'Vaga' : 'Vagas'}
-              </span>
+              <div className="flex gap-2 ml-2">
+                <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${vehicleFields.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
+                  LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'Vaga' : 'Vagas'}
+                </span>
+                {availableVagas.filter(v => v.unidade_id === unitId && v.status === 'ALUGADA' && v.alugada_para_morador_id !== initialData?.id).length > 0 && (
+                  <span className="bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0">
+                    Vaga Emprestada
+                  </span>
+                )}
+              </div>
             )}
           </div>
           {!isReadOnly && (
