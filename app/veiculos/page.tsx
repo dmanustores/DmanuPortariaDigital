@@ -14,12 +14,23 @@ import {
   AlertTriangle,
   User,
   FileText,
-  Building
+  Building,
+  CheckCircle2,
+  History,
+  AlertCircle,
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  Download,
+  ShieldCheck,
+  Ban,
+  Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
-import { getCurrentOperatorId } from '@/lib/utils';
+import { getCurrentOperatorId, capitalize } from '@/lib/utils';
+import { vehiclesService, VehicleAccessLog } from '@/lib/vehicles-service';
 
 interface Vehicle {
   id: string;
@@ -34,6 +45,7 @@ interface Vehicle {
   moradorId?: string;
   status: string;
   created_at: string;
+  lastAccess?: VehicleAccessLog; // Novo: vínculo com o último acesso
 }
 
 interface Resident {
@@ -55,8 +67,6 @@ export default function VeiculosPage() {
   const [search, setSearch] = useState('');
   // Por padrão, todos os filtros vêm marcados
   const [activeFilters, setActiveFilters] = useState<string[]>(['PROPRIETARIO', 'LOCATARIO', 'VISITANTE', 'PRESTADOR']);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const filterRef = useRef<HTMLDivElement>(null);
   const [moradorSearch, setMoradorSearch] = useState('');
   const [showMoradorDropdown, setShowMoradorDropdown] = useState(false);
   const [selectedMorador, setSelectedMorador] = useState<Resident | null>(null);
@@ -80,6 +90,18 @@ export default function VeiculosPage() {
     moradorId: ''
   });
 
+  // --- NOVOS ESTADOS ---
+  const [activeTab, setActiveTab] = useState<'ATIVOS' | 'PENDENCIAS' | 'HISTORICO'>('ATIVOS');
+  const [settings, setSettings] = useState({ tempo_alerta_permanencia: 480, tipo_padrao_novo_veiculo: 'VISITANTE' });
+  const [accessHistory, setAccessHistory] = useState<VehicleAccessLog[]>([]);
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [showSettings, setShowSettings] = useState(false);
+  const [showExitModal, setShowExitModal] = useState(false);
+  const [selectedAccessId, setSelectedAccessId] = useState<string | null>(null);
+  const [exitNotes, setExitNotes] = useState('');
+  const [showSaidasHoje, setShowSaidasHoje] = useState(false);
+  const [userRole, setUserRole] = useState<string>('');
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (moradorRef.current && !moradorRef.current.contains(event.target as Node)) {
@@ -87,9 +109,6 @@ export default function VeiculosPage() {
       }
       if (unidadeRef.current && !unidadeRef.current.contains(event.target as Node)) {
         setShowUnidadeDropdown(false);
-      }
-      if (filterRef.current && !filterRef.current.contains(event.target as Node)) {
-        setShowFilterMenu(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -112,10 +131,34 @@ export default function VeiculosPage() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      const data = await vehiclesService.getSettings(supabase);
+      setSettings(data);
+    } catch (err) {
+      console.warn('Erro ao carregar settings:', err);
+    }
+  };
+
+  const fetchHistory = async () => {
+    const { data } = await supabase
+      .from('registros_acesso')
+      .select(`
+        *,
+        veiculo:vehicles_registry(placa, modelo, tipo, unidadedesc, nomeproprietario),
+        operador_entrada:operators!operador_entrada_id(nome),
+        operador_saida:operators!operador_saida_id(nome)
+      `)
+      .order('hora_entrada', { ascending: false })
+      .limit(200);
+    
+    if (data) setAccessHistory(data);
+  };
+
   const fetchVehicles = async () => {
     setLoading(true);
-    // Use aliases to map DB lowercase columns to camelCase interface properties
-    const { data } = await supabase
+    // 1. Buscar veículos básicos
+    const { data: vData } = await supabase
       .from('vehicles_registry')
       .select(`
         id,
@@ -133,14 +176,44 @@ export default function VeiculosPage() {
       `)
       .order('created_at', { ascending: false });
     
-    if (data) setVehicles(data);
+    if (vData) {
+      // 2. Buscar acessos ativos (DENTRO)
+      const { data: aData } = await supabase
+        .from('registros_acesso')
+        .select('*')
+        .eq('status', 'DENTRO');
+
+      // 3. Mesclar dados
+      const merged = vData.map(v => {
+        const last = aData?.find(a => a.veiculo_id === v.id);
+        return { ...v, lastAccess: last };
+      });
+
+      setVehicles(merged);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchVehicles();
     fetchResidents();
+    fetchSettings();
+    fetchHistory();
     getCurrentOperatorId(supabase).then(setOperatorId);
+    
+    // Identificar Role do Usuário
+    const checkRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await supabase.from('operators').select('role').eq('id', session.user.id).single();
+        if (data) setUserRole(data.role);
+      }
+    };
+    checkRole();
+
+    // Timer de 60 segundos para atualização da permanência
+    const timer = setInterval(() => setCurrentTime(new Date()), 60000);
+    return () => clearInterval(timer);
   }, []);
 
   const filteredResidents = residents.filter(r => 
@@ -247,72 +320,125 @@ export default function VeiculosPage() {
 
   const handleSubmit = async () => {
     try {
-      // 1. Validação: Nome (Condutor)
-      if (!formData.nome.trim()) {
-        alert('Por favor, preencha o Nome Completo do condutor.');
+      if (!formData.nome.trim() || !formData.documento.trim() || !formData.placa.trim() || !formData.unidadeDesc.trim() || !formData.moradorId) {
+        alert('Por favor, preencha todos os campos obrigatórios (*).');
         return;
       }
 
-      // 2. Validação: Documento (CPF ou RG)
-      if (!formData.documento.trim()) {
-        alert(`Por favor, preencha o ${formData.tipoDocumento} do condutor.`);
-        return;
-      }
+      const placaUpper = formData.placa.toUpperCase();
+      
+      // 1. Verificar se o veículo já existe no cadastro
+      let vehicleId = '';
+      const { data: existingVehicle } = await supabase
+        .from('vehicles_registry')
+        .select('id')
+        .eq('placa', placaUpper)
+        .maybeSingle();
 
-      // 3. Validação: Placa
-      if (!formData.placa.trim()) {
-        alert('Por favor, preencha a Placa do veículo.');
-        return;
-      }
-
-      // 4. Validação: Unidade de Destino
-      if (!formData.unidadeDesc.trim() || !formData.moradorId) {
-        alert('Por favor, selecione uma Unidade de Destino válida.');
-        return;
-      }
-
-      // O nomeProprietario para o banco de dados será sempre o campo "nome" preenchido no topo
-      const nomeFinal = formData.nome.trim();
-
-      // Lookup real unit ID
-      let unitId: string | null = null;
-      if (formData.unidadeDesc) {
+      if (existingVehicle) {
+        vehicleId = existingVehicle.id;
+      } else {
+        // Criar veículo se não existe
+        let unitId: string | null = null;
         const blocoMatch = formData.unidadeDesc.match(/bloco\s*([0-9a-z]+)/i);
         const aptoMatch  = formData.unidadeDesc.match(/apt[o]?\s*([0-9a-z]+)/i);
         if (blocoMatch && aptoMatch) {
-          const { data: unitData } = await supabase
-            .from('units')
-            .select('id')
-            .eq('bloco', blocoMatch[1].padStart(2, '0'))
-            .eq('numero', aptoMatch[1])
-            .maybeSingle();
+          const { data: unitData } = await supabase.from('units').select('id')
+            .eq('bloco', blocoMatch[1].padStart(2, '0')).eq('numero', aptoMatch[1]).maybeSingle();
           unitId = unitData?.id ?? null;
         }
+
+        const { data: newV, error: vError } = await supabase.from('vehicles_registry').insert({
+          placa: placaUpper,
+          modelo: formData.modelo || null,
+          cor: formData.cor || null,
+          unidadeid: unitId,
+          unidadedesc: formData.unidadeDesc,
+          tipo: formData.tipo,
+          nomeproprietario: formData.nome,
+          telefone: formData.telefone || null,
+          moradorid: formData.moradorId
+        }).select().single();
+        if (vError) throw vError;
+        vehicleId = newV.id;
       }
 
-      const { error: insertError } = await supabase.from('vehicles_registry').insert({
-        placa: formData.placa.toUpperCase(),
-        modelo: formData.modelo || null,
-        cor: formData.cor || null,
-        unidadeid: unitId,
-        unidadedesc: formData.unidadeDesc || null,
-        tipo: formData.tipo,
-        nomeproprietario: nomeFinal,
-        telefone: formData.telefone || null,
-        moradorid: formData.moradorId || null,
-        status: 'ATIVO'
-      });
-
-      if (insertError) throw insertError;
+      // 2. Registrar o Acesso (DENTRO)
+      if (formData.tipo !== 'PROPRIETARIO' && formData.tipo !== 'LOCATARIO') {
+        if (!operatorId) { alert('Sessão expirada. Faça login novamente.'); return; }
+        await vehiclesService.registrarAcesso(supabase, {
+          veiculo_id: vehicleId,
+          status: 'DENTRO',
+          operador_id: operatorId,
+          hora_entrada: new Date().toISOString()
+        });
+      }
       
-      alert('Veículo cadastrado com sucesso!');
+      alert('Veículo e acesso registrados com sucesso!');
       setShowModal(false);
       resetForm();
       fetchVehicles();
     } catch (err: any) {
-      console.error('❌ Erro ao salvar veículo:', err);
-      alert('Erro ao salvar veículo: ' + (err.message || 'Erro desconhecido'));
+      console.error('❌ Erro:', err);
+      alert('Erro: ' + (err.message || 'Erro desconhecido'));
     }
+  };
+
+  const handleOpenExitModal = (accessId: string) => {
+    setSelectedAccessId(accessId);
+    setExitNotes('');
+    setShowExitModal(true);
+  };
+
+  const handleConfirmExit = async () => {
+    if (!selectedAccessId || !operatorId) return;
+    try {
+      await vehiclesService.registrarSaida(supabase, selectedAccessId, {
+        operador_id: operatorId,
+        observacoes: exitNotes
+      });
+      setShowExitModal(false);
+      fetchVehicles();
+      fetchHistory();
+    } catch (err) {
+      alert('Erro ao registrar saída.');
+    }
+  };
+
+  const saveConfig = async (newMinutes: number) => {
+    try {
+      const newSettings = { ...settings, tempo_alerta_permanencia: newMinutes };
+      await vehiclesService.updateSettings(supabase, newSettings);
+      setSettings(newSettings);
+      setShowSettings(false);
+      alert('Configuração salva!');
+    } catch (err) {
+      alert('Erro ao salvar configuração.');
+    }
+  };
+
+  const exportCSV = () => {
+    if (accessHistory.length === 0) return;
+    const headers = ["Placa", "Modelo", "Tipo", "Proprietario/Visitante", "Unidade", "Status", "Entrada", "Saida", "Permanencia (min)", "Porteiro Entrada"];
+    const rows = accessHistory.map(h => [
+      h.veiculo?.placa,
+      h.veiculo?.modelo,
+      h.veiculo?.tipo,
+      h.veiculo?.nomeproprietario,
+      h.veiculo?.unidadedesc,
+      h.status,
+      h.hora_entrada ? new Date(h.hora_entrada).toLocaleString('pt-BR') : '-',
+      h.hora_saida ? new Date(h.hora_saida).toLocaleString('pt-BR') : '-',
+      h.permanencia_minutos || '-',
+      h.operador_entrada?.nome
+    ]);
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `historico_veiculos_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
   };
 
   const resetForm = () => {
@@ -343,288 +469,454 @@ export default function VeiculosPage() {
     }
   };
 
+
+
+  // --- COMPONENTES AUXILIARES ---
+
+  const StatusBadge = ({ vehicle }: { vehicle: Vehicle }) => {
+    if (vehicle.tipo === 'PROPRIETARIO' || vehicle.tipo === 'LOCATARIO') {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-blue-50 text-blue-600 border border-blue-200 uppercase">
+          🔵 MORADOR
+        </span>
+      );
+    }
+    
+    if (!vehicle.lastAccess) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black bg-slate-50 text-slate-500 border border-slate-200 uppercase">
+          ⚪ FORA
+        </span>
+      );
+    }
+
+    const { status } = vehicle.lastAccess;
+    const styles = {
+      DENTRO: 'bg-green-50 text-green-600 border-green-200',
+      SAIU: 'bg-slate-50 text-slate-500 border-slate-200',
+      NEGADO: 'bg-red-50 text-red-600 border-red-200'
+    };
+    const icons = { DENTRO: '🟢', SAIU: '⚪', NEGADO: '🔴' };
+
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-black border uppercase ${styles[status as keyof typeof styles]}`}>
+        {icons[status as keyof typeof icons]} {status}
+      </span>
+    );
+  };
+
+  const DurationBadge = ({ horaEntrada }: { horaEntrada: string }) => {
+    const start = new Date(horaEntrada).getTime();
+    const now = currentTime.getTime();
+    const diffMin = Math.floor((now - start) / (1000 * 60));
+    const h = Math.floor(diffMin / 60);
+    const m = diffMin % 60;
+    
+    const isAlert = diffMin > settings.tempo_alerta_permanencia;
+    
+    return (
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold ${isAlert ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-slate-100 text-slate-600'}`}>
+        {isAlert ? '⚠️' : '⏱️'} {h > 0 ? `${h}h ` : ''}{m}min
+      </span>
+    );
+  };
+
+  // --- FILTRAGEM ---
+
   const filtered = vehicles.filter(v => {
-    const nameToSearch = v.nomeProprietario || '';
-    const unitToSearch = v.unidadeDesc || '';
+    const isMorador = v.tipo === 'PROPRIETARIO' || v.tipo === 'LOCATARIO';
     const matchSearch = !search || 
       v.placa.toLowerCase().includes(search.toLowerCase()) ||
       (v.modelo?.toLowerCase().includes(search.toLowerCase())) ||
-      (nameToSearch.toLowerCase().includes(search.toLowerCase())) ||
-      (unitToSearch.toLowerCase().includes(search.toLowerCase()));
-    const matchFilter = activeFilters.length === 0 || activeFilters.includes(v.tipo);
-    return matchSearch && matchFilter;
-  });
-
-  const toggleFilter = (filterCategory: string) => {
-    // Lógica especial: quando clica "MORADORES", adiciona PROPRIETARIO e LOCATARIO
-    let newFilters: string[];
+      (v.nomeProprietario?.toLowerCase().includes(search.toLowerCase()));
     
-    if (filterCategory === 'MORADORES') {
-      // Verifica se já tem moradores selecionados
-      const hasBothResident = activeFilters.includes('PROPRIETARIO') && activeFilters.includes('LOCATARIO');
-      
-      if (hasBothResident) {
-        // Remove ambos
-        newFilters = activeFilters.filter(t => t !== 'PROPRIETARIO' && t !== 'LOCATARIO');
-      } else {
-        // Remove se existir um parcial, depois adiciona os dois
-        newFilters = activeFilters.filter(t => t !== 'PROPRIETARIO' && t !== 'LOCATARIO');
-        newFilters = [...newFilters, 'PROPRIETARIO', 'LOCATARIO'];
-      }
-    } else {
-      // Para outros filtros, comportamento normal
-      if (activeFilters.includes(filterCategory)) {
-        newFilters = activeFilters.filter(t => t !== filterCategory);
-      } else {
-        newFilters = [...activeFilters, filterCategory];
-      }
+    const matchFilter = activeFilters.length === 0 || activeFilters.includes(v.tipo);
+    
+    if (activeTab === 'ATIVOS') {
+      // Exibir sempre moradores + quem está DENTRO
+      return matchSearch && matchFilter && (isMorador || v.lastAccess?.status === 'DENTRO');
     }
     
-    setActiveFilters(newFilters);
-  };
+    if (activeTab === 'PENDENCIAS') {
+      if (isMorador || !v.lastAccess || v.lastAccess.status !== 'DENTRO') return false;
+      const diffMin = (currentTime.getTime() - new Date(v.lastAccess.hora_entrada).getTime()) / (1000 * 60);
+      return matchSearch && (diffMin > settings.tempo_alerta_permanencia);
+    }
 
-  // Contar moradores: PROPRIETARIO + LOCATARIO
-  const moradorCount = vehicles.filter(v => v.tipo === 'PROPRIETARIO' || v.tipo === 'LOCATARIO').length;
-  const visitanteCount = vehicles.filter(v => v.tipo === 'VISITANTE').length;
-  const prestadorCount = vehicles.filter(v => v.tipo === 'PRESTADOR').length;
-  
-  // Verificar se moradores estão filtrados (ambos PROPRIETARIO e LOCATARIO selecionados)
-  const moradoresAtivos = activeFilters.includes('PROPRIETARIO') && activeFilters.includes('LOCATARIO');
+    return false;
+  });
+
+  const pendenciasCount = vehicles.filter(v => {
+    if (!v.lastAccess || v.lastAccess.status !== 'DENTRO') return false;
+    const diffMin = (currentTime.getTime() - new Date(v.lastAccess.hora_entrada).getTime()) / (1000 * 60);
+    return diffMin > settings.tempo_alerta_permanencia;
+  }).length;
+
+  const noCondominioCount = vehicles.filter(v => v.lastAccess?.status === 'DENTRO').length;
+  const entradasHojeCount = accessHistory.filter(h => h.hora_entrada?.split('T')[0] === new Date().toISOString().split('T')[0]).length;
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Veículos</h2>
-          <p className="text-slate-500 mt-1 text-sm">Controle de veículos do condomínio</p>
-        </motion.div>
+      {/* HEADER & DASHBOARD */}
+      <div className="flex flex-col gap-6 mb-8">
+        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
+            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Veículos</h2>
+            <p className="text-slate-500 mt-1 text-sm">Controle operacional de acesso vehicular</p>
+          </motion.div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* MORADORES: Proprietários + Locatários */}
-          <button 
-            onClick={() => toggleFilter('MORADORES')}
-            className={`px-4 py-2 rounded-lg transition-all border-2 ${moradoresAtivos ? 'bg-blue-500 text-white border-blue-600 shadow-md transform scale-105' : 'bg-blue-100 dark:bg-blue-900/30 border-transparent hover:bg-blue-200 cursor-pointer'}`}
-            title="Proprietários e Locatários"
-          >
-            <span className={`font-bold text-sm ${moradoresAtivos ? 'text-white' : 'text-blue-700 dark:text-blue-400'}`}>{moradorCount} Moradores</span>
-          </button>
-
-          {/* VISITANTES */}
-          <button 
-            onClick={() => toggleFilter('VISITANTE')}
-            className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('VISITANTE') ? 'bg-green-500 text-white border-green-600 shadow-md transform scale-105' : 'bg-green-100 dark:bg-green-900/30 border-transparent hover:bg-green-200 cursor-pointer'}`}
-            title="Visitantes do condomínio"
-          >
-            <span className={`font-bold text-sm ${activeFilters.includes('VISITANTE') ? 'text-white' : 'text-green-700 dark:text-green-400'}`}>{visitanteCount} Visitantes</span>
-          </button>
-
-          {/* PRESTADORES */}
-          {prestadorCount > 0 && (
-            <button 
-              onClick={() => toggleFilter('PRESTADOR')}
-              className={`px-4 py-2 rounded-lg transition-all border-2 ${activeFilters.includes('PRESTADOR') ? 'bg-amber-500 text-white border-amber-600 shadow-md transform scale-105' : 'bg-amber-100 dark:bg-amber-900/30 border-transparent hover:bg-amber-200 cursor-pointer'}`}
-              title="Prestadores de serviço"
+          <div className="flex flex-wrap items-center gap-3">
+             {(userRole === 'Owner' || userRole === 'Admin') && (
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 hover:bg-slate-200 transition-all"
+                title="Configurações"
+              >
+                <Settings size={20} />
+              </button>
+             )}
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowModal(true)}
+              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
             >
-              <span className={`font-bold text-sm ${activeFilters.includes('PRESTADOR') ? 'text-white' : 'text-amber-700 dark:text-amber-400'}`}>{prestadorCount} Prestadores</span>
+              <Plus size={18} />
+              Entrada / Cadastro
+            </motion.button>
+          </div>
+        </div>
+
+        {/* CARDS INDICADORES */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">No Condomínio Agora</p>
+              <p className="text-3xl font-black text-green-600">{noCondominioCount}</p>
+            </div>
+            <div className="size-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
+              <Car size={24} />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Entradas Hoje</p>
+              <p className="text-3xl font-black text-blue-600">{entradasHojeCount}</p>
+            </div>
+            <div className="size-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+              <LogIn size={24} />
+            </div>
+          </div>
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Permanência Longa</p>
+              <p className="text-3xl font-black text-red-600">{pendenciasCount}</p>
+            </div>
+            <div className="size-12 bg-red-50 rounded-xl flex items-center justify-center text-red-600">
+              <AlertTriangle size={24} />
+            </div>
+          </div>
+        </div>
+
+        {/* ALERT BANNER */}
+        {pendenciasCount > 0 && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-red-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg shadow-red-600/20 cursor-pointer"
+            onClick={() => setActiveTab('PENDENCIAS')}
+          >
+            <div className="flex items-center gap-3">
+              <AlertCircle size={20} className="animate-pulse" />
+              <span className="font-bold text-sm">⚠️ {pendenciasCount} veículos com permanência não registrada — Ver Pendências</span>
+            </div>
+            <History size={18} />
+          </motion.div>
+        )}
+      </div>
+
+      {/* TABS & SEARCH */}
+      <div className="flex flex-col gap-4 mb-6">
+        <div className="flex border-b border-slate-200 dark:border-slate-800">
+          <button 
+            onClick={() => setActiveTab('ATIVOS')}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+            Ativos / No Momentos
+          </button>
+          <button 
+            onClick={() => setActiveTab('PENDENCIAS')}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+            ⚠️ Pendências {pendenciasCount > 0 && <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[10px]">{pendenciasCount}</span>}
+          </button>
+          <button 
+            onClick={() => setActiveTab('HISTORICO')}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+          >
+            Histórico Geral
+          </button>
+        </div>
+
+        <div className="flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <input 
+              type="text"
+              placeholder="Buscar por placa, modelo ou unidade..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
+            />
+          </div>
+          {activeTab === 'HISTORICO' && (
+            <button 
+              onClick={exportCSV}
+              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg font-bold text-sm hover:bg-emerald-700 shadow-md"
+            >
+              <Download size={18} />
+              Exportar CSV
             </button>
           )}
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
-          >
-            <Plus size={18} />
-            Novo Veículo
-          </motion.button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input 
-            type="text"
-            placeholder="Buscar por placa, modelo, proprietário ou unidade (bloco/apt)..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
-          />
-        </div>
-
-        {/* Dropdown Filtro */}
-        <div className="relative" ref={filterRef}>
-          <button
-            onClick={() => setShowFilterMenu(!showFilterMenu)}
-            className="px-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-          >
-            Filtros ▼
-          </button>
-
-          {showFilterMenu && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-xl z-50 p-4">
-              <div className="space-y-3">
-                {/* Proprietários */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.includes('PROPRIETARIO')}
-                    onChange={() => {
-                      if (activeFilters.includes('PROPRIETARIO')) {
-                        setActiveFilters(activeFilters.filter(f => f !== 'PROPRIETARIO'));
-                      } else {
-                        setActiveFilters([...activeFilters, 'PROPRIETARIO']);
-                      }
-                    }}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Proprietários</span>
-                </label>
-
-                {/* Locatários */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.includes('LOCATARIO')}
-                    onChange={() => {
-                      if (activeFilters.includes('LOCATARIO')) {
-                        setActiveFilters(activeFilters.filter(f => f !== 'LOCATARIO'));
-                      } else {
-                        setActiveFilters([...activeFilters, 'LOCATARIO']);
-                      }
-                    }}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Locatários</span>
-                </label>
-
-                {/* Visitantes */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.includes('VISITANTE')}
-                    onChange={() => {
-                      if (activeFilters.includes('VISITANTE')) {
-                        setActiveFilters(activeFilters.filter(f => f !== 'VISITANTE'));
-                      } else {
-                        setActiveFilters([...activeFilters, 'VISITANTE']);
-                      }
-                    }}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Visitantes</span>
-                </label>
-
-                {/* Prestadores */}
-                <label className="flex items-center gap-3 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={activeFilters.includes('PRESTADOR')}
-                    onChange={() => {
-                      if (activeFilters.includes('PRESTADOR')) {
-                        setActiveFilters(activeFilters.filter(f => f !== 'PRESTADOR'));
-                      } else {
-                        setActiveFilters([...activeFilters, 'PRESTADOR']);
-                      }
-                    }}
-                    className="w-4 h-4 rounded"
-                  />
-                  <span className="text-sm font-medium">Prestadores</span>
-                </label>
-
-                {/* Separador */}
-                <div className="border-t border-slate-200 dark:border-slate-700 pt-3 mt-3">
-                  <button
-                    onClick={() => setActiveFilters(['PROPRIETARIO', 'LOCATARIO', 'VISITANTE', 'PRESTADOR'])}
-                    className="w-full px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                  >
-                    Selecionar Todos
-                  </button>
-                  <button
-                    onClick={() => setActiveFilters([])}
-                    className="w-full px-3 py-2 text-xs font-medium bg-slate-100 dark:bg-slate-800 rounded hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors mt-2"
-                  >
-                    Limpar Filtros
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      {/* LIST CONTENT */}
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Placa</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Veículo</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Proprietário</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Unidade</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Tipo</th>
-                <th className="text-right p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
+                <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Placa / Veículo</th>
+                <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Proprietário / Visitante</th>
+                <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidade</th>
+                <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status / Permanência</th>
+                {activeTab !== 'HISTORICO' && <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>}
+                {activeTab === 'HISTORICO' && (
+                  <>
+                    <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Entrada / Saída</th>
+                    <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Responsável</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-400">Carregando...</td></tr>
-              ) : filtered.length === 0 ? (
-                <tr><td colSpan={6} className="p-8 text-center text-slate-400">Nenhum veículo</td></tr>
-              ) : filtered.map((vehicle) => (
-                <tr key={vehicle.id} className="border-t border-slate-100 dark:border-slate-800">
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Key size={16} className="text-slate-400" />
-                      <span className="font-mono font-bold text-sm">{vehicle.placa}</span>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div>
-                      <p className="text-sm font-semibold">{vehicle.modelo || '-'}</p>
-                      {vehicle.cor && <p className="text-xs text-slate-400">{vehicle.cor}</p>}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <div>
-                      <p className="text-sm font-bold">{vehicle.nomeProprietario || '-'}</p>
-                      {vehicle.telefone && <p className="text-xs text-slate-400">{vehicle.telefone}</p>}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="inline-block px-3 py-1.5 font-bold text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-200 dark:border-slate-700 shadow-[inset_0_1px_rgba(255,255,255,0.1)]">
-                      {vehicle.unidadeDesc || 'Sem destino'}
-                    </span>
-                  </td>
-                  <td className="p-4">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
-                      vehicle.tipo === 'PROPRIETARIO' 
-                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
-                        : vehicle.tipo === 'LOCATARIO'
-                        ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                        : vehicle.tipo === 'VISITANTE'
-                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                        : vehicle.tipo === 'PRESTADOR'
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-900/30 dark:text-slate-400'
-                    }`}>
-                      {vehicle.tipo}
-                    </span>
-                  </td>
-                  <td className="p-4 text-right">
-                    <button 
-                      onClick={() => handleDelete(vehicle.id)}
-                      className="text-xs font-bold text-red-600 hover:underline"
-                    >
-                      Excluir
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                <tr><td colSpan={6} className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Carregando dados...</td></tr>
+              ) : (activeTab === 'HISTORICO' ? accessHistory : filtered).length === 0 ? (
+                <tr><td colSpan={6} className="p-12 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Nenhum registro encontrado</td></tr>
+              ) : (activeTab === 'HISTORICO' ? accessHistory : filtered).map((item) => {
+                const isHistory = activeTab === 'HISTORICO';
+                const v = isHistory ? (item as any).veiculo : (item as Vehicle);
+                const a = isHistory ? (item as any) : (item as Vehicle).lastAccess;
+                const isMorador = v?.tipo === 'PROPRIETARIO' || v?.tipo === 'LOCATARIO';
+
+                return (
+                  <tr key={item.id} className="border-t border-slate-100 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                    <td className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-slate-100 dark:bg-slate-800 p-2 rounded-lg">
+                          <Car size={18} className="text-slate-500" />
+                        </div>
+                        <div>
+                          <p className="font-mono font-black text-sm tracking-tighter">{v?.placa}</p>
+                          <p className="text-[10px] text-slate-500 uppercase font-bold">{v?.modelo || '-'} • { (item as any).cor || '-'}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <div>
+                        <p className="text-sm font-black text-slate-800 dark:text-slate-200">{v?.nomeproprietario || v?.nomeProprietario || '-'}</p>
+                        <p className="text-[10px] text-slate-500 uppercase font-bold">{v?.tipo}</p>
+                      </div>
+                    </td>
+                    <td className="p-4">
+                      <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                        {v?.unidadedesc || v?.unidadeDesc || '-'}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-col gap-1.5 items-start">
+                        {isHistory ? (
+                          <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-black ${
+                            a.status === 'SAIU' ? 'bg-slate-100 text-slate-500' : 'bg-green-100 text-green-700'
+                          }`}>
+                            {a.status}
+                          </span>
+                        ) : (
+                          <StatusBadge vehicle={item as Vehicle} />
+                        )}
+                        {!isMorador && a?.hora_entrada && a?.status === 'DENTRO' && (
+                          <DurationBadge horaEntrada={a.hora_entrada} />
+                        )}
+                        {isHistory && a.permanencia_minutos && (
+                          <span className="text-[10px] font-bold text-slate-400 underline decoration-slate-200">
+                            ⏱️ {Math.floor(a.permanencia_minutos / 60)}h {a.permanencia_minutos % 60}min
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    
+                    {!isHistory ? (
+                      <td className="p-4 text-right">
+                        <div className="flex justify-end gap-2">
+                          {!isMorador && a?.status === 'DENTRO' && (
+                            <button 
+                              onClick={() => handleOpenExitModal(a.id)}
+                              className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all"
+                            >
+                              <CheckCircle2 size={12} /> Registrar Saída
+                            </button>
+                          )}
+                          {!isMorador && (!a || a.status !== 'DENTRO') && (
+                            <button 
+                              onClick={() => {
+                                setFormData({ ...formData, placa: v.placa, modelo: v.modelo, cor: (v as any).cor, tipo: v.tipo, nomeProprietario: v.nomeproprietario, unidadeDesc: v.unidadedesc, moradorId: (v as any).moradorid });
+                                setShowModal(true);
+                              }}
+                              className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black border border-blue-100 hover:bg-blue-100 transition-all"
+                            >
+                              <LogIn size={12} /> Nova Entrada
+                            </button>
+                          )}
+                          {isMorador && (
+                            <button className="text-slate-400 hover:text-slate-600">
+                              <User size={16} />
+                            </button>
+                          )}
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </td>
+                    ) : (
+                      <>
+                        <td className="p-4">
+                          <div className="flex flex-col text-[10px] font-bold">
+                            <span className="text-slate-700 dark:text-slate-300">E: {new Date(a.hora_entrada).toLocaleString('pt-BR')}</span>
+                            <span className="text-slate-400">S: {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '---'}</span>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-[10px] font-black text-primary uppercase">
+                            {a.operador_entrada?.nome?.split(' ')[0] || '---'}
+                          </span>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      {/* FOOTER SECTION: SAIDAS DE HOJE */}
+      {activeTab === 'ATIVOS' && (
+        <div className="mt-8">
+           <button 
+            onClick={() => setShowSaidasHoje(!showSaidasHoje)}
+            className="flex items-center gap-3 text-slate-400 font-black text-[10px] uppercase tracking-widest hover:text-slate-600 transition-all mb-4"
+           >
+             {showSaidasHoje ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+             Saídas de Hoje ({accessHistory.filter(h => h.hora_saida?.split('T')[0] === new Date().toISOString().split('T')[0]).length})
+           </button>
+           
+           <AnimatePresence>
+             {showSaidasHoje && (
+               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                 <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 border border-slate-100 dark:border-slate-800">
+                    {/* Simplified list of today's exits */}
+                    {accessHistory
+                      .filter(h => h.hora_saida?.split('T')[0] === new Date().toISOString().split('T')[0])
+                      .map(h => (
+                        <div key={h.id} className="flex items-center justify-between p-3 border-b border-slate-200/50 last:border-0">
+                           <div className="flex items-center gap-4">
+                             <span className="font-mono font-black text-xs">{h.veiculo?.placa}</span>
+                             <span className="text-[10px] font-bold text-slate-500 uppercase">{h.veiculo?.nomeproprietario}</span>
+                           </div>
+                           <span className="text-[10px] font-black text-slate-400">SAIU ÀS {new Date(h.hora_saida!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                      ))
+                    }
+                 </div>
+               </motion.div>
+             )}
+           </AnimatePresence>
+        </div>
+      )}
+
+      {/* MODAL EXIT CONFIRMATION */}
+      <AnimatePresence>
+        {showExitModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6">
+              <h3 className="text-xl font-black mb-4">Registrar Saída</h3>
+              <p className="text-sm text-slate-500 mb-6 font-bold">Confirma a saída deste veículo agora?</p>
+              
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Observações (Opcional)</label>
+                <textarea 
+                  value={exitNotes}
+                  onChange={(e) => setExitNotes(e.target.value)}
+                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                  placeholder="Ex: Deixou chave na portaria..."
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setShowExitModal(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-sm">Cancelar</button>
+                <button onClick={handleConfirmExit} className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-600/20">Confirmar Saída</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL SETTINGS */}
+      <AnimatePresence>
+        {showSettings && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <ShieldCheck className="text-primary" />
+                <h3 className="text-xl font-black">Configurações de Acesso</h3>
+              </div>
+              
+              <div className="mb-6">
+                <label className="block text-xs font-bold uppercase text-slate-400 mb-2">Tempo Limite de Permanência (Horas)</label>
+                <div className="flex items-center gap-4">
+                  <input 
+                    type="number"
+                    defaultValue={settings.tempo_alerta_permanencia / 60}
+                    id="limitInput"
+                    className="w-24 p-4 bg-slate-50 border border-slate-200 rounded-xl text-lg font-black text-center"
+                  />
+                  <span className="font-bold text-slate-500">Horas</span>
+                </div>
+                <p className="text-[10px] text-slate-400 mt-2 font-bold uppercase">Veículos que excederem este tempo entrarão em alerta e aba de pendências.</p>
+              </div>
+
+              <div className="flex gap-3">
+                <button onClick={() => setShowSettings(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-sm">Cancelar</button>
+                <button 
+                  onClick={() => {
+                    const val = (document.getElementById('limitInput') as HTMLInputElement).value;
+                    saveConfig(parseInt(val) * 60);
+                  }}
+                  className="flex-1 py-3 bg-primary text-white rounded-xl font-bold text-sm"
+                >
+                  Salvar Alterações
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {showModal && (
