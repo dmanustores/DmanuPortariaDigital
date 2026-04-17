@@ -331,32 +331,32 @@ export default function UnidadesPage() {
 
   return (
     <DashboardLayout suppressHydrationWarning>
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-4 sm:mb-8">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-            <Building2 className="text-primary" />
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2 sm:gap-3">
+            <Building2 className="text-primary" size={24} />
             Unidades
           </h2>
-          <p className="text-slate-500 mt-1 text-sm">
+          <p className="text-slate-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">
             {isAdmin ? 'Gerencie as unidades do condomínio' : 'Visualize as unidades'}
           </p>
         </motion.div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
           {isAdmin && units.length === 0 && (
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowWizard(true)}
-              className="flex items-center gap-2 bg-amber-500 text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-amber-600 shadow-lg shadow-amber-500/20"
+              className="flex-none flex items-center gap-2 bg-amber-500 text-white px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-amber-600 shadow-lg shadow-amber-500/20"
             >
-              <Wand2 size={18} />
+              <Wand2 size={16} />
               Gerar Todas
             </motion.button>
           )}
           
-          <span className="text-sm font-bold text-slate-500">
-            {units.length} unidades cadastradas
+          <span className="flex-none text-[10px] sm:text-sm font-bold text-slate-500 bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded-md">
+            {units.length} unidades
           </span>
 
           {isAdmin && (
@@ -364,9 +364,9 @@ export default function UnidadesPage() {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => { resetForm(); setShowModal(true); }}
-              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
+              className="flex-none flex items-center gap-2 bg-primary text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
             >
-              <Plus size={18} />
+              <Plus size={16} />
               Nova
             </motion.button>
           )}
@@ -374,49 +374,43 @@ export default function UnidadesPage() {
       </div>
 
       {units.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-4 text-center">
-            <p className="text-3xl font-black text-slate-900 dark:text-white">{stats.total}</p>
-            <p className="text-xs text-slate-500">Total</p>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
+          <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.total}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500 uppercase font-bold tracking-wider">Total</p>
           </div>
-          <div className="bg-green-50 dark:bg-green-900/20 rounded-xl border border-green-200 dark:border-green-800 p-4 text-center">
-            <p className="text-3xl font-black text-green-600 dark:text-green-400">{stats.occupied}</p>
-            <p className="text-xs text-green-600 dark:text-green-400">Ocupadas</p>
+          <div className="bg-green-50 dark:bg-green-900/10 rounded-lg sm:rounded-xl border border-green-200 dark:border-green-800/50 p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-3xl font-black text-green-600 dark:text-green-400">{stats.occupied}</p>
+            <p className="text-[10px] sm:text-xs text-green-600 dark:text-green-400 uppercase font-bold tracking-wider">Ocupadas</p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 text-center">
-            <p className="text-3xl font-black text-slate-600 dark:text-slate-400">{stats.vacant}</p>
-            <p className="text-xs text-slate-500">Vagas</p>
+          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-3xl font-black text-slate-600 dark:text-slate-400">{stats.vacant}</p>
+            <p className="text-[10px] sm:text-xs text-slate-500 uppercase font-bold tracking-wider">Vagas</p>
           </div>
-          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-xl border border-amber-200 dark:border-amber-800 p-4 text-center">
-            <p className="text-3xl font-black text-amber-600 dark:text-amber-400">{stats.obras}</p>
-            <p className="text-xs text-amber-600 dark:text-amber-400">Em Obras</p>
+          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-lg sm:rounded-xl border border-amber-200 dark:border-amber-800/50 p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">{stats.obras}</p>
+            <p className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider">Em Obras</p>
           </div>
-          <div className="bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 p-4 text-center">
-            <p className="text-3xl font-black text-red-600 dark:text-red-400">{stats.manutencao}</p>
-            <p className="text-xs text-red-600 dark:text-red-400">Manutenção</p>
+          <div className="bg-red-50 dark:bg-red-900/10 rounded-lg sm:rounded-xl border border-red-200 dark:border-red-800/50 p-3 sm:p-4 text-center">
+            <p className="text-xl sm:text-3xl font-black text-red-600 dark:text-red-400">{stats.manutencao}</p>
+            <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 uppercase font-bold tracking-wider">Manutenção</p>
           </div>
         </div>
       )}
 
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 mb-6">
-        <div className="flex flex-wrap gap-4">
-          <div className="relative flex-1 min-w-[200px]">
-            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+       <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 mb-6 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" />
             <input
               type="text"
-              placeholder="Buscar por morador, dependente, apartamento ou bloco..."
+              placeholder="Buscar unidade, bloco ou morador..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
+              className="w-full pl-10 pr-4 py-2 sm:py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 outline-none transition-all"
             />
           </div>
           
-          <select
-            value={filterBloco}
-            onChange={(e) => setFilterBloco(e.target.value)}
-            className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-          >
-            <option value="">Todos os Blocos</option>
             {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
           </select>
 
@@ -545,33 +539,35 @@ export default function UnidadesPage() {
       )}
 
       {viewMode === 'planta' && (
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 mb-6">
-          <div className="flex items-center gap-4 mb-6">
+        <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 p-4 sm:p-6 mb-6 shadow-sm overflow-x-auto scollbar-hide">
+          <div className="flex flex-col sm:flex-row items-center gap-4 mb-6 min-w-max sm:min-w-0">
             <button 
               onClick={() => setViewMode('panorama')}
-              className="px-3 py-1.5 flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-sm font-bold mr-2"
+              className="px-3 py-1.5 flex items-center gap-2 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-xs sm:text-sm font-black text-slate-600 dark:text-slate-400"
             >
-              <span className="opacity-60">← Voltar</span>
+              <span>← Voltar</span>
             </button>
-            <label className="text-sm font-bold">Navegue nos Blocos:</label>
-            <select
-              value={selectedBloco}
-              onChange={(e) => setSelectedBloco(e.target.value)}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-            >
-              {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
-            </select>
+            <div className="flex items-center gap-3">
+              <label className="text-xs sm:text-sm font-black uppercase tracking-widest text-slate-400">Bloco:</label>
+              <select
+                value={selectedBloco}
+                onChange={(e) => setSelectedBloco(e.target.value)}
+                className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-sm font-black outline-none"
+              >
+                {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
+              </select>
+            </div>
           </div>
 
-          <div className="text-center mb-4">
-            <h3 className="text-xl font-black">Bloco {selectedBloco}</h3>
+          <div className="text-center mb-6">
+            <h3 className="text-xl sm:text-2xl font-black tracking-tight">Bloco {selectedBloco}</h3>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-4">
             {[5, 4, 3, 2, 1].map(andar => (
-              <div key={andar} className="flex items-center gap-2">
-                <div className="w-12 text-xs font-bold text-slate-400 text-right">Andar {andar}</div>
-                <div className="flex-1 flex gap-2 justify-center">
+              <div key={andar} className="flex items-center gap-2 min-w-max sm:min-w-0 justify-center">
+                <div className="w-10 sm:w-16 text-[10px] sm:text-xs font-black text-slate-400 text-right uppercase tracking-tighter">Andar {andar}</div>
+                <div className="flex gap-2 sm:gap-4 justify-center">
                   {[1, 2, 3, 4].map(apt => {
                     const numero = `${andar}${apt.toString().padStart(2, '0')}`;
                     const unit = units.find(u => u.bloco === selectedBloco && u.numero === numero);
@@ -588,10 +584,10 @@ export default function UnidadesPage() {
                             setShowModal(true);
                           }
                         }}
-                        className={`w-20 h-16 rounded-lg border-2 flex flex-col items-center justify-center text-xs font-bold transition-all hover:scale-105 ${
+                        className={`w-14 h-12 sm:w-20 sm:h-18 rounded-md sm:rounded-xl border-2 flex flex-col items-center justify-center transition-all hover:scale-105 shadow-sm ${
                           unit 
                             ? `border-l-4` 
-                            : 'border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800'
+                            : 'border-dashed border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50'
                         }`}
                         style={{ 
                           borderLeftColor: unit ? statusConfig.color : undefined,
@@ -599,14 +595,14 @@ export default function UnidadesPage() {
                           color: unit ? statusConfig.textColor : undefined,
                         }}
                       >
-                        <span className="text-lg">{numero}</span>
+                        <span className="text-sm sm:text-lg font-black leading-none">{numero}</span>
                         {unit && (
-                          <span className="text-[8px]" style={{ color: statusConfig.textColor }}>
+                          <span className="text-[6px] sm:text-[8px] font-black uppercase tracking-tighter opacity-70 mt-0.5">
                             {statusConfig.label}
                           </span>
                         )}
                         {!unit && (
-                          <span className="text-[8px] text-slate-400">+ Add</span>
+                          <span className="text-[6px] sm:text-[8px] text-slate-400 font-bold uppercase mt-0.5">+</span>
                         )}
                       </button>
                     );

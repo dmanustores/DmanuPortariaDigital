@@ -588,32 +588,35 @@ export default function VeiculosPage() {
         </div>
 
         {/* CARDS INDICADORES */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">No Condomínio Agora</p>
-              <p className="text-3xl font-black text-green-600">{noCondominioCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">No Condomínio Agora</p>
+              <p className="text-2xl sm:text-3xl font-black text-green-600">{noCondominioCount}</p>
             </div>
-            <div className="size-12 bg-green-50 rounded-xl flex items-center justify-center text-green-600">
-              <Car size={24} />
+            <div className="size-10 sm:size-12 bg-green-50 dark:bg-green-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-green-600">
+              <Car size={20} className="sm:hidden" />
+              <Car size={24} className="hidden sm:block" />
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Entradas Hoje</p>
-              <p className="text-3xl font-black text-blue-600">{entradasHojeCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">Entradas Hoje</p>
+              <p className="text-2xl sm:text-3xl font-black text-blue-600">{entradasHojeCount}</p>
             </div>
-            <div className="size-12 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
-              <LogIn size={24} />
+            <div className="size-10 sm:size-12 bg-blue-50 dark:bg-blue-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600">
+              <LogIn size={20} className="sm:hidden" />
+              <LogIn size={24} className="hidden sm:block" />
             </div>
           </div>
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
+          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between col-span-1 sm:col-span-2 lg:col-span-1">
             <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Permanência Longa</p>
-              <p className="text-3xl font-black text-red-600">{pendenciasCount}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">Permanência Longa</p>
+              <p className="text-2xl sm:text-3xl font-black text-red-600">{pendenciasCount}</p>
             </div>
-            <div className="size-12 bg-red-50 rounded-xl flex items-center justify-center text-red-600">
-              <AlertTriangle size={24} />
+            <div className="size-10 sm:size-12 bg-red-50 dark:bg-red-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-red-600">
+              <AlertTriangle size={20} className="sm:hidden" />
+              <AlertTriangle size={24} className="hidden sm:block" />
             </div>
           </div>
         </div>
@@ -623,36 +626,36 @@ export default function VeiculosPage() {
           <motion.div 
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
-            className="bg-red-600 text-white p-3 rounded-xl flex items-center justify-between shadow-lg shadow-red-600/20 cursor-pointer"
+            className="bg-red-600 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl flex items-center justify-between shadow-lg shadow-red-600/20 cursor-pointer"
             onClick={() => setActiveTab('PENDENCIAS')}
           >
-            <div className="flex items-center gap-3">
-              <AlertCircle size={20} className="animate-pulse" />
-              <span className="font-bold text-sm">⚠️ {pendenciasCount} veículos com permanência não registrada — Ver Pendências</span>
+            <div className="flex items-center gap-2 sm:gap-3">
+              <AlertCircle size={18} className="animate-pulse flex-none" />
+              <span className="font-black text-[10px] sm:text-xs uppercase tracking-tight">⚠️ {pendenciasCount} pendências de permanência</span>
             </div>
-            <History size={18} />
+            <History size={16} className="opacity-70" />
           </motion.div>
         )}
       </div>
 
       {/* TABS & SEARCH */}
       <div className="flex flex-col gap-4 mb-6">
-        <div className="flex border-b border-slate-200 dark:border-slate-800">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
           <button 
             onClick={() => setActiveTab('ATIVOS')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             Ativos / No Momentos
           </button>
           <button 
             onClick={() => setActiveTab('PENDENCIAS')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             ⚠️ Pendências {pendenciasCount > 0 && <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[10px]">{pendenciasCount}</span>}
           </button>
           <button 
             onClick={() => setActiveTab('HISTORICO')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             Histórico Geral
           </button>
@@ -684,7 +687,7 @@ export default function VeiculosPage() {
       {/* LIST CONTENT */}
       <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full min-w-[800px]">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
                 <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Placa / Veículo</th>

@@ -279,63 +279,63 @@ export default function EncomendasPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-4 sm:mb-8">
         <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Encomendas</h2>
-          <p className="text-slate-500 mt-1 text-sm">Controle de entregas</p>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Encomendas</h2>
+          <p className="text-slate-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">Controle de entregas</p>
         </motion.div>
 
-        <div className="flex items-center gap-3">
-          <div className="bg-amber-100 dark:bg-amber-900/30 px-4 py-2 rounded-lg">
-            <span className="text-amber-700 dark:text-amber-400 font-bold text-sm">{pending} pendentes</span>
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+          <div className="bg-amber-100 dark:bg-amber-900/30 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-amber-200 dark:border-amber-800">
+            <span className="text-amber-700 dark:text-amber-400 font-black text-[10px] sm:text-xs uppercase tracking-tight">{pending} pendentes</span>
           </div>
           <motion.button 
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowModal(true)}
-            className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
           >
-            <Plus size={18} />
+            <Plus size={16} />
             Nova Encomenda
           </motion.button>
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
           <input 
             type="text"
             placeholder="Buscar por unidade ou transportadora..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg"
+            className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm shadow-sm"
           />
         </div>
         <select 
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-3 bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg"
+          className="px-4 py-2.5 sm:py-3 bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold outline-none shadow-sm"
         >
-          <option value="TODOS">Todos</option>
+          <option value="TODOS">Todos Status</option>
           <option value="AGUARDANDO">Aguardando</option>
           <option value="RETIRADA">Retiradas</option>
           <option value="RECUSADA">Recusadas</option>
         </select>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
+          <table className="w-full min-w-[800px] sm:min-w-0">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Unidade</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Transportadora</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Volumes</th>
-                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Recebimento</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Status</th>
-                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">WhatsApp</th>
-                <th className="text-center p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidade</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Transportadora</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Volumes</th>
+                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Recebimento</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">WhatsApp</th>
+                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
             <tbody>

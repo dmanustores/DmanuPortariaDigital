@@ -142,7 +142,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
         </div>
         
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
-          {menuItems.map((item) => {
+        {menuItems.map((item) => {
             const isActive = activePath === item.href;
             return (
               <Link
@@ -150,36 +150,36 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
                 href={item.href}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive 
-                    ? 'bg-primary text-white font-medium shadow-md shadow-primary/10' 
-                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                    ? 'bg-primary text-white font-bold shadow-md shadow-primary/20' 
+                    : 'text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
                 }`}
               >
-                <item.icon size={20} />
-                <span className="text-sm">{item.label}</span>
+                <item.icon size={18} className={isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'} />
+                <span className="text-sm font-medium">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 space-y-3">
-          <div className="flex items-center gap-3 p-2 bg-slate-50 dark:bg-slate-800 rounded-lg">
-            <div className="bg-primary/10 text-primary size-8 rounded-full flex items-center justify-center">
+        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 space-y-2 sm:space-y-3">
+          <div className="flex items-center gap-3 p-2 bg-slate-100 dark:bg-slate-800 rounded-lg">
+            <div className="bg-primary/10 text-primary size-8 rounded-full flex items-center justify-center flex-none">
               <Users size={16} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate">{operator?.nome || 'Operador'}</p>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-xs font-bold text-slate-800 dark:text-white truncate">{operator?.nome || 'Operador'}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
                 {operator ? (
                   `${operator.role} - ${operator.turno === 'ADM' ? 'Horário Livre' : `Turno ${operator.turno}`}`
                 ) : 'Carregando...'}
               </p>
             </div>
-            <Settings size={18} className="text-slate-400 cursor-pointer hover:text-primary transition-colors" onClick={() => router.push('/admin')} />
+            <Settings size={16} className="text-slate-500 dark:text-slate-400 cursor-pointer hover:text-primary transition-colors flex-none" onClick={() => router.push('/admin')} />
           </div>
           
           <button 
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all text-xs font-bold uppercase tracking-wider"
+            className="w-full flex items-center gap-3 px-3 py-2 text-red-600 dark:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all text-xs font-black uppercase tracking-wider"
           >
             <LogOut size={16} />
             Sair do Sistema

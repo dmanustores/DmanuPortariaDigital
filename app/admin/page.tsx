@@ -330,76 +330,76 @@ export default function AdminPage() {
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-4 sm:mb-8">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
         >
-          <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Administração</h2>
-          <p className="text-slate-500 mt-1 text-sm">Gerenciamento de operadores e porteiros</p>
+          <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Administração</h2>
+          <p className="text-slate-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">Gerenciamento de operadores e porteiros</p>
         </motion.div>
         
         <motion.button 
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => openModal()}
-          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
+          className="w-full sm:w-auto flex items-center justify-center gap-2 bg-primary text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20"
         >
-          <Plus size={18} />
+          <Plus size={16} />
           Novo Operador
         </motion.button>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mb-8">
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-          <p className="text-xs font-bold text-slate-400 uppercase">Total</p>
-          <p className="text-2xl font-black">{stats.total}</p>
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4 mb-6 sm:mb-8">
+        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Total</p>
+          <p className="text-xl sm:text-2xl font-black">{stats.total}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-          <p className="text-xs font-bold text-slate-400 uppercase">Porteiros</p>
-          <p className="text-2xl font-black">{stats.porteros}</p>
+        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Porteiros</p>
+          <p className="text-xl sm:text-2xl font-black">{stats.porteros}</p>
         </div>
-        <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800">
-          <p className="text-xs font-bold text-slate-400 uppercase">Admins</p>
-          <p className="text-2xl font-black">{stats.admins}</p>
+        <div className="bg-white dark:bg-slate-900 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Admins</p>
+          <p className="text-xl sm:text-2xl font-black">{stats.admins}</p>
         </div>
-        <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-200 dark:border-blue-800">
-          <p className="text-xs font-bold text-blue-600 uppercase">Turno A</p>
-          <p className="text-2xl font-black text-blue-600">{stats.turnoA}</p>
+        <div className="bg-blue-50 dark:bg-blue-900/10 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-blue-100 dark:border-blue-800/50 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-blue-600 uppercase tracking-widest mb-1">Turno A</p>
+          <p className="text-xl sm:text-2xl font-black text-blue-600">{stats.turnoA}</p>
         </div>
-        <div className="bg-green-50 dark:bg-green-900/20 p-4 rounded-xl border border-green-200 dark:border-green-800">
-          <p className="text-xs font-bold text-green-600 uppercase">Turno B</p>
-          <p className="text-2xl font-black text-green-600">{stats.turnoB}</p>
+        <div className="bg-green-50 dark:bg-green-900/10 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-green-100 dark:border-green-800/50 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-green-600 uppercase tracking-widest mb-1">Turno B</p>
+          <p className="text-xl sm:text-2xl font-black text-green-600">{stats.turnoB}</p>
         </div>
-        <div className="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-xl border border-purple-200 dark:border-purple-800">
-          <p className="text-xs font-bold text-purple-600 uppercase">Turno C</p>
-          <p className="text-2xl font-black text-purple-600">{stats.turnoC}</p>
+        <div className="bg-purple-50 dark:bg-purple-900/10 p-3 sm:p-4 rounded-lg sm:rounded-xl border border-purple-100 dark:border-purple-800/50 shadow-sm">
+          <p className="text-[10px] sm:text-xs font-black text-purple-600 uppercase tracking-widest mb-1">Turno C</p>
+          <p className="text-xl sm:text-2xl font-black text-purple-600">{stats.turnoC}</p>
         </div>
       </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
-        <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+      <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        <div className="p-3 sm:p-4 border-b border-slate-200 dark:border-slate-800">
+          <div className="relative w-full">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
             <input 
               type="text"
               placeholder="Buscar operador..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm"
+              className="w-full pl-10 pr-4 py-2 sm:py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm transition-all focus:ring-2 focus:ring-primary/20 outline-none"
             />
           </div>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 dark:bg-slate-800">
+          <table className="w-full min-w-[700px] sm:min-w-0">
+            <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Nome</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Função</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Turno</th>
-                <th className="text-left p-4 text-xs font-bold text-slate-500 uppercase">Horário</th>
-                <th className="text-right p-4 text-xs font-bold text-slate-500 uppercase">Ações</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Nome / Perfil</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Função</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Turno</th>
+                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                <th className="text-right p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
             <tbody>
