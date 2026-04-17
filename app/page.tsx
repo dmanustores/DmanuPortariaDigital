@@ -61,13 +61,17 @@ const AccessForm = () => {
   );
 };
 
+import { useRouter } from 'next/navigation';
+
 const AccessCategories = () => {
+  const router = useRouter();
+  
   const categories = [
-    { icon: Users, label: 'Convidados Unidades', count: '8 ativos', color: 'blue' },
-    { icon: BadgeCheck, label: 'Colaboradores Cond.', count: '12 ativos', color: 'green' },
-    { icon: Brush, label: 'Empregada Doméstica', count: '5 ativas', color: 'purple' },
-    { icon: Package, label: 'Profissionais Mudanças', count: '2 equipes', color: 'orange' },
-    { icon: Construction, label: 'Obras Profissionais', count: '4 prestadores', color: 'red' },
+    { icon: Users, label: 'Convidados Unidades', count: '8 ativos', color: 'blue', path: '#' },
+    { icon: BadgeCheck, label: 'Colaboradores Cond.', count: '12 ativos', color: 'green', path: '/colaboradores' },
+    { icon: Brush, label: 'Empregada Doméstica', count: '5 ativas', color: 'purple', path: '#' },
+    { icon: Package, label: 'Profissionais Mudanças', count: '2 equipes', color: 'orange', path: '#' },
+    { icon: Construction, label: 'Obras Profissionais', count: '4 prestadores', color: 'red', path: '#' },
   ];
 
   const colorMap: Record<string, string> = {
@@ -85,6 +89,7 @@ const AccessCategories = () => {
         {categories.map((cat) => (
           <motion.div 
             key={cat.label}
+            onClick={() => cat.path !== '#' && router.push(cat.path)}
             whileHover={{ y: -4 }}
             className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-800 hover:border-primary transition-all cursor-pointer group shadow-sm"
           >
