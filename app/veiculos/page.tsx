@@ -48,6 +48,19 @@ interface Vehicle {
   lastAccess?: VehicleAccessLog; // Novo: vínculo com o último acesso
 }
 
+// Tipo enriquecido com os JOINs do Supabase usados no histórico
+interface VehicleAccessLogEnriched extends VehicleAccessLog {
+  veiculo?: {
+    placa: string;
+    modelo: string;
+    tipo: string;
+    unidadedesc: string;
+    nomeproprietario: string;
+  };
+  operador_entrada?: { nome: string };
+  operador_saida?: { nome: string };
+}
+
 interface Resident {
   id: string;
   nome: string;
@@ -93,7 +106,7 @@ export default function VeiculosPage() {
   // --- NOVOS ESTADOS ---
   const [activeTab, setActiveTab] = useState<'ATIVOS' | 'PENDENCIAS' | 'HISTORICO'>('ATIVOS');
   const [settings, setSettings] = useState({ tempo_alerta_permanencia: 480, tipo_padrao_novo_veiculo: 'VISITANTE' });
-  const [accessHistory, setAccessHistory] = useState<VehicleAccessLog[]>([]);
+  const [accessHistory, setAccessHistory] = useState<VehicleAccessLogEnriched[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [showSettings, setShowSettings] = useState(false);
   const [showExitModal, setShowExitModal] = useState(false);
@@ -184,8 +197,8 @@ export default function VeiculosPage() {
         .eq('status', 'DENTRO');
 
       // 3. Mesclar dados
-      const merged = vData.map(v => {
-        const last = aData?.find(a => a.veiculo_id === v.id);
+      const merged = vData.map((v: Vehicle) => {
+        const last = aData?.find((a: VehicleAccessLog) => a.veiculo_id === v.id);
         return { ...v, lastAccess: last };
       });
 
@@ -420,7 +433,7 @@ export default function VeiculosPage() {
   const exportCSV = () => {
     if (accessHistory.length === 0) return;
     const headers = ["Placa", "Modelo", "Tipo", "Proprietario/Visitante", "Unidade", "Status", "Entrada", "Saida", "Permanencia (min)", "Porteiro Entrada"];
-    const rows = accessHistory.map(h => [
+    const rows = accessHistory.map((h: VehicleAccessLogEnriched) => [
       h.veiculo?.placa,
       h.veiculo?.modelo,
       h.veiculo?.tipo,

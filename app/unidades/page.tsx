@@ -411,49 +411,57 @@ export default function UnidadesPage() {
             />
           </div>
           
-            {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
-          </select>
-
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-          >
-            <option value="">Todos os Status</option>
-            {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-
-          <select
-            value={filterTipo}
-            onChange={(e) => setFilterTipo(e.target.value)}
-            className="px-4 py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-          >
-            <option value="">Todos os Tipos</option>
-            {tipos.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-
-          <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1">
-            <button
-              onClick={() => setViewMode('planta')}
-              className={`p-2 rounded transition-all ${viewMode === 'planta' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              title="Planta do Bloco (Grade Inteira)"
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            <select
+              value={filterBloco}
+              onChange={(e) => setFilterBloco(e.target.value)}
+              className="flex-1 sm:flex-none min-w-[110px] px-3 py-2 sm:py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-medium outline-none"
             >
-              <Home size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('panorama')}
-              className={`p-2 rounded transition-all ${viewMode === 'panorama' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              title="Panorama Resumido"
+              <option value="">Todos Blocos</option>
+              {blocos.map(b => <option key={b} value={b}>Bloco {b}</option>)}
+            </select>
+
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="flex-1 sm:flex-none min-w-[110px] px-3 py-2 sm:py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-medium outline-none"
             >
-              <LayoutGrid size={18} />
-            </button>
-            <button
-              onClick={() => setViewMode('list')}
-              className={`p-2 rounded transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'}`}
-              title="Lista Vertical"
+              <option value="">Todos Status</option>
+              {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+
+            <select
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value)}
+              className="flex-1 sm:flex-none min-w-[110px] px-3 py-2 sm:py-2.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-medium outline-none"
             >
-              <List size={18} />
-            </button>
+              <option value="">Todos Tipos</option>
+              {tipos.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+
+            <div className="flex items-center gap-1 border border-slate-200 dark:border-slate-700 rounded-lg p-1 bg-slate-50 dark:bg-slate-800 ml-auto sm:ml-0">
+              <button
+                onClick={() => setViewMode('planta')}
+                className={`p-1.5 sm:p-2 rounded transition-all ${viewMode === 'planta' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700'}`}
+                title="Planta do Bloco (Grade Inteira)"
+              >
+                <Home size={16} />
+              </button>
+              <button
+                onClick={() => setViewMode('panorama')}
+                className={`p-1.5 sm:p-2 rounded transition-all ${viewMode === 'panorama' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700'}`}
+                title="Panorama Resumido"
+              >
+                <LayoutGrid size={16} />
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`p-1.5 sm:p-2 rounded transition-all ${viewMode === 'list' ? 'bg-primary text-white shadow-sm' : 'text-slate-400 hover:bg-slate-200/50 dark:hover:bg-slate-700'}`}
+                title="Lista Vertical"
+              >
+                <List size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </div>
