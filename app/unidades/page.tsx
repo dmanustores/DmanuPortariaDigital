@@ -907,14 +907,16 @@ export default function UnidadesPage() {
                       ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/50'
                       : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'
                   }`}>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vagas</p>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1" title="Lotação máxima da garagem">Capacidade</p>
                     <div className="flex items-center justify-center gap-1">
                       <Car size={14} className={(selectedUnit.vagasGaragem ?? 0) > 0 ? 'text-blue-500' : 'text-slate-400'} />
                       <p className={`text-xl font-black ${(selectedUnit.vagasGaragem ?? 0) > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
                         {selectedUnit.vagasGaragem ?? 0}
                       </p>
                     </div>
-                    <p className="text-[9px] text-slate-400 mt-0.5">{(selectedUnit.vagasGaragem ?? 0) === 1 ? 'vaga' : 'vagas'} de garagem</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5" title="Vagas que pertencem a esta unidade">
+                      {(selectedUnit.vagasGaragem ?? 0) === 1 ? 'vaga total' : 'vagas totais'}
+                    </p>
                   </div>
                   <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-800">
                     <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Veículos</p>

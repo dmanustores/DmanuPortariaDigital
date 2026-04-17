@@ -169,10 +169,10 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
                 <Car size={14} />
-                <h3 className="font-bold text-[10px] uppercase tracking-wider">Veículos</h3>
+                <h3 className="font-bold text-[10px] uppercase tracking-wider">Veículos Cadastrados</h3>
                 {vagasGaragem !== null && (
-                  <span className={`ml-auto px-1.5 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-blue-500'}`}>
-                    {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
+                  <span className={`ml-auto px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
+                    LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
                   </span>
                 )}
               </div>

@@ -584,8 +584,8 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             <Car size={18} />
             <h3 className="font-bold text-sm uppercase">Veículos</h3>
             {vagasGaragem !== null && (
-              <span className={`ml-2 px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${vehicleFields.length > vagasGaragem ? 'bg-red-500' : 'bg-blue-500'}`}>
-                {vagasGaragem} {vagasGaragem === 1 ? 'Vaga' : 'Vagas'} na Unidade
+              <span className={`ml-2 px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${vehicleFields.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
+                LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'Vaga' : 'Vagas'}
               </span>
             )}
           </div>
