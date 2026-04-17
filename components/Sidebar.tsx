@@ -26,6 +26,7 @@ import { ShiftHandoverModal } from './ShiftHandover';
 import { motion, AnimatePresence } from 'motion/react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { ChevronDown, ChevronRight, KeySquare } from 'lucide-react';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -37,6 +38,11 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
   const router = useRouter();
   const [operator, setOperator] = useState<{ nome: string; role: string; turno: string } | null>(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
+  const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({ veiculos: false });
+
+  const toggleMenu = (key: string) => {
+    setOpenMenus(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -80,6 +86,7 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
     { icon: Users, label: 'Acessos', href: '/acessos' },
     { icon: Package, label: 'Encomendas', href: '/encomendas' },
     { icon: Car, label: 'Veículos', href: '/veiculos' },
+    { icon: KeySquare, label: 'Gestão de Vagas', href: '/vagas' },
     { icon: FileText, label: 'Ocorrências', href: '/ocorrencias' },
     { icon: Truck, label: 'Mudanças', href: '/mudancas' },
     { icon: Calendar, label: 'Reservas', href: '/reservas' },
@@ -143,11 +150,62 @@ export const Sidebar = ({ isOpen, onClose, activePath = '/' }: SidebarProps) => 
         
         <nav className="flex-1 px-4 space-y-1 overflow-y-auto">
         {menuItems.map((item) => {
+            if (item.subItems) {
+              const isActiveSub = item.subItems.some(sub => activePath === sub.href);
+              const isOpen = openMenus[item.id as string] || isActiveSub;
+              return (
+                <div key={item.label} className="space-y-1">
+                  <button
+                    onClick={() => toggleMenu(item.id as string)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-all ${
+                      isActiveSub 
+                        ? 'bg-primary/5 text-primary font-bold' 
+                        : 'text-slate-700 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <item.icon size={18} className={isActiveSub ? 'text-primary' : 'text-slate-500 dark:text-slate-400'} />
+                      <span className="text-sm font-medium">{item.label}</span>
+                    </div>
+                    {isOpen ? <ChevronDown size={14} className="opacity-50" /> : <ChevronRight size={14} className="opacity-50" />}
+                  </button>
+                  <AnimatePresence>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="pl-6 space-y-1 overflow-hidden"
+                      >
+                        {item.subItems.map((sub) => {
+                          const isSubActive = activePath === sub.href;
+                          return (
+                            <Link
+                              key={sub.label}
+                              href={sub.href}
+                              className={`flex items-center gap-3 px-3 py-2 rounded-lg transition-all ${
+                                isSubActive
+                                  ? 'bg-primary text-white font-bold shadow-md shadow-primary/20'
+                                  : 'text-slate-600 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white'
+                              }`}
+                            >
+                              <sub.icon size={14} className={isSubActive ? 'text-white' : 'text-slate-400 dark:text-slate-500'} />
+                              <span className="text-[13px] font-medium">{sub.label}</span>
+                            </Link>
+                          );
+                        })}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            }
+
             const isActive = activePath === item.href;
             return (
               <Link
                 key={item.label}
-                href={item.href}
+                href={item.href!}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all ${
                   isActive 
                     ? 'bg-primary text-white font-bold shadow-md shadow-primary/20' 

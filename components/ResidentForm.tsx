@@ -7,7 +7,7 @@ import * as z from 'zod';
 import { Resident, ResidentType, InvoiceDelivery } from '@/types/resident';
 import { X, Plus, Save, User, Car, Users, Construction, Phone, Briefcase, Home, ShieldAlert, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
-import { formatCPF, formatRG, formatPhone, capitalize } from '@/lib/utils';
+import { formatCPF, formatRG, formatPhone, capitalize, formatPlate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 const residentSchema = z.object({
@@ -38,9 +38,11 @@ const residentSchema = z.object({
     isBaby: z.boolean().optional()
   })),
   vehicles: z.array(z.object({
+    id: z.string().optional(),
     modelo: z.string(),
     cor: z.string(),
-    placa: z.string()
+    placa: z.string(),
+    vaga_id: z.string().optional()
   })),
   serviceProviders: z.array(z.object({
     nome: z.string(),
@@ -75,7 +77,7 @@ interface ResidentFormProps {
 }
 
 export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave, onCancel, isReadOnly = false }) => {
-  const { register, control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<ResidentFormData>({
+  const { register, control, handleSubmit, watch, setValue, getValues, reset, formState: { errors } } = useForm<ResidentFormData>({
     resolver: zodResolver(residentSchema),
     defaultValues: initialData ? {
       ...initialData,
@@ -180,28 +182,59 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
   const bloco = watch('bloco');
   const apto = watch('apto');
   const [vagasGaragem, setVagasGaragem] = React.useState<number | null>(null);
+  const [availableVagas, setAvailableVagas] = React.useState<any[]>([]);
 
   React.useEffect(() => {
     async function fetchVagas() {
       if (!bloco || !apto) {
         setVagasGaragem(null);
+        setAvailableVagas([]);
         return;
       }
-      const { data } = await supabase
+      const { data: unitData } = await supabase
         .from('units')
-        .select('vagasgaragem')
+        .select('*')
         .eq('bloco', bloco.padStart(2, '0'))
         .eq('numero', apto)
         .maybeSingle();
 
-      if (data) {
-        setVagasGaragem(data.vagasgaragem || 0);
+      if (unitData) {
+        setVagasGaragem(unitData.vagasgaragem || 0);
+
+        // Fetch vagas tied to this unit + vagas rented by this user
+        const { data: vagasData } = await supabase
+          .from('vagas')
+          .select('id, codigo, status, veiculo_id')
+          .or(`unidade_id.eq.${unitData.id},alugada_para_morador_id.eq.${initialData?.id || '00000000-0000-0000-0000-000000000000'}`);
+        
+        if (vagasData) {
+           setAvailableVagas(vagasData);
+           
+           // Restore assigned slots back to the form so the dropdown matches accurately
+           const currentVehicles = getValues('vehicles');
+           let modified = false;
+           const newVehicles = currentVehicles.map((v: any) => {
+              if (v.id) {
+                 const assignedSpot = vagasData.find(vg => vg.veiculo_id === v.id);
+                 if (assignedSpot && v.vaga_id !== assignedSpot.id) {
+                    modified = true;
+                    return { ...v, vaga_id: assignedSpot.id };
+                 }
+              }
+              return v;
+           });
+           
+           if (modified) {
+              setValue('vehicles', newVehicles);
+           }
+        }
       } else {
         setVagasGaragem(null);
+        setAvailableVagas([]);
       }
     }
     fetchVagas();
-  }, [bloco, apto]);
+  }, [bloco, apto, initialData?.id]);
 
   const onSubmit = (data: ResidentFormData) => {
     const cleanData = {
@@ -590,7 +623,7 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             )}
           </div>
           {!isReadOnly && (
-            <button type="button" onClick={() => appendVehicle({ modelo: '', cor: '', placa: '' })} className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-primary/20 transition-colors">
+            <button type="button" onClick={() => appendVehicle({ modelo: '', cor: '', placa: '', vaga_id: '' })} className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-primary/20 transition-colors">
               <Plus size={14} /> Adicionar Veículo
             </button>
           )}
@@ -630,10 +663,25 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
                 <input 
                   {...register(`vehicles.${index}.placa`)} 
                   disabled={isReadOnly}
-                  onChange={(e) => setValue(`vehicles.${index}.placa`, e.target.value.toUpperCase())}
+                  onChange={(e) => setValue(`vehicles.${index}.placa`, formatPlate(e.target.value))}
                   placeholder="ABC-1234" 
                   className="w-full p-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded text-xs disabled:opacity-70" 
                 />
+              </div>
+              <div className="md:col-span-3 border-t border-slate-200 dark:border-slate-700/50 pt-3 mt-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Vincular a uma Vaga</label>
+                <select
+                  {...register(`vehicles.${index}.vaga_id`)}
+                  disabled={isReadOnly}
+                  className="w-full p-2 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-900 text-xs font-bold text-slate-700 dark:text-slate-300 focus:ring-2 focus:ring-primary/20 outline-none"
+                >
+                  <option value="">Nenhuma Vaga Vinculada</option>
+                  {availableVagas.map(v => (
+                    <option key={v.id} value={v.id} disabled={v.status !== 'LIVRE' && v.veiculo_id !== field.id}>
+                      {v.codigo} — {v.status === 'LIVRE' || v.veiculo_id === field.id ? 'DISPONÍVEL' : `OCUPADA`}
+                    </option>
+                  ))}
+                </select>
               </div>
               {!isReadOnly && (
                 <button type="button" onClick={() => removeVehicle(index)} className="absolute -right-2 -top-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg hover:bg-red-600">

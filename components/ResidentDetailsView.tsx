@@ -6,7 +6,7 @@ import {
   User, Home, Phone, Mail, Briefcase, ShieldAlert, 
   Car, Users, Construction, FileText, X, MapPin 
 } from 'lucide-react';
-import { formatPhone, formatCPF, formatRG } from '@/lib/utils';
+import { formatPhone, formatCPF, formatRG, formatPlate } from '@/lib/utils';
 import { motion } from 'motion/react';
 import { supabase } from '@/lib/supabase';
 
@@ -24,6 +24,7 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
   const hasEmergencyContact = resident.emergencyContact.nome || resident.emergencyContact.fone;
 
   const [vagasGaragem, setVagasGaragem] = useState<number | null>(null);
+  const [vagasVehicleMap, setVagasVehicleMap] = useState<Record<string, string>>({});
 
   useEffect(() => {
     async function fetchVagas() {
@@ -38,9 +39,25 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
       if (data) {
         setVagasGaragem(data.vagasgaragem || 0);
       }
+      
+      const vehicleIds = resident.vehicles?.map(v => v.id).filter(Boolean);
+      if (vehicleIds && vehicleIds.length > 0) {
+         const { data: vagasData } = await supabase
+           .from('vagas')
+           .select('codigo, veiculo_id')
+           .in('veiculo_id', vehicleIds);
+           
+         if (vagasData) {
+            const map: Record<string, string> = {};
+            vagasData.forEach((v: any) => {
+              if (v.veiculo_id) map[v.veiculo_id] = v.codigo;
+            });
+            setVagasVehicleMap(map);
+         }
+      }
     }
     fetchVagas();
-  }, [resident.bloco, resident.apto]);
+  }, [resident.bloco, resident.apto, resident.vehicles]);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-w-3xl mx-auto">
@@ -186,7 +203,14 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
               <div className="grid grid-cols-1 gap-1.5">
                 {resident.vehicles.map((vehicle, i) => (
                   <div key={i} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded-lg text-xs">
-                    <span className="font-bold uppercase">{vehicle.modelo} ({vehicle.cor})</span>
+                    <div className="flex flex-col">
+                      <span className="font-bold uppercase">{vehicle.modelo} ({vehicle.cor})</span>
+                      {vehicle.id && vagasVehicleMap[vehicle.id] && (
+                        <span className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
+                          Vaga Vinculada: <span className="text-primary">{vagasVehicleMap[vehicle.id]}</span>
+                        </span>
+                      )}
+                    </div>
                     <span className="bg-primary/10 text-primary px-2 py-0.5 rounded font-black text-[10px] border border-primary/20">
                       {vehicle.placa}
                     </span>

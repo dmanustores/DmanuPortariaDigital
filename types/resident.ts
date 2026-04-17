@@ -7,9 +7,11 @@ export interface HouseholdMember {
 }
 
 export interface Vehicle {
+  id?: string;
   modelo: string;
   cor: string;
   placa: string;
+  vaga_id?: string; // Vaga vinculada ao veículo
 }
 
 export interface ServiceProvider {

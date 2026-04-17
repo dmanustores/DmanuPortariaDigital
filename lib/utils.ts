@@ -42,6 +42,15 @@ export const stripNonDigits = (value: string) => {
   return value.replace(/\D/g, '');
 };
 
+export const formatPlate = (value?: string | null) => {
+  if (!value) return '';
+  const cleaned = value.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (cleaned.length > 3) {
+    return cleaned.substring(0, 3) + '-' + cleaned.substring(3).substring(0, 4);
+  }
+  return cleaned;
+};
+
 /**
  * Given a free-text unit description like "Bloco 01, Apt 101" or "Bloco 1 Apto 201",
  * queries the `units` table and returns the matching UUID (or null if not found).

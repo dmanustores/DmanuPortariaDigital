@@ -24,6 +24,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { getStatusConfig } from '@/lib/constants';
+import { formatPhone, lookupUnitId, formatPlate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
 interface Unit {
@@ -135,8 +137,14 @@ export default function UnidadesPage() {
       .from('vehicles_registry')
       .select('moradorid');
 
+    // Busca vagas da nova tabela
+    const { data: vagasData } = await supabase
+      .from('vagas')
+      .select('id, codigo, status, unidade_id, veiculo_id, vehicles(modelo, placa)');
+
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
+        const unitVagas = vagasData?.filter((v: any) => v.unidade_id === u.id) || [];
         const primaryResidents = residentsData?.filter((r: any) => {
           // Normaliza blocos para comparação (remove zeros à esquerda)
           const rBloco = String(r.bloco || '').replace(/^0+/, '');
@@ -157,7 +165,8 @@ export default function UnidadesPage() {
 
         return {
           ...u,
-          vagasGaragem: u.vagasgaragem ?? u.vagasGaragem ?? 0,  // normaliza snake_case do banco
+          vagasGaragem: u.vagasgaragem ?? u.vagasGaragem ?? 0,
+          vagas: unitVagas,
           totalMoradores: allResidents.length,
           totalVehicles: totalVehicles,
           primaryResident: allResidents.length > 0 ? allResidents[0].nome : undefined,
@@ -201,7 +210,23 @@ export default function UnidadesPage() {
     }
 
     for (const chunk of chunks) {
-      await supabase.from('units').insert(chunk);
+      const { data: insertedUnits } = await supabase.from('units').insert(chunk).select();
+      if (insertedUnits && insertedUnits.length > 0) {
+        const vagasToInsert = [];
+        for (const unit of insertedUnits) {
+          for (let i = 1; i <= unit.vagasgaragem; i++) {
+            vagasToInsert.push({
+              unidade_id: unit.id,
+              codigo: `B${unit.bloco}-${unit.numero}-${String.fromCharCode(64 + i)}`,
+              tipo: 'PADRAO',
+              status: 'LIVRE'
+            });
+          }
+        }
+        if (vagasToInsert.length > 0) {
+          await supabase.from('vagas').insert(vagasToInsert);
+        }
+      }
       setGeneratedCount(prev => prev + chunk.length);
     }
 
@@ -223,15 +248,45 @@ export default function UnidadesPage() {
           vagasgaragem: formData.vagasGaragem,
           observacoes: formData.observacoes || null
         }).eq('id', selectedUnit.id);
+        
+        // Sync vagas logic (only creating missing ones up to formData.vagasGaragem)
+        const { data: existingVagas } = await supabase.from('vagas').select('id, codigo').eq('unidade_id', selectedUnit.id);
+        const currentCount = existingVagas?.length || 0;
+        
+        if (formData.vagasGaragem > currentCount) {
+           const missing = formData.vagasGaragem - currentCount;
+           const vagasToInsert = [];
+           for(let i=1; i<=missing; i++) {
+              vagasToInsert.push({
+                unidade_id: selectedUnit.id,
+                codigo: `B${formData.bloco}-${formData.numero}-${String.fromCharCode(64 + currentCount + i)}`,
+                status: 'LIVRE'
+              });
+           }
+           if (vagasToInsert.length > 0) await supabase.from('vagas').insert(vagasToInsert);
+        }
+
       } else {
-        await supabase.from('units').insert({
+        const { data: newUnitRow } = await supabase.from('units').insert({
           bloco: formData.bloco,
           numero: formData.numero,
           tipo: formData.tipo,
           status: formData.status,
           vagasgaragem: formData.vagasGaragem,
           observacoes: formData.observacoes || null
-        });
+        }).select().single();
+
+        if (newUnitRow && formData.vagasGaragem > 0) {
+          const vagasToInsert = [];
+          for(let i=1; i<=formData.vagasGaragem; i++) {
+             vagasToInsert.push({
+               unidade_id: newUnitRow.id,
+               codigo: `B${formData.bloco}-${formData.numero}-${String.fromCharCode(64 + i)}`,
+               status: 'LIVRE'
+             });
+          }
+           await supabase.from('vagas').insert(vagasToInsert);
+        }
       }
       
       setShowModal(false);
@@ -926,6 +981,34 @@ export default function UnidadesPage() {
                     <p className="text-[9px] text-slate-400 mt-0.5">cadastrado{(selectedUnit.totalVehicles ?? 0) !== 1 ? 's' : ''}</p>
                   </div>
                 </div>
+
+                {/* SLOTS DA UNIDADE */}
+                {selectedUnit.vagas && selectedUnit.vagas.length > 0 && (
+                  <div className="space-y-3 border-t border-slate-100 dark:border-slate-800 pt-6">
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Slots de Garagem Gerados</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedUnit.vagas.map((vaga: any) => (
+                        <div key={vaga.id} className="flex flex-col bg-slate-50 dark:bg-slate-800/50 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-sm">{vaga.codigo}</span>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-md uppercase tracking-wider ${
+                              vaga.status === 'LIVRE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' :
+                              vaga.status === 'OCUPADA' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30' :
+                              'bg-purple-100 text-purple-700 dark:bg-purple-900/30'
+                            }`}>
+                              {vaga.status}
+                            </span>
+                          </div>
+                          {vaga.vehicles && (
+                            <div className="mt-2 text-[10px] text-slate-500 font-bold uppercase truncate">
+                              🚗 {vaga.vehicles.modelo} — <span className="p-0.5 px-1 bg-primary/10 text-primary border border-primary/20 rounded">{formatPlate(vaga.vehicles.placa)}</span>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {selectedUnit.observacoes && (
                   <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-xl p-4">

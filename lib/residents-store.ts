@@ -141,10 +141,17 @@ export const saveResident = async (resident: Resident) => {
       const failedDel = delResults.find(r => r.error);
       if (failedDel) {
         console.error(`❌ Erro ao limpar relações antigas:`, failedDel.error.message);
-        // Se falhar o delete por RLS (ex: Owner não logado), interrompemos para não duplicar
         throw new Error(`Não foi possível atualizar as relações: ${failedDel.error.message}. Verifique suas permissões.`);
       }
-      console.log('✅ Relações antigas limpas com sucesso.');
+      
+      // Fix Vagas Status: any vaga that lost its veiculo_id (due to CASCADE SET NULL) and has no renter should become LIVRE
+      await supabase.from('vagas')
+        .update({ status: 'LIVRE' })
+        .is('veiculo_id', null)
+        .is('alugada_para_morador_id', null)
+        .eq('status', 'OCUPADA');
+
+      console.log('✅ Relações antigas limpas e Vagas liberadas.');
     }
 
     // Insert relations
@@ -164,7 +171,7 @@ export const saveResident = async (resident: Resident) => {
       });
 
       promises.push(
-        supabase.from('household_members').insert(memberData).then(res => {
+        supabase.from('household_members').insert(memberData).then((res: any) => {
           if (res.error) console.error('Erro ao inserir dependentes:', res.error);
           return res;
         })
@@ -175,8 +182,12 @@ export const saveResident = async (resident: Resident) => {
     if (resident.vehicles && resident.vehicles.length > 0) {
       console.log('Processando veículos:', resident.vehicles.length);
       
+      const vagaPelaPlaca = new Map<string, string>();
       const vehicleData = resident.vehicles.map((v: any) => {
-        const { id, resident_id, created_at, ...rest } = v;
+        const { id, resident_id, created_at, vaga_id, ...rest } = v;
+        if(vaga_id && rest.placa) {
+           vagaPelaPlaca.set(rest.placa.toUpperCase(), vaga_id);
+        }
         return { ...rest, resident_id: resident.id };
       });
 
@@ -227,14 +238,26 @@ export const saveResident = async (resident: Resident) => {
         
         promises.push(
           supabase.from('vehicles_registry').insert(registryData).then((res: any) => {
-            if(res.error) {
-              console.warn('⚠️ Error syncing to vehicles_registry:', res.error);
-              return { error: null };
-            }
-            console.log('✅ vehicles_registry synced');
+            if(res.error) console.warn('⚠️ Error syncing to vehicles_registry:', res.error);
             return res;
           })
         );
+        
+        // Atrelar Veículos inseridos às suas respectivas Vagas escolhidas
+        for(const iv of insertedVehicles) {
+           const requestedVaga = vagaPelaPlaca.get(iv.placa);
+           if (requestedVaga) {
+               promises.push(
+                 supabase.from('vagas').update({
+                     veiculo_id: iv.id,
+                     status: 'OCUPADA'
+                 }).eq('id', requestedVaga).then((r: any) => {
+                    if (r.error) console.warn('⚠️ Erro ao vincular carro na vaga:', r.error);
+                    return r;
+                 })
+               );
+           }
+        }
       }
     })());
   }

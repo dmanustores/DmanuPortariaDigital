@@ -29,7 +29,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
-import { getCurrentOperatorId, capitalize } from '@/lib/utils';
+import { getCurrentOperatorId, capitalize, formatPlate } from '@/lib/utils';
 import { vehiclesService, VehicleAccessLog } from '@/lib/vehicles-service';
 
 interface Vehicle {
@@ -56,6 +56,7 @@ interface VehicleAccessLogEnriched extends VehicleAccessLog {
     tipo: string;
     unidadedesc: string;
     nomeproprietario: string;
+    cor?: string;
   };
   operador_entrada?: { nome: string };
   operador_saida?: { nome: string };
@@ -158,7 +159,7 @@ export default function VeiculosPage() {
       .from('registros_acesso')
       .select(`
         *,
-        veiculo:vehicles_registry(placa, modelo, tipo, unidadedesc, nomeproprietario),
+        veiculo:vehicles_registry(placa, modelo, tipo, unidadedesc, nomeproprietario, cor),
         operador_entrada:operators!operador_entrada_id(nome),
         operador_saida:operators!operador_saida_id(nome)
       `)
@@ -720,7 +721,7 @@ export default function VeiculosPage() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <div className="bg-slate-900 dark:bg-black px-2 py-1 rounded border border-slate-600">
-                      <span className="text-white font-mono font-black text-sm tracking-wider">{v?.placa}</span>
+                      <span className="text-white font-mono font-black text-sm tracking-wider">{formatPlate(v?.placa)}</span>
                     </div>
                     <div>
                       <p className="text-[10px] text-slate-500 font-bold uppercase">{v?.modelo || '-'}</p>
@@ -843,7 +844,7 @@ export default function VeiculosPage() {
                           <Car size={18} className="text-slate-500" />
                         </div>
                         <div>
-                          <p className="font-mono font-black text-sm tracking-tighter">{v?.placa}</p>
+                          <p className="font-mono font-black text-sm tracking-tighter">{formatPlate(v?.placa)}</p>
                           <p className="text-[10px] text-slate-500 uppercase font-bold">{v?.modelo || '-'} • { (item as any).cor || '-'}</p>
                         </div>
                       </div>
@@ -961,7 +962,7 @@ export default function VeiculosPage() {
                       .map(h => (
                         <div key={h.id} className="flex items-center justify-between p-3 border-b border-slate-200/50 last:border-0">
                            <div className="flex items-center gap-4">
-                             <span className="font-mono font-black text-xs">{h.veiculo?.placa}</span>
+                             <span className="font-mono font-black text-xs">{formatPlate(h.veiculo?.placa)}</span>
                              <span className="text-[10px] font-bold text-slate-500 uppercase">{h.veiculo?.nomeproprietario}</span>
                            </div>
                            <span className="text-[10px] font-black text-slate-400">SAIU ÀS {new Date(h.hora_saida!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
