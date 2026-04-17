@@ -343,7 +343,6 @@ export default function VagasPage() {
                    <p className="leading-relaxed">
                      Ao confirmar como <b>ALUGADA/EMPRESTADA</b>, o espaço não constará mais para moradores da <b>Unidade Dona</b>. O destino eleito poderá vincular seus próprios carros livremente a ela.
                    </p>
-                </div>
                  </div>
 
                  {selectedVaga.veiculo && formData.status !== 'OCUPADA' && (
