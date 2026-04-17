@@ -640,24 +640,26 @@ export default function VeiculosPage() {
 
       {/* TABS & SEARCH */}
       <div className="flex flex-col gap-4 mb-6">
-        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto">
+        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-hide">
           <button 
             onClick={() => setActiveTab('ATIVOS')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            Ativos / No Momentos
+            <span className="sm:hidden">Ativos</span>
+            <span className="hidden sm:inline">Ativos / No Momentos</span>
           </button>
           <button 
             onClick={() => setActiveTab('PENDENCIAS')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 flex items-center gap-2 whitespace-nowrap ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
             ⚠️ Pendências {pendenciasCount > 0 && <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[10px]">{pendenciasCount}</span>}
           </button>
           <button 
             onClick={() => setActiveTab('HISTORICO')}
-            className={`px-6 py-3 font-bold text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
+            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
           >
-            Histórico Geral
+            <span className="sm:hidden">Histórico</span>
+            <span className="hidden sm:inline">Histórico Geral</span>
           </button>
         </div>
 
@@ -685,8 +687,114 @@ export default function VeiculosPage() {
       </div>
 
       {/* LIST CONTENT */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-        <div className="overflow-x-auto">
+      <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        
+        {/* ── MOBILE CARD VIEW (visível apenas em telas pequenas) ── */}
+        <div className="block sm:hidden">
+          {loading ? (
+            <div className="p-8 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">Carregando...</div>
+          ) : (activeTab === 'HISTORICO' ? accessHistory : filtered).length === 0 ? (
+            <div className="p-8 text-center text-slate-400 font-bold text-xs uppercase tracking-widest">Nenhum registro encontrado</div>
+          ) : (activeTab === 'HISTORICO' ? accessHistory : filtered).map((item) => {
+            const isHistory = activeTab === 'HISTORICO';
+            const v = isHistory ? (item as any).veiculo : (item as Vehicle);
+            const a = isHistory ? (item as any) : (item as Vehicle).lastAccess;
+            const isMorador = v?.tipo === 'PROPRIETARIO' || v?.tipo === 'LOCATARIO';
+
+            return (
+              <div key={item.id} className="border-b border-slate-100 dark:border-slate-800 last:border-0 p-4">
+                {/* Row 1: Placa + Status */}
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="bg-slate-900 dark:bg-black px-2 py-1 rounded border border-slate-600">
+                      <span className="text-white font-mono font-black text-sm tracking-wider">{v?.placa}</span>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-500 font-bold uppercase">{v?.modelo || '-'}</p>
+                      {(v as any)?.cor && <p className="text-[9px] text-slate-400">{(v as any).cor}</p>}
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-1">
+                    {isHistory ? (
+                      <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-black ${
+                        a.status === 'SAIU' ? 'bg-slate-100 text-slate-500' : 'bg-green-100 text-green-700'
+                      }`}>{a.status}</span>
+                    ) : (
+                      <StatusBadge vehicle={item as Vehicle} />
+                    )}
+                    {!isMorador && a?.hora_entrada && a?.status === 'DENTRO' && (
+                      <DurationBadge horaEntrada={a.hora_entrada} />
+                    )}
+                    {isHistory && a.permanencia_minutos && (
+                      <span className="text-[10px] font-bold text-slate-400">
+                        ⏱️ {Math.floor(a.permanencia_minutos / 60)}h {a.permanencia_minutos % 60}min
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Row 2: Condutor | Unidade */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="flex-1">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Condutor</p>
+                    <p className="text-sm font-black text-slate-800 dark:text-slate-200 leading-tight">{v?.nomeproprietario || v?.nomeProprietario || '-'}</p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase">{v?.tipo}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Unidade</p>
+                    <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[11px] font-black text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
+                      {v?.unidadedesc || v?.unidadeDesc || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Row 3: Timestamps (histórico) ou Ações */}
+                {isHistory ? (
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="text-[10px] font-bold text-slate-500 space-y-0.5">
+                      <div><span className="text-slate-400">Entrada:</span> {new Date(a.hora_entrada).toLocaleString('pt-BR')}</div>
+                      <div><span className="text-slate-400">Saída:</span> {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '---'}</div>
+                    </div>
+                    {a.operador_entrada?.nome && (
+                      <span className="text-[10px] font-black text-primary uppercase">{a.operador_entrada.nome.split(' ')[0]}</span>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                    {!isMorador && a?.status === 'DENTRO' && (
+                      <button 
+                        onClick={() => handleOpenExitModal(a.id)}
+                        className="flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all"
+                      >
+                        <CheckCircle2 size={12} /> Registrar Saída
+                      </button>
+                    )}
+                    {!isMorador && (!a || a.status !== 'DENTRO') && (
+                      <button 
+                        onClick={() => {
+                          setFormData({ ...formData, placa: v.placa, modelo: v.modelo, cor: (v as any).cor, tipo: v.tipo, nomeProprietario: v.nomeproprietario, unidadeDesc: v.unidadedesc, moradorId: (v as any).moradorid });
+                          setShowModal(true);
+                        }}
+                        className="flex items-center gap-1.5 bg-blue-50 text-blue-600 px-3 py-1.5 rounded-lg text-[10px] font-black border border-blue-100 hover:bg-blue-100 transition-all"
+                      >
+                        <LogIn size={12} /> Nova Entrada
+                      </button>
+                    )}
+                    <button 
+                      onClick={() => handleDelete(item.id)}
+                      className="p-1.5 text-slate-300 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* ── DESKTOP TABLE VIEW (visível apenas em sm e acima) ── */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full min-w-[800px]">
             <thead className="bg-slate-50 dark:bg-slate-800">
               <tr>
@@ -734,7 +842,7 @@ export default function VeiculosPage() {
                       </div>
                     </td>
                     <td className="p-4">
-                      <span className="px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700">
+                      <span className="inline-block px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap">
                         {v?.unidadedesc || v?.unidadeDesc || '-'}
                       </span>
                     </td>
@@ -817,6 +925,7 @@ export default function VeiculosPage() {
           </table>
         </div>
       </div>
+
 
       {/* FOOTER SECTION: SAIDAS DE HOJE */}
       {activeTab === 'ATIVOS' && (
