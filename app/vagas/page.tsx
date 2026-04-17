@@ -5,16 +5,18 @@ import { supabase } from '@/lib/supabase';
 import { motion } from 'motion/react';
 import { 
   Building2, KeySquare, Car, FileText, CheckCircle2,
-  AlertCircle, Search, Edit
+  AlertCircle, Search, Edit, X
 } from 'lucide-react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { formatPlate } from '@/lib/utils';
+import { AnimatePresence } from 'motion/react';
 
 interface Vaga {
   id: string;
   codigo: string;
   status: 'LIVRE' | 'OCUPADA' | 'ALUGADA';
   tipo: string;
+  unidade_id: string;
   unidade: {
     bloco: string;
     numero: string;
@@ -24,6 +26,7 @@ interface Vaga {
     placa: string;
     modelo: string;
   };
+  alugada_para_morador_id?: string;
   alugado_para?: {
     nome: string;
     bloco: string;
@@ -37,6 +40,15 @@ export default function VagasPage() {
   const [search, setSearch] = useState('');
   const [filterBlock, setFilterBlock] = useState('');
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
+
+  // Modal logic
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedVaga, setSelectedVaga] = useState<Vaga | null>(null);
+  const [allResidents, setAllResidents] = useState<any[]>([]);
+  const [formData, setFormData] = useState({
+     status: 'LIVRE',
+     locadorId: ''
+  });
 
   const fetchVagas = async () => {
     setLoading(true);
@@ -64,16 +76,24 @@ export default function VagasPage() {
         codigo: v.codigo,
         status: v.status,
         tipo: v.tipo,
+        unidade_id: v.unidade_id,
         unidade: v.unidades || { bloco: 'N/A', numero: 'N/A' },
         veiculo: v.veiculos,
+        alugada_para_morador_id: v.alugada_para_morador_id,
         alugado_para: v.alugado_para
       })));
     }
     setLoading(false);
   };
 
+  const fetchResidents = async () => {
+    const { data } = await supabase.from('residents').select('id, nome, bloco, apto').order('nome');
+    if (data) setAllResidents(data);
+  };
+
   useEffect(() => {
     fetchVagas();
+    fetchResidents();
   }, []);
 
   const totalVagas = vagas.length;
@@ -96,6 +116,44 @@ export default function VagasPage() {
     if (a.unidade.bloco !== b.unidade.bloco) return a.unidade.bloco.localeCompare(b.unidade.bloco);
     return a.codigo.localeCompare(b.codigo);
   });
+
+  const handleEditVaga = (vaga: Vaga) => {
+     setSelectedVaga(vaga);
+     setFormData({
+       status: vaga.status,
+       locadorId: vaga.alugada_para_morador_id || ''
+     });
+     setShowEditModal(true);
+  };
+
+  const handleSaveModal = async () => {
+     if (!selectedVaga) return;
+     let updatePayload: any = { status: formData.status };
+     
+     if (formData.status === 'LIVRE') {
+         updatePayload.alugada_para_morador_id = null;
+         updatePayload.veiculo_id = null;
+     } else if (formData.status === 'ALUGADA') {
+         if (!formData.locadorId) {
+             alert('ATENÇÃO: Selecione o morador destino do empréstimo/locação.');
+             return;
+         }
+         updatePayload.alugada_para_morador_id = formData.locadorId;
+         updatePayload.veiculo_id = null;
+     } else if (formData.status === 'OCUPADA') {
+         updatePayload.alugada_para_morador_id = null;
+     }
+     
+     const { error } = await supabase.from('vagas').update(updatePayload).eq('id', selectedVaga.id);
+     if (error) {
+         console.error(error);
+         alert('Erro ao salvar no banco. Veja console.');
+         return;
+     }
+     
+     setShowEditModal(false);
+     fetchVagas();
+  };
 
   return (
     <DashboardLayout>
@@ -168,6 +226,7 @@ export default function VagasPage() {
                   <th className="px-6 py-4">Status</th>
                   <th className="px-6 py-4">Veículo Ocupante</th>
                   <th className="px-6 py-4">Ocupante (Destino)</th>
+                  <th className="px-6 py-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -181,7 +240,7 @@ export default function VagasPage() {
                     <React.Fragment key={vaga.id}>
                       {isNewBlock && (
                         <tr className="bg-slate-100 dark:bg-slate-800/80">
-                          <td colSpan={5} className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-wider border-y border-slate-200 dark:border-slate-700/50">
+                          <td colSpan={6} className="px-6 py-2 text-[10px] font-black text-slate-500 uppercase tracking-wider border-y border-slate-200 dark:border-slate-700/50">
                             <div className="flex items-center gap-2">
                               <Building2 size={14} className="text-primary" />
                               <span className="text-primary">Bloco {vaga.unidade.bloco}</span>
@@ -228,6 +287,14 @@ export default function VagasPage() {
                             <span className="text-slate-300 dark:text-slate-600 italic">—</span>
                           )}
                         </td>
+                        <td className="px-6 py-3 text-right">
+                          <button 
+                            onClick={() => handleEditVaga(vaga)}
+                            className="p-2 text-slate-400 hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                          >
+                           <Edit size={16} />
+                          </button>
+                        </td>
                       </tr>
                     </React.Fragment>
                   );
@@ -238,6 +305,113 @@ export default function VagasPage() {
         </div>
 
       </div>
+
+      <AnimatePresence>
+        {showEditModal && selectedVaga && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50 backdrop-blur-sm"
+            onClick={() => setShowEditModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50">
+                <div>
+                  <h3 className="text-xl font-bold flex items-center gap-2">
+                    <KeySquare className="text-primary size-5" />
+                    Gerenciar Acesso da Vaga
+                  </h3>
+                  <p className="text-xs text-slate-500 font-bold mt-1 uppercase">
+                     Vaga {selectedVaga.codigo} — Dona: Bloco {selectedVaga.unidade.bloco}, Apt {selectedVaga.unidade.numero}
+                  </p>
+                </div>
+                <button onClick={() => setShowEditModal(false)} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-5">
+                <div className="bg-amber-50 dark:bg-amber-900/10 p-4 border border-amber-200 dark:border-amber-800/30 rounded-xl flex gap-3 text-amber-700 dark:text-amber-500 text-xs">
+                   <AlertCircle size={32} className="shrink-0 opacity-50" />
+                   <p className="leading-relaxed">
+                     Ao confirmar como <b>ALUGADA/EMPRESTADA</b>, o espaço não constará mais para moradores da <b>Unidade Dona</b>. O destino eleito poderá vincular seus próprios carros livremente a ela.
+                   </p>
+                </div>
+                 </div>
+
+                 {selectedVaga.veiculo && formData.status !== 'OCUPADA' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="bg-red-50 dark:bg-red-900/10 p-4 border border-red-200 dark:border-red-800/30 rounded-xl flex items-start gap-3 text-red-600 dark:text-red-400 text-xs shadow-inner">
+                       <AlertCircle size={20} className="mt-0.5 shrink-0" />
+                       <div className="flex flex-col">
+                         <b className="uppercase tracking-widest text-[10px] mb-1">Risco de Desvinculação</b>
+                         <p className="leading-relaxed">
+                           O veículo <b>{selectedVaga.veiculo.modelo} ({formatPlate(selectedVaga.veiculo.placa)})</b> está atualmente mapeado neste slot. Salvar esta alteração fará com que este carro seja <b>removido da vaga</b>, devolvendo-o ao sistema sem localização atribuída.
+                         </p>
+                       </div>
+                    </motion.div>
+                 )}
+
+                 <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Estado Operacional</label>
+                    <select
+                      value={formData.status}
+                      onChange={(e) => setFormData({...formData, status: e.target.value})}
+                      className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm font-bold focus:ring-2 focus:ring-primary/20 outline-none"
+                    >
+                      <option value="LIVRE">LIVRE</option>
+                      <option value="OCUPADA">OCUPADA (Uso Nativo)</option>
+                      <option value="ALUGADA">ALUGADA / EMPRESTADA</option>
+                    </select>
+                  </div>
+
+                  {formData.status === 'ALUGADA' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                      <label className="block text-sm font-bold mb-2 text-purple-600">Morador Locatário (Destino)</label>
+                      <select
+                        value={formData.locadorId}
+                        onChange={(e) => setFormData({...formData, locadorId: e.target.value})}
+                        className="w-full p-3 border border-purple-200 dark:border-purple-800/30 rounded-xl bg-purple-50 dark:bg-purple-900/10 text-sm text-purple-900 dark:text-purple-300 font-bold focus:ring-2 focus:ring-purple-500/20 outline-none"
+                      >
+                        <option value="">Selecione o titular...</option>
+                        {allResidents.map(r => (
+                          <option key={r.id} value={r.id}>
+                            Locatário: {r.nome} (Bl {r.bloco}, Ap {r.apto})
+                          </option>
+                        ))}
+                      </select>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 flex justify-end gap-3">
+                <button 
+                  onClick={() => setShowEditModal(false)}
+                  className="px-5 py-2.5 rounded-xl font-bold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={handleSaveModal}
+                  className="px-5 py-2.5 rounded-xl font-bold text-sm bg-primary text-white hover:opacity-90 shadow-lg shadow-primary/20 transition-all flex items-center gap-2"
+                >
+                  <CheckCircle2 size={18} />
+                  Salvar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </DashboardLayout>
   );
 }

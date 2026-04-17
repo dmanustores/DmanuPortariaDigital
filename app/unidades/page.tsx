@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
-import { getStatusConfig } from '@/lib/constants';
 import { formatPhone, lookupUnitId, formatPlate } from '@/lib/utils';
 import { supabase } from '@/lib/supabase';
 
@@ -45,6 +44,7 @@ interface Unit {
   allResidents?: { nome: string; label: string }[];
   totalMoradores?: number;
   totalVehicles?: number;
+  vagas?: any[];
 }
 
 const blocos = Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -140,7 +140,7 @@ export default function UnidadesPage() {
     // Busca vagas da nova tabela
     const { data: vagasData } = await supabase
       .from('vagas')
-      .select('id, codigo, status, unidade_id, veiculo_id, vehicles(modelo, placa)');
+      .select('id, codigo, status, unidade_id, veiculo_id, alugada_para_morador_id, vehicles(modelo, placa), alugado_para:residents!vagas_alugada_para_morador_id_fkey(nome)');
 
     if (unitsData) {
       const unitsWithResidents = unitsData.map((u: any) => {
@@ -1002,6 +1002,12 @@ export default function UnidadesPage() {
                           {vaga.vehicles && (
                             <div className="mt-2 text-[10px] text-slate-500 font-bold uppercase truncate">
                               🚗 {vaga.vehicles.modelo} — <span className="p-0.5 px-1 bg-primary/10 text-primary border border-primary/20 rounded">{formatPlate(vaga.vehicles.placa)}</span>
+                            </div>
+                          )}
+                          {vaga.status === 'ALUGADA' && vaga.alugado_para && (
+                            <div className="mt-2 text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase truncate flex items-center gap-1.5">
+                              <Building2 size={12} />
+                              Locatário: {vaga.alugado_para.nome}
                             </div>
                           )}
                         </div>
