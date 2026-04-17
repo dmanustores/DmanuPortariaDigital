@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Resident } from '@/types/resident';
 import { 
   User, Home, Phone, Mail, Briefcase, ShieldAlert, 
@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { formatPhone, formatCPF, formatRG } from '@/lib/utils';
 import { motion } from 'motion/react';
+import { supabase } from '@/lib/supabase';
 
 interface ResidentDetailsViewProps {
   resident: Resident;
@@ -21,6 +22,25 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
   const hasVehicles = resident.vehicles.length > 0;
   const hasServiceProviders = resident.serviceProviders.length > 0;
   const hasEmergencyContact = resident.emergencyContact.nome || resident.emergencyContact.fone;
+
+  const [vagasGaragem, setVagasGaragem] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchVagas() {
+      if (!resident.bloco || !resident.apto) return;
+      const { data } = await supabase
+        .from('units')
+        .select('vagasgaragem')
+        .eq('bloco', resident.bloco.padStart(2, '0'))
+        .eq('numero', resident.apto)
+        .maybeSingle();
+
+      if (data) {
+        setVagasGaragem(data.vagasgaragem || 0);
+      }
+    }
+    fetchVagas();
+  }, [resident.bloco, resident.apto]);
 
   return (
     <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden max-w-3xl mx-auto">
@@ -145,12 +165,24 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
           )}
 
           {/* Vehicles */}
-          {hasVehicles && (
+          {(hasVehicles || vagasGaragem !== null) && (
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
                 <Car size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Veículos</h3>
+                {vagasGaragem !== null && (
+                  <span className={`ml-auto px-1.5 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-blue-500'}`}>
+                    {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
+                  </span>
+                )}
               </div>
+              
+              {vagasGaragem !== null && resident.vehicles.length > vagasGaragem && (
+                <div className="p-2 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-[10px] font-bold flex items-center gap-1.5">
+                  ⚠️ Há mais veículos ({resident.vehicles.length}) que vagas ({vagasGaragem}).
+                </div>
+              )}
+
               <div className="grid grid-cols-1 gap-1.5">
                 {resident.vehicles.map((vehicle, i) => (
                   <div key={i} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded-lg text-xs">

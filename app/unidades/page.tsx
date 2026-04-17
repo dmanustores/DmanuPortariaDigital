@@ -157,6 +157,7 @@ export default function UnidadesPage() {
 
         return {
           ...u,
+          vagasGaragem: u.vagasgaragem ?? u.vagasGaragem ?? 0,  // normaliza snake_case do banco
           totalMoradores: allResidents.length,
           totalVehicles: totalVehicles,
           primaryResident: allResidents.length > 0 ? allResidents[0].nome : undefined,
@@ -666,7 +667,10 @@ export default function UnidadesPage() {
 
                 <div className="border-t border-slate-100 dark:border-slate-800 p-3 flex items-center justify-center gap-4 text-xs text-slate-500 font-bold">
                   <span className="flex items-center gap-1" title="Moradores"><Users size={12} className="text-primary" /> {unit.totalMoradores || 0}</span>
-                  <span className="flex items-center gap-1" title="Veículos Ativos"><Car size={12} className="text-amber-500" /> {unit.totalVehicles || 0}</span>
+                  <span className={`flex items-center gap-1 ${((unit.totalVehicles || 0) > (unit.vagasGaragem || 0)) ? 'text-red-500' : ''}`} title={`Veículos: ${unit.totalVehicles || 0} cadastrados de ${unit.vagasGaragem || 0} vagas`}>
+                    <Car size={12} className={(unit.totalVehicles || 0) > (unit.vagasGaragem || 0) ? 'text-red-500' : 'text-amber-500'} /> 
+                    {unit.totalVehicles || 0} / {unit.vagasGaragem || 0}
+                  </span>
                 </div>
               </motion.div>
             );
@@ -713,7 +717,16 @@ export default function UnidadesPage() {
                         </span>
                       </td>
                       <td className="p-3 text-center font-bold text-primary">{unit.totalMoradores || 0}</td>
-                      <td className="p-3 text-center font-bold text-amber-500">{unit.totalVehicles || 0}</td>
+                      <td className="p-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold ${(unit.totalVehicles || 0) > (unit.vagasGaragem || 0) ? 'text-red-500' : 'text-amber-500'}`}>
+                            {unit.totalVehicles || 0}
+                          </span>
+                          <span className="text-[9px] text-slate-400 font-bold tracking-wider uppercase opacity-80 mt-0.5">
+                            de {unit.vagasGaragem || 0} vaga{(unit.vagasGaragem || 0) !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                      </td>
                       {isAdmin && (
                         <td className="p-3 text-right">
                           <button onClick={(e) => { e.stopPropagation(); openEdit(unit); }} className="text-primary text-xs font-bold mr-2 hover:underline">Editar</button>
@@ -882,27 +895,52 @@ export default function UnidadesPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {selectedUnit.vagasGaragem && selectedUnit.vagasGaragem > 0 && (
-                  <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400">
-                    <Car size={20} />
-                    <span>{selectedUnit.vagasGaragem} vagas de garagem</span>
+                
+                {/* INFO GRID */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Tipo</p>
+                    <p className="text-xs font-black text-slate-700 dark:text-slate-200">{selectedUnit.tipo}</p>
                   </div>
-                )}
+                  <div className={`rounded-xl p-3 text-center border ${
+                    (selectedUnit.vagasGaragem ?? 0) > 0
+                      ? 'bg-blue-50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/50'
+                      : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800'
+                  }`}>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Vagas</p>
+                    <div className="flex items-center justify-center gap-1">
+                      <Car size={14} className={(selectedUnit.vagasGaragem ?? 0) > 0 ? 'text-blue-500' : 'text-slate-400'} />
+                      <p className={`text-xl font-black ${(selectedUnit.vagasGaragem ?? 0) > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                        {selectedUnit.vagasGaragem ?? 0}
+                      </p>
+                    </div>
+                    <p className="text-[9px] text-slate-400 mt-0.5">{(selectedUnit.vagasGaragem ?? 0) === 1 ? 'vaga' : 'vagas'} de garagem</p>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-800">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Veículos</p>
+                    <p className={`text-xl font-black ${(selectedUnit.totalVehicles ?? 0) > 0 ? 'text-amber-500' : 'text-slate-400'}`}>
+                      {selectedUnit.totalVehicles ?? 0}
+                    </p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">cadastrado{(selectedUnit.totalVehicles ?? 0) !== 1 ? 's' : ''}</p>
+                  </div>
+                </div>
 
                 {selectedUnit.observacoes && (
-                  <div>
-                    <h4 className="font-bold text-sm text-slate-500 mb-2">Observações</h4>
-                    <p className="text-slate-700 dark:text-slate-300">{selectedUnit.observacoes}</p>
+                  <div className="bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/50 rounded-xl p-4">
+                    <h4 className="font-black text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-widest mb-1">Observações</h4>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{selectedUnit.observacoes}</p>
                   </div>
                 )}
 
                 {selectedUnit.allResidents && selectedUnit.allResidents.length > 0 ? (
-                  <div className="mt-6">
-                    <p className="text-xs font-bold tracking-wider text-slate-500 uppercase mb-3">Moradores Vinculados ({selectedUnit.allResidents.length})</p>
+                  <div>
+                    <p className="text-xs font-black tracking-wider text-slate-500 uppercase mb-3">
+                      Moradores Vinculados ({selectedUnit.allResidents.length})
+                    </p>
                     <div className="flex flex-col gap-2">
                       {selectedUnit.allResidents.map((r: any, idx: number) => (
                         <div key={idx} className="p-3 border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/50 rounded-xl flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg">
+                          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-lg flex-none">
                             {r.nome.charAt(0)}
                           </div>
                           <div>
@@ -916,7 +954,7 @@ export default function UnidadesPage() {
                 ) : (
                   <div className="text-center py-8 text-slate-400">
                     <Users size={40} className="mx-auto mb-2 opacity-50" />
-                    <p>Unidade sem moradores vinculados no momento</p>
+                    <p className="text-sm">Unidade sem moradores vinculados no momento</p>
                   </div>
                 )}
               </div>

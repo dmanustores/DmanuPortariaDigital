@@ -8,6 +8,7 @@ import { Resident, ResidentType, InvoiceDelivery } from '@/types/resident';
 import { X, Plus, Save, User, Car, Users, Construction, Phone, Briefcase, Home, ShieldAlert, FileText } from 'lucide-react';
 import { motion } from 'motion/react';
 import { formatCPF, formatRG, formatPhone, capitalize } from '@/lib/utils';
+import { supabase } from '@/lib/supabase';
 
 const residentSchema = z.object({
   id: z.string().optional(),
@@ -175,6 +176,32 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
     control,
     name: "serviceProviders"
   });
+
+  const bloco = watch('bloco');
+  const apto = watch('apto');
+  const [vagasGaragem, setVagasGaragem] = React.useState<number | null>(null);
+
+  React.useEffect(() => {
+    async function fetchVagas() {
+      if (!bloco || !apto) {
+        setVagasGaragem(null);
+        return;
+      }
+      const { data } = await supabase
+        .from('units')
+        .select('vagasgaragem')
+        .eq('bloco', bloco.padStart(2, '0'))
+        .eq('numero', apto)
+        .maybeSingle();
+
+      if (data) {
+        setVagasGaragem(data.vagasgaragem || 0);
+      } else {
+        setVagasGaragem(null);
+      }
+    }
+    fetchVagas();
+  }, [bloco, apto]);
 
   const onSubmit = (data: ResidentFormData) => {
     const cleanData = {
@@ -556,6 +583,11 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
           <div className="flex items-center gap-2 text-primary">
             <Car size={18} />
             <h3 className="font-bold text-sm uppercase">Veículos</h3>
+            {vagasGaragem !== null && (
+              <span className={`ml-2 px-2 py-0.5 rounded-md text-[10px] font-black uppercase text-white ${vehicleFields.length > vagasGaragem ? 'bg-red-500' : 'bg-blue-500'}`}>
+                {vagasGaragem} {vagasGaragem === 1 ? 'Vaga' : 'Vagas'} na Unidade
+              </span>
+            )}
           </div>
           {!isReadOnly && (
             <button type="button" onClick={() => appendVehicle({ modelo: '', cor: '', placa: '' })} className="bg-primary/10 text-primary px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1 hover:bg-primary/20 transition-colors">
@@ -563,6 +595,13 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
             </button>
           )}
         </div>
+
+        {vagasGaragem !== null && vehicleFields.length > vagasGaragem && (
+          <div className="p-3 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-xl text-red-600 dark:text-red-400 text-xs font-bold flex items-center gap-2">
+            ⚠️ O número de veículos ({vehicleFields.length}) cadastrados excede as vagas da unidade ({vagasGaragem}).
+          </div>
+        )}
+
         <div className="space-y-3">
           {vehicleFields.map((field, index) => (
             <div key={field.id} className="grid grid-cols-1 md:grid-cols-3 gap-3 p-3 bg-slate-50 dark:bg-slate-800/50 rounded-lg relative group border border-slate-200 dark:border-slate-700">
