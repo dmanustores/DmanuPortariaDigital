@@ -31,6 +31,10 @@ interface Vaga {
     nome: string;
     bloco: string;
     apto: string;
+    vehicles?: Array<{
+      placa: string;
+      modelo: string;
+    }>;
   };
 }
 
@@ -67,7 +71,10 @@ export default function VagasPage() {
         veiculo_id,
         veiculos:vehicles!vagas_veiculo_id_fkey(placa, modelo),
         alugada_para_morador_id,
-        alugado_para:residents!vagas_alugada_para_morador_id_fkey(nome, bloco, apto)
+        alugado_para:residents!vagas_alugada_para_morador_id_fkey(
+          nome, bloco, apto, 
+          vehicles:vehicles(placa, modelo)
+        )
       `);
 
     if (error) {
@@ -317,6 +324,10 @@ export default function VagasPage() {
                               <span className="uppercase text-xs">{formatPlate(vaga.veiculo.placa)}</span>
                               <span className="text-slate-400 font-normal text-xs">— {vaga.veiculo.modelo}</span>
                             </div>
+                          ) : vaga.status === 'ALUGADA' ? (
+                            <div className="flex items-center gap-2 text-purple-400 dark:text-purple-500/70">
+                              <span className="text-xs italic tracking-wide">Desvinculado (S/ Placa)</span>
+                            </div>
                           ) : (
                             <span className="text-slate-300 dark:text-slate-600 italic">—</span>
                           )}
@@ -397,7 +408,7 @@ export default function VagasPage() {
                        <div className="flex flex-col">
                          <b className="uppercase tracking-widest text-[10px] mb-1">Risco de Desvinculação</b>
                          <p className="leading-relaxed">
-                           O veículo <b>{selectedVaga.veiculo.modelo} ({formatPlate(selectedVaga.veiculo.placa)})</b> está atualmente mapeado neste slot. Salvar esta alteração fará com que este carro seja <b>removido da vaga</b>, devolvendo-o ao sistema sem localização atribuída.
+                           O veículo <b>{selectedVaga.veiculo.modelo} ({formatPlate(selectedVaga.veiculo.placa)})</b> está atualmente mapeado nesta vaga. Salvar esta alteração fará com que este carro seja removido dela devolvendo-o ao sistema sem localização atribuída.
                          </p>
                        </div>
                     </motion.div>

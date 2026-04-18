@@ -24,7 +24,7 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
   const hasEmergencyContact = resident.emergencyContact.nome || resident.emergencyContact.fone;
 
   const [vagasGaragem, setVagasGaragem] = useState<number | null>(null);
-  const [vagasVehicleMap, setVagasVehicleMap] = useState<Record<string, string>>({});
+  const [vagasVehicleMap, setVagasVehicleMap] = useState<Record<string, { codigo: string, type: 'PROPRIA' | 'ALUGADA' }>>({});
   const [rentedOutCount, setRentedOutCount] = useState(0);
 
   useEffect(() => {
@@ -54,15 +54,39 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
       
       const vehicleIds = resident.vehicles?.map(v => v.id).filter(Boolean);
       if (vehicleIds && vehicleIds.length > 0) {
-         const { data: vagasData } = await supabase
+         const { data: vagasDataVeiculos } = await supabase
            .from('vagas')
-           .select('codigo, veiculo_id')
+           .select('codigo, veiculo_id, status, alugada_para_morador_id')
            .in('veiculo_id', vehicleIds);
+
+         const { data: vagasDataAlugadas } = await supabase
+           .from('vagas')
+           .select('codigo, veiculo_id, status, alugada_para_morador_id')
+           .eq('alugada_para_morador_id', resident.id)
+           .eq('status', 'ALUGADA');
            
-         if (vagasData) {
-            const map: Record<string, string> = {};
-            vagasData.forEach((v: any) => {
-              if (v.veiculo_id) map[v.veiculo_id] = v.codigo;
+         const vagasData = [...(vagasDataVeiculos || []), ...(vagasDataAlugadas || [])];
+           
+         if (vagasData.length > 0) {
+            const map: Record<string, { codigo: string, type: 'PROPRIA' | 'ALUGADA' }> = {};
+            const uniqueVagas = Array.from(new Map(vagasData.map(v => [v.codigo, v])).values());
+            const alugadasParaMim = uniqueVagas.filter((v: any) => v.status === 'ALUGADA' && v.alugada_para_morador_id === resident.id);
+            let alugadasIndex = 0;
+
+            uniqueVagas.forEach((v: any) => {
+              if (v.veiculo_id) {
+                map[v.veiculo_id] = { 
+                  codigo: v.codigo, 
+                  type: v.status === 'ALUGADA' ? 'ALUGADA' : 'PROPRIA' 
+                };
+              }
+            });
+
+            vehicleIds.forEach(vid => {
+               if (!map[vid] && alugadasIndex < alugadasParaMim.length) {
+                   map[vid] = { codigo: alugadasParaMim[alugadasIndex].codigo, type: 'ALUGADA' };
+                   alugadasIndex++;
+               }
             });
             setVagasVehicleMap(map);
          }
@@ -147,35 +171,34 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
           </div>
         </div>
 
-        {/* Professional Info - Only if exists */}
-        {hasProfessionalInfo && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {resident.localTrabalho && (
-              <div className="p-3 border-l-2 border-primary bg-slate-50 dark:bg-slate-800/20">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Local de Trabalho</p>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <Briefcase size={12} className="text-primary" />
-                  {resident.localTrabalho}
-                </p>
-              </div>
-            )}
-            {resident.enderecoComercial && (
-              <div className="p-3 border-l-2 border-primary bg-slate-50 dark:bg-slate-800/20">
-                <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Endereço Comercial</p>
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                  <MapPin size={12} className="text-primary" />
-                  {resident.enderecoComercial}
-                </p>
-              </div>
-            )}
-          </div>
-        )}
+        {/* Masonry Layout for Details Componentes */}
+        <div className="columns-1 lg:columns-2 gap-4 mt-4">
+          
+          {/* Local de Trabalho */}
+          {resident.localTrabalho && (
+            <div className="break-inside-avoid mb-4 p-3 border-l-2 border-primary bg-slate-50 dark:bg-slate-800/20 rounded-r-xl">
+              <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Local de Trabalho</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <Briefcase size={12} className="text-primary" />
+                {resident.localTrabalho}
+              </p>
+            </div>
+          )}
 
-        {/* Main Sections Grid - Denser */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {/* Household Members */}
+          {/* Endereço Comercial */}
+          {resident.enderecoComercial && (
+            <div className="break-inside-avoid mb-4 p-3 border-l-2 border-primary bg-slate-50 dark:bg-slate-800/20 rounded-r-xl">
+              <p className="text-[9px] font-black text-slate-400 uppercase mb-0.5">Endereço Comercial</p>
+              <p className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                <MapPin size={12} className="text-primary" />
+                {resident.enderecoComercial}
+              </p>
+            </div>
+          )}
+
+          {/* Dependentes */}
           {hasHouseholdMembers && (
-            <div className="space-y-2">
+            <div className="break-inside-avoid mb-4 space-y-2">
               <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
                 <Users size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Dependentes</h3>
@@ -195,14 +218,14 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
 
           {/* Vehicles */}
           {(hasVehicles || vagasGaragem !== null) && (
-            <div className="space-y-2">
+            <div className="break-inside-avoid mb-4 space-y-2">
               <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
                 <Car size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Veículos Cadastrados</h3>
                 {vagasGaragem !== null && (
                   <div className="flex gap-2 ml-auto">
                     <span className={`px-2 py-0.5 rounded text-[9px] font-black uppercase text-white ${resident.vehicles.length > vagasGaragem ? 'bg-red-500' : 'bg-slate-600 dark:bg-slate-700'}`}>
-                      LIMITE DA UNIDADE: {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
+                      LIMITE: {vagasGaragem} {vagasGaragem === 1 ? 'VAGA' : 'VAGAS'}
                     </span>
                     {rentedOutCount > 0 && (
                       <span className="bg-purple-50 dark:bg-purple-900/20 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30 px-1.5 py-0.5 rounded text-[9px] font-bold uppercase shrink-0">
@@ -213,38 +236,46 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
                 )}
               </div>
               
-              {vagasGaragem !== null && resident.vehicles.length > vagasGaragem && (
-                <div className="p-2 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-[10px] font-bold flex items-center gap-1.5">
-                  ⚠️ Há mais veículos ({resident.vehicles.length}) que vagas ({vagasGaragem}).
-                </div>
-              )}
+-
 
-              <div className="grid grid-cols-1 gap-1.5">
-                {resident.vehicles.map((vehicle, i) => (
-                  <div key={i} className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/30 rounded-lg text-xs">
-                    <div className="flex flex-col">
-                      <span className="font-bold uppercase">{vehicle.modelo} ({vehicle.cor})</span>
-                      {vehicle.id && vagasVehicleMap[vehicle.id] && (
-                        <span className="text-[9px] text-slate-500 font-bold uppercase mt-0.5">
-                          Vaga Vinculada: <span className="text-primary">{vagasVehicleMap[vehicle.id]}</span>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {resident.vehicles.map((vehicle, i) => {
+                  const vagaInfo = vehicle.id ? vagasVehicleMap[vehicle.id] : null;
+
+                  return (
+                    <div key={i} className="flex flex-col p-2.5 bg-slate-50 dark:bg-slate-800/30 rounded-xl border border-slate-100 dark:border-slate-800">
+                      <div className="flex flex-col gap-1.5 mb-2">
+                        <span className="font-bold uppercase text-[10px] text-slate-800 dark:text-slate-200 leading-tight">
+                          {vehicle.modelo} <span className="font-normal text-slate-500">({vehicle.cor})</span>
                         </span>
+                        <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded font-black text-[9px] border border-primary/20 self-start shrink-0">
+                          {vehicle.placa}
+                        </span>
+                      </div>
+                      
+                      {vagaInfo ? (
+                        <div className={`mt-auto self-start px-2 py-1 rounded-md text-[8px] font-bold uppercase flex items-center gap-1 border ${
+                          vagaInfo.type === 'ALUGADA' 
+                            ? 'bg-purple-50 text-purple-600 border-purple-200 dark:bg-purple-900/30 dark:border-purple-800/50' 
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-900/30 dark:border-emerald-800/50'
+                        }`}>
+                          {vagaInfo.type === 'ALUGADA' ? 'Alugada:' : 'Vaga:'} <span className="font-black">{vagaInfo.codigo}</span>
+                        </div>
+                      ) : (
+                        <div className="mt-auto self-start px-2 py-1 rounded-md text-[8px] font-bold uppercase bg-slate-100 text-slate-500 border border-slate-200 dark:bg-slate-800/50 dark:border-slate-700">
+                          S/ Vaga
+                        </div>
                       )}
                     </div>
-                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded font-black text-[10px] border border-primary/20">
-                      {vehicle.placa}
-                    </span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           )}
-        </div>
 
-        {/* Emergency & Services & Invoices - Unified Row */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {/* Service Providers */}
+          {/* Prestadores */}
           {hasServiceProviders && (
-            <div className="space-y-2">
+            <div className="break-inside-avoid mb-4 space-y-2">
               <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
                 <Construction size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Prestadores</h3>
@@ -259,9 +290,9 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
             </div>
           )}
 
-          {/* Emergency */}
+          {/* Emergência */}
           {hasEmergencyContact && (
-            <div className="space-y-2">
+            <div className="break-inside-avoid mb-4 space-y-2">
               <div className="flex items-center gap-2 text-red-500 border-b border-slate-100 dark:border-slate-800 pb-1">
                 <ShieldAlert size={14} />
                 <h3 className="font-bold text-[10px] uppercase tracking-wider">Emergência</h3>
@@ -274,7 +305,7 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
           )}
 
           {/* Invoice Delivery */}
-          <div className="space-y-2">
+          <div className="break-inside-avoid mb-4 space-y-2">
             <div className="flex items-center gap-2 text-primary border-b border-slate-100 dark:border-slate-800 pb-1">
               <FileText size={14} />
               <h3 className="font-bold text-[10px] uppercase tracking-wider">Boletos</h3>
@@ -287,22 +318,28 @@ export const ResidentDetailsView: React.FC<ResidentDetailsViewProps> = ({ reside
               </p>
             </div>
           </div>
-        </div>
 
-        {/* Observações - If exists */}
-        {resident.observacoes && (
-          <div className="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
-            <p className="text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase mb-1">Observações Internas</p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 italic">"{resident.observacoes}"</p>
-          </div>
-        )}
+          {/* Observações */}
+          {resident.observacoes && (
+            <div className="break-inside-avoid mb-4 p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-900/20 rounded-xl">
+              <p className="text-[9px] font-black text-amber-600 dark:text-amber-500 uppercase mb-1">Observações Internas</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400 italic">"{resident.observacoes}"</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Footer Actions - Smaller */}
-      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex justify-end">
+      <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 flex items-center gap-4">
+        {vagasGaragem !== null && resident.vehicles.length > vagasGaragem && (
+          <div className="px-3 py-1.5 bg-red-50 dark:bg-red-900/10 border border-red-200 dark:border-red-900/30 rounded-lg text-red-600 dark:text-red-400 text-[10px] font-bold flex items-center gap-1.5">
+            ⚠️ Há mais veículos ({resident.vehicles.length}) que vagas ({vagasGaragem}).
+          </div>
+        )}
+
         <button 
           onClick={onClose}
-          className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity"
+          className="px-6 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-lg font-bold text-xs hover:opacity-90 transition-opacity ml-auto shrink-0"
         >
           FECHAR FICHA
         </button>

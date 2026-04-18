@@ -687,10 +687,10 @@ export const ResidentForm: React.FC<ResidentFormProps> = ({ initialData, onSave,
                 >
                   <option value="">Nenhuma Vaga Vinculada</option>
                   {availableVagas
-                    .filter(v => v.status === 'LIVRE' || v.veiculo_id === field.id)
+                    .filter(v => v.status === 'LIVRE' || (getValues(`vehicles.${index}.id`) && v.veiculo_id === getValues(`vehicles.${index}.id`)) || (v.status === 'ALUGADA' && v.alugada_para_morador_id === initialData?.id))
                     .map(v => (
                     <option key={v.id} value={v.id}>
-                      {v.codigo}
+                      {v.codigo} {v.status === 'ALUGADA' ? '(Alugada)' : ''}
                     </option>
                   ))}
                 </select>

@@ -248,12 +248,18 @@ export const saveResident = async (resident: Resident, allowDuplicateCPF: boolea
            const requestedVaga = vagaPelaPlaca.get(iv.placa);
            if (requestedVaga) {
                promises.push(
-                 supabase.from('vagas').update({
-                     veiculo_id: iv.id,
-                     status: 'OCUPADA'
-                 }).eq('id', requestedVaga).then((r: any) => {
-                    if (r.error) console.warn('⚠️ Erro ao vincular carro na vaga:', r.error);
-                    return r;
+                 supabase.from('vagas').select('status').eq('id', requestedVaga).single().then((res: any) => {
+                     if (res.data) {
+                         const currentStatus = res.data.status;
+                         const updatedStatus = currentStatus === 'ALUGADA' ? 'ALUGADA' : 'OCUPADA';
+                         return supabase.from('vagas').update({
+                             veiculo_id: iv.id,
+                             status: updatedStatus
+                         }).eq('id', requestedVaga).then((r: any) => {
+                            if (r.error) console.warn('⚠️ Erro ao vincular carro na vaga:', r.error);
+                            return r;
+                         });
+                     }
                  })
                );
            }
