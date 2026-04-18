@@ -35,8 +35,13 @@ export function ColaboradorForm({ initialData, onSave, onClose }: Props) {
       status: 'ATIVO',
       cargo: 'ZELADOR',
       dias_semana: 'SEG,TER,QUA,QUI,SEX',
-      horario_entrada: '08:00',
-      horario_saida: '17:00'
+      horarios_customizados: {
+        SEG: { entrada: '08:00', saida: '17:00' },
+        TER: { entrada: '08:00', saida: '17:00' },
+        QUA: { entrada: '08:00', saida: '17:00' },
+        QUI: { entrada: '08:00', saida: '17:00' },
+        SEX: { entrada: '08:00', saida: '17:00' }
+      }
     }
   });
 
@@ -44,7 +49,7 @@ export function ColaboradorForm({ initialData, onSave, onClose }: Props) {
   const selectedDias = watch('dias_semana') || '';
 
   useEffect(() => {
-    supabase.from('units').select('id, bloco, numero').order('bloco').order('numero').then(({ data }) => {
+    supabase.from('units').select('id, bloco, numero').order('bloco').order('numero').then(({ data }: any) => {
       if (data) setUnits(data);
     });
   }, []);
@@ -121,7 +126,7 @@ export function ColaboradorForm({ initialData, onSave, onClose }: Props) {
               <div className="space-y-2">
                 <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Telefone</label>
                 <Controller name="telefone" control={control} render={({ field }) => (
-                  <input {...field} onChange={e => field.onChange(formatPhone(e.target.value))} placeholder="(00) 00000-0000" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50" />
+                  <input {...field} value={field.value || ''} onChange={e => field.onChange(formatPhone(e.target.value))} placeholder="(00) 00000-0000" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50" />
                 )} />
               </div>
 
@@ -129,13 +134,13 @@ export function ColaboradorForm({ initialData, onSave, onClose }: Props) {
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">RG</label>
                   <Controller name="documento_rg" control={control} render={({ field }) => (
-                    <input {...field} onChange={e => field.onChange(formatRG(e.target.value))} placeholder="00.000.000-0" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50 uppercase" />
+                    <input {...field} value={field.value || ''} onChange={e => field.onChange(formatRG(e.target.value))} placeholder="00.000.000-0" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50 uppercase" />
                   )} />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">CPF</label>
                   <Controller name="documento_cpf" control={control} render={({ field }) => (
-                    <input {...field} onChange={e => field.onChange(formatCPF(e.target.value))} placeholder="000.000.000-00" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50" />
+                    <input {...field} value={field.value || ''} onChange={e => field.onChange(formatCPF(e.target.value))} placeholder="000.000.000-00" className="w-full p-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-semibold outline-none focus:ring-2 focus:ring-primary/50" />
                   )} />
                 </div>
               </div>
@@ -157,41 +162,49 @@ export function ColaboradorForm({ initialData, onSave, onClose }: Props) {
             )}
 
             {/* Horários */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-800/30">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold uppercase text-xs tracking-wider">
-                  <Clock size={16} className="text-amber-500" /> Horário Previsto
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-slate-500">Entrada</label>
-                    <input type="time" {...register('horario_entrada')} className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold shadow-sm" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase font-bold text-slate-500">Saída</label>
-                    <input type="time" {...register('horario_saida')} className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold shadow-sm" />
-                  </div>
-                </div>
+            <div className="p-4 border border-slate-200 dark:border-slate-800 rounded-xl bg-slate-50/50 dark:bg-slate-800/30 space-y-4">
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold uppercase text-xs tracking-wider">
+                <CalendarDays size={16} className="text-blue-500" /> Horários e Dias de Trabalho
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mb-4 mt-2">
+                {DIAS_SEMANA.map(d => {
+                  const isSelected = selectedDias?.includes(d.id);
+                  return (
+                    <button 
+                      key={d.id} type="button" onClick={() => toggleDia(d.id)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'}`}
+                    >
+                      {d.label}
+                    </button>
+                  )
+                })}
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300 font-bold uppercase text-xs tracking-wider">
-                  <CalendarDays size={16} className="text-blue-500" /> Dias da Semana
+              {selectedDias ? (
+                <div className="space-y-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg p-3">
+                  <div className="grid grid-cols-12 gap-2 pb-2 mb-2 border-b border-slate-100 dark:border-slate-800 text-[10px] uppercase font-bold text-slate-400">
+                    <div className="col-span-4">Dia</div>
+                    <div className="col-span-4 text-center">Entrada</div>
+                    <div className="col-span-4 text-center">Saída</div>
+                  </div>
+                  {DIAS_SEMANA.filter(d => selectedDias.includes(d.id)).map(d => (
+                    <div key={d.id} className="grid grid-cols-12 gap-2 items-center">
+                      <div className="col-span-4 text-xs font-bold text-slate-600 dark:text-slate-300">{d.label}</div>
+                      <div className="col-span-4">
+                        <input type="time" {...register(`horarios_customizados.${d.id}.entrada`)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-primary/50 text-center" />
+                      </div>
+                      <div className="col-span-4">
+                        <input type="time" {...register(`horarios_customizados.${d.id}.saida`)} className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs font-bold outline-none focus:ring-1 focus:ring-primary/50 text-center" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {DIAS_SEMANA.map(d => {
-                    const isSelected = selectedDias?.includes(d.id);
-                    return (
-                      <button 
-                        key={d.id} type="button" onClick={() => toggleDia(d.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors ${isSelected ? 'bg-primary text-white border-primary shadow-sm' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300'}`}
-                      >
-                        {d.label}
-                      </button>
-                    )
-                  })}
+              ) : (
+                <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800/30 text-center">
+                  <p className="text-xs font-bold text-orange-600 uppercase">Selecione ao menos um dia</p>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="space-y-2">

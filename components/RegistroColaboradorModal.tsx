@@ -66,9 +66,12 @@ export function RegistroColaboradorModal({ colaborador, ultimoRegistro, acao, on
           {/* Card Resumo do Horario */}
           <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl p-3 flex flex-col gap-2">
             <div className="flex justify-between items-center text-xs">
-              <span className="text-slate-500 font-bold uppercase"><Clock size={14} className="inline mr-1" /> Previsto</span>
+              <span className="text-slate-500 font-bold uppercase"><Clock size={14} className="inline mr-1" /> Previsto Hoje</span>
               <span className="font-black text-slate-700 dark:text-slate-300">
-                {colaborador.horario_entrada?.slice(0,5) || '--:--'} às {colaborador.horario_saida?.slice(0,5) || '--:--'}
+                {colaborador.horarios_customizados && colaborador.horarios_customizados[['DOM','SEG','TER','QUA','QUI','SEX','SAB'][new Date().getDay()]]
+                  ? `${colaborador.horarios_customizados[['DOM','SEG','TER','QUA','QUI','SEX','SAB'][new Date().getDay()]].entrada} às ${colaborador.horarios_customizados[['DOM','SEG','TER','QUA','QUI','SEX','SAB'][new Date().getDay()]].saida}`
+                  : 'SEM EXPEDIENTE'
+                }
               </span>
             </div>
             {colaborador.unidade_bloco && (

@@ -30,14 +30,27 @@ export default function ColaboradoresPage() {
 
   // Role based UI (true if Admin)
   const [isAdmin, setIsAdmin] = useState(false);
-  const [faltas, setFaltas] = useState(0);
-  const [atrasos, setAtrasos] = useState(0);
+  const [faltasIds, setFaltasIds] = useState<Set<string>>(new Set());
+  const [atrasosIds, setAtrasosIds] = useState<Set<string>>(new Set());
+  
+  // Filter state
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DENTRO' | 'ATRASOS' | 'FALTAS'>('ALL');
 
   useEffect(() => {
-    supabase.auth.getSession().then((res: any) => {
-       const role = res.data?.session?.user?.user_metadata?.tipo_perfil;
-       setIsAdmin(role === 'ADMIN' || role === 'SINDICO' || role === 'SUPERVISOR');
-    });
+    const fetchRole = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('operators')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        if (profile) {
+           setIsAdmin(profile.role === 'Admin' || profile.role === 'Owner');
+        }
+      }
+    };
+    fetchRole();
     const interval = setInterval(() => setCurrentTime(new Date()), 60000); // refresh every minute
     return () => clearInterval(interval);
   }, []);
@@ -52,8 +65,8 @@ export default function ColaboradoresPage() {
     setRegistros(regs);
     
     // Check missing / late
-    let missing = 0;
-    let late = 0;
+    const newMissing = new Set<string>();
+    const newLate = new Set<string>();
     const now = new Date();
     const dayNames = ['DOM','SEG','TER','QUA','QUI','SEX','SAB'];
     const currentDay = dayNames[now.getDay()];
@@ -63,25 +76,27 @@ export default function ColaboradoresPage() {
        const todayRegs = regs.filter(r => r.colaborador_id === c.id && r.hora_entrada && new Date(r.hora_entrada).getDate() === now.getDate());
        const isInside = todayRegs.some(r => r.status === 'DENTRO');
 
-       if (c.dias_semana?.includes(currentDay) && c.horario_entrada) {
-           const [h, m] = c.horario_entrada.split(':');
+       const horarioHoje = c.horarios_customizados?.[currentDay];
+
+       if (c.dias_semana?.includes(currentDay) && horarioHoje?.entrada) {
+           const [h, m] = horarioHoje.entrada.split(':');
            const expectedTime = new Date();
            expectedTime.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
            
            if (!isInside && now.getTime() > expectedTime.getTime() + (2 * 60 * 60 * 1000) && todayRegs.length === 0) {
-              missing++;
+              newMissing.add(c.id);
            }
            
            if (todayRegs.length > 0) {
               const entradaFirst = new Date(todayRegs[todayRegs.length - 1].hora_entrada!); // since it's ordered desc, last in array is first of day
               if (entradaFirst.getTime() > expectedTime.getTime() + (30 * 60000)) {
-                 late++;
+                 newLate.add(c.id);
               }
            }
        }
     });
-    setFaltas(missing);
-    setAtrasos(late);
+    setFaltasIds(newMissing);
+    setAtrasosIds(newLate);
 
     setLoading(false);
   };
@@ -101,6 +116,15 @@ export default function ColaboradoresPage() {
   const getDisplayList = () => {
     if (activeTab === 'ativos') {
         let list = colaboradores;
+        
+        if (statusFilter === 'DENTRO') {
+            list = list.filter(c => dentroAgoraIds.has(c.id));
+        } else if (statusFilter === 'ATRASOS') {
+            list = list.filter(c => atrasosIds.has(c.id));
+        } else if (statusFilter === 'FALTAS') {
+            list = list.filter(c => faltasIds.has(c.id));
+        }
+
         if (search) {
             const q = search.toLowerCase();
             list = list.filter(c => c.nome.toLowerCase().includes(q) || c.empresa?.toLowerCase().includes(q) || c.cargo.toLowerCase().includes(q));
@@ -207,21 +231,36 @@ export default function ColaboradoresPage() {
 
         {/* Panel Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-           <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Ativos</p>
-             <p className="text-2xl font-black text-slate-800 dark:text-white">{loading ? '-' : totalAtivos}</p>
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'ALL' ? 'ALL' : 'ALL')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ALL' ? 'bg-slate-900 border-slate-900 text-white scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ALL' ? 'text-slate-400' : 'text-slate-400'}`}>Total Ativos</p>
+             <p className={`text-2xl font-black ${statusFilter === 'ALL' ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{loading ? '-' : totalAtivos}</p>
            </div>
-           <div className="bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-2xl border border-emerald-200 dark:border-emerald-800/30 shadow-sm">
-             <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Dentro Agora</p>
-             <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{loading ? '-' : dentroAgoraCount}</p>
+           
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'DENTRO' ? 'ALL' : 'DENTRO')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'DENTRO' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'DENTRO' ? 'text-emerald-100' : 'text-emerald-600'}`}>Dentro Agora</p>
+             <p className={`text-2xl font-black ${statusFilter === 'DENTRO' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : dentroAgoraCount}</p>
            </div>
-           <div className="bg-amber-50 dark:bg-amber-900/10 p-4 rounded-2xl border border-amber-200 dark:border-amber-800/30 shadow-sm">
-             <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">Atrasados Hoje</p>
-             <p className="text-2xl font-black text-amber-600 dark:text-amber-400">{loading ? '-' : atrasos}</p>
+           
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'ATRASOS' ? 'ALL' : 'ATRASOS')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ATRASOS' ? 'bg-amber-500 border-amber-500 scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ATRASOS' ? 'text-amber-100' : 'text-amber-600'}`}>Atrasados Hoje</p>
+             <p className={`text-2xl font-black ${statusFilter === 'ATRASOS' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : atrasosIds.size}</p>
            </div>
-           <div className="bg-red-50 dark:bg-red-900/10 p-4 rounded-2xl border border-red-200 dark:border-red-800/30 shadow-sm">
-             <p className="text-[10px] font-black text-red-600 uppercase tracking-widest mb-1">Faltas Hoje</p>
-             <p className="text-2xl font-black text-red-600 dark:text-red-400">{loading ? '-' : faltas}</p>
+           
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'FALTAS' ? 'ALL' : 'FALTAS')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'FALTAS' ? 'bg-red-500 border-red-500 scale-[1.02]' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 hover:border-red-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'FALTAS' ? 'text-red-100' : 'text-red-600'}`}>Faltas Hoje</p>
+             <p className={`text-2xl font-black ${statusFilter === 'FALTAS' ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>{loading ? '-' : faltasIds.size}</p>
            </div>
         </div>
 
@@ -295,8 +334,10 @@ export default function ColaboradoresPage() {
                            <p className="text-[10px] text-slate-500 uppercase mt-0.5 max-w-[150px] truncate">{colab.empresa || 'Contratação Direta'}</p>
                          </td>
                          <td className="p-4 text-center">
-                           <div className="inline-block px-3 py-1.5 bg-slate-50 dark:bg-slate-900 rounded-lg text-xs font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm">
-                             {colab.horario_entrada?.slice(0,5) || '--:--'} ás {colab.horario_saida?.slice(0,5) || '--:--'}
+                           <div className="inline-block px-3 py-1.5 bg-slate-50 dark:bg-slate-900 rounded-lg text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 shadow-sm whitespace-nowrap">
+                             {colab.horarios_customizados && Object.keys(colab.horarios_customizados).length > 0 
+                               ? 'ESCALA DINÂMICA' 
+                               : '--:--'}
                            </div>
                            <p className="text-[9px] text-slate-400 font-bold tracking-widest mt-1 uppercase">
                               {colab.dias_semana ? colab.dias_semana.substring(0, 15) + (colab.dias_semana.length > 15 ? '...' : '') : 'SEM DIAS FIXOS'}

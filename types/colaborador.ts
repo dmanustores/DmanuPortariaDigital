@@ -15,8 +15,7 @@ export interface Colaborador {
   unidade_vinculada_id?: string | null;
   unidade_bloco?: string | null; // Joined from units
   unidade_numero?: string | null; // Joined from units
-  horario_entrada?: string | null; // 'HH:mm:ss'
-  horario_saida?: string | null; // 'HH:mm:ss'
+  horarios_customizados?: Record<string, { entrada: string; saida: string }> | null;
   dias_semana?: string | null; // 'SEG,TER,QUA...'
   status: StatusColaborador;
   criado_por?: string | null;
