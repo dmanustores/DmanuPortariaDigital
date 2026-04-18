@@ -44,6 +44,7 @@ interface Package {
   whatsapp_enviado: boolean;
   whatsapp_lido: boolean;
   whatsapp_mensagem_id?: string;
+  residente?: { nome: string; celular: string; bloco: string; apto: string };
 }
 
 export default function EncomendasPage() {
@@ -85,6 +86,7 @@ export default function EncomendasPage() {
       .from('packages')
       .select(`
         *,
+        residente:residents(nome, celular, bloco, apto),
         operador_recebe:operators!operador_recebimento_id(nome),
         operador_retira:operators!operador_retirada_id(nome),
         operador_recusa:operators!operador_recusa_id(nome)
@@ -267,64 +269,156 @@ export default function EncomendasPage() {
     fetchPackages();
   };
 
+  const [statusFilter, setStatusFilter] = useState<'AGUARDANDO' | 'TODOS' | 'RETIRADA' | 'RECUSADA' | 'WHATSAPP'>('AGUARDANDO');
+  const [dateFilter, setDateFilter] = useState<'HOJE' | 'TODOS'>('TODOS');
+
+  const isToday = (dateStr?: string | null) => {
+    if (!dateStr) return false;
+    const d = new Date(dateStr);
+    const now = new Date();
+    return d.getDate() === now.getDate() && 
+           d.getMonth() === now.getMonth() && 
+           d.getFullYear() === now.getFullYear();
+  };
+
   const pending = packages.filter(p => p.status === 'AGUARDANDO').length;
+  const recebidasHoje = packages.filter(p => isToday(p.recebida_em)).length;
+  const retiradasHoje = packages.filter(p => isToday(p.hora_retirada)).length;
+  const avisosEnviados = packages.filter(p => p.whatsapp_enviado).length;
 
   const filtered = packages.filter(p => {
     const matchSearch = !search || 
       (p.unidade_desc?.toLowerCase().includes(search.toLowerCase())) ||
       (p.transportadora.toLowerCase().includes(search.toLowerCase()));
-    const matchFilter = filter === 'TODOS' || p.status === filter;
-    return matchSearch && matchFilter;
+    
+    if (!matchSearch) return false;
+
+    // Aba "Aguardando Retirada" -> Só mostra o que é pendente
+    if (filter === 'AGUARDANDO') {
+        return p.status === 'AGUARDANDO';
+    }
+
+    // Se estivermos na aba "Histórico" (filter === 'TODOS')
+    // E NÃO houver um filtro cirúrgico ativo (card clicado)
+    // O padrão deve ser mostrar APENAS os casos concluídos
+    if (filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'TODOS') {
+        return p.status !== 'AGUARDANDO';
+    }
+
+    // Filtro específico para WhatsApp (clique no 4º card)
+    if (statusFilter === 'WHATSAPP') {
+        return p.whatsapp_enviado === true;
+    }
+
+    // Filtro de Data (Surgical Cards)
+    if (dateFilter === 'HOJE') {
+       if (statusFilter === 'RETIRADA') return isToday(p.hora_retirada);
+       return isToday(p.recebida_em);
+    }
+
+    // Filtro de Status Específico (Surgical Cards)
+    if (statusFilter !== 'TODOS' && p.status !== statusFilter) return false;
+    
+    return true;
   });
 
   return (
     <DashboardLayout>
-      <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 mb-4 sm:mb-8">
-        <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-          <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Encomendas</h2>
-          <p className="text-slate-500 mt-0.5 sm:mt-1 text-xs sm:text-sm">Controle de entregas</p>
-        </motion.div>
-
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          <div className="bg-amber-100 dark:bg-amber-900/30 px-3 sm:px-4 py-1.5 sm:py-2 rounded-lg border border-amber-200 dark:border-amber-800">
-            <span className="text-amber-700 dark:text-amber-400 font-black text-[10px] sm:text-xs uppercase tracking-tight">{pending} pendentes</span>
+      <div className="space-y-6">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+              <span className="p-2.5 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <Package size={24} />
+              </span>
+              Encomendas
+            </h1>
+            <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-widest">
+              Controle de entregas e fluxo de correspondências
+            </p>
           </div>
-          <motion.button 
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowModal(true)}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-primary text-white px-4 sm:px-5 py-2 sm:py-2.5 rounded-lg font-bold text-xs sm:text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
-          >
-            <Plus size={16} />
-            Nova Encomenda
-          </motion.button>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={fetchPackages} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm transition-colors uppercase">
+              Atualizar
+            </button>
+            <button onClick={() => setShowModal(true)} className="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-xl font-black flex items-center gap-2 shadow-lg shadow-blue-500/20 transition-all">
+              <Plus size={18} /> Nova Encomenda
+            </button>
+          </div>
         </div>
-      </div>
 
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 dark:text-slate-400" size={18} />
-          <input 
-            type="text"
-            placeholder="Buscar por unidade ou transportadora..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-sm shadow-sm"
-          />
+        {/* Panel Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+           {/* Pendentes */}
+           <div 
+             onClick={() => { setFilter('AGUARDANDO'); setStatusFilter('AGUARDANDO'); setDateFilter('TODOS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${filter === 'AGUARDANDO' ? 'bg-amber-500 border-amber-500 text-white scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${filter === 'AGUARDANDO' ? 'text-amber-100' : 'text-amber-600'}`}>Aguardando</p>
+             <p className={`text-2xl font-black ${filter === 'AGUARDANDO' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : pending}</p>
+           </div>
+           
+           {/* Recebidas Hoje */}
+           <div 
+             onClick={() => { setFilter('TODOS'); setStatusFilter('TODOS'); setDateFilter('HOJE'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'bg-blue-600 border-blue-600 scale-[1.02]' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/30 hover:border-blue-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'text-blue-100' : 'text-blue-600'}`}>Chegaram Hoje</p>
+             <p className={`text-2xl font-black ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>{loading ? '-' : recebidasHoje}</p>
+           </div>
+           
+           {/* Retiradas Hoje */}
+           <div 
+             onClick={() => { setFilter('TODOS'); setStatusFilter('RETIRADA'); setDateFilter('HOJE'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'text-emerald-100' : 'text-emerald-600'}`}>Retiradas Hoje</p>
+             <p className={`text-2xl font-black ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : retiradasHoje}</p>
+           </div>
+           
+           {/* Avisos */}
+           <div 
+             onClick={() => { setFilter('TODOS'); setStatusFilter('WHATSAPP'); setDateFilter('TODOS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'WHATSAPP' ? 'bg-indigo-600 border-indigo-600 text-white scale-[1.02]' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800/30 hover:border-indigo-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'WHATSAPP' ? 'text-indigo-100' : 'text-indigo-600'}`}>Avisos via WhatsApp</p>
+             <p className={`text-2xl font-black ${statusFilter === 'WHATSAPP' ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`}>{loading ? '-' : avisosEnviados}</p>
+           </div>
         </div>
-        <select 
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          className="px-4 py-2.5 sm:py-3 bg-white text-slate-900 dark:bg-slate-900 dark:text-white border border-slate-200 dark:border-slate-800 rounded-lg text-sm font-bold outline-none shadow-sm"
-        >
-          <option value="TODOS">Todos Status</option>
-          <option value="AGUARDANDO">Aguardando</option>
-          <option value="RETIRADA">Retiradas</option>
-          <option value="RECUSADA">Recusadas</option>
-        </select>
-      </div>
 
-      <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+        {/* Controls */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+           <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-stretch md:self-auto overflow-x-auto">
+             <button 
+               onClick={() => { setFilter('AGUARDANDO'); setStatusFilter('AGUARDANDO'); setDateFilter('TODOS'); }} 
+               className={`px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap flex items-center gap-2 ${filter === 'AGUARDANDO' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             >
+               Aguardando Retirada
+             </button>
+             <button 
+               onClick={() => { setFilter('TODOS'); setStatusFilter('TODOS'); setDateFilter('TODOS'); }} 
+               className={`px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap flex items-center gap-2 ${filter === 'TODOS' && dateFilter === 'TODOS' ? 'bg-white dark:bg-slate-700 text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             >
+               <Clock size={14} /> Histórico Completo
+             </button>
+           </div>
+
+           <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                 type="text"
+                 placeholder="Buscar por morador ou transportadora..."
+                 value={search}
+                 onChange={(e) => setSearch(e.target.value)}
+                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/20"
+              />
+           </div>
+        </div>
+
+      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[800px] sm:min-w-0">
             <thead className="bg-slate-50 dark:bg-slate-800/50">
@@ -386,25 +480,46 @@ export default function EncomendasPage() {
                   <td className="p-4 text-center">
                     <div className="flex flex-col items-center justify-center gap-1">
                       {pkg.whatsapp_enviado ? (
-                        <button 
-                          onClick={() => toggleWhatsAppLido(pkg)}
-                          className={`flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-lg border border-green-100 dark:border-green-800 transition-all ${
-                            pkg.whatsapp_lido ? 'cursor-default' : 'hover:scale-105 cursor-pointer'
-                          }`}
-                          title={pkg.whatsapp_lido ? "Mensagem confirmada como lida" : "Clique para marcar como lida"}
-                        >
-                          {pkg.whatsapp_lido ? (
-                            <>
-                              <Eye size={12} className="text-primary animate-pulse" />
-                              <span className="text-[10px] font-black text-primary uppercase leading-none">Lida</span>
-                            </>
-                          ) : (
-                            <>
-                              <Check size={12} className="text-green-600" />
-                              <span className="text-[10px] font-bold text-green-600 uppercase leading-none">Enviada</span>
-                            </>
+                        <div className="flex flex-col items-center">
+                          <button 
+                            onClick={() => toggleWhatsAppLido(pkg)}
+                            className={`flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-lg border border-green-100 dark:border-green-800 transition-all ${
+                              pkg.whatsapp_lido ? 'cursor-default' : 'hover:scale-105 cursor-pointer'
+                            }`}
+                            title={pkg.whatsapp_lido ? "Mensagem confirmada como lida" : "Clique para marcar como lida"}
+                          >
+                            {pkg.whatsapp_lido ? (
+                              <>
+                                <Eye size={12} className="text-primary animate-pulse" />
+                                <span className="text-[10px] font-black text-primary uppercase leading-none">Lida</span>
+                              </>
+                            ) : (
+                              <>
+                                <Check size={12} className="text-green-600" />
+                                <span className="text-[10px] font-bold text-green-600 uppercase leading-none">Enviada</span>
+                              </>
+                            )}
+                          </button>
+                          
+                          {/* Detalhes do Destinatário (Requisito Especial) */}
+                          <div className="mt-2 text-center">
+                             <p className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
+                                {pkg.residente?.nome || 'Morador'}
+                             </p>
+                             <p className="text-[9px] font-bold text-slate-500 flex items-center justify-center gap-1">
+                                <TruckIcon size={8} /> {pkg.residente?.celular || '-'}
+                             </p>
+                          </div>
+                          
+                          {/* Histórico da Mensagem */}
+                          {statusFilter === 'WHATSAPP' && (
+                            <div className="mt-2 p-2 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-lg max-w-[200px]">
+                               <p className="text-[9px] text-indigo-700 dark:text-indigo-400 italic leading-snug">
+                                 "Olá {pkg.residente?.nome?.split(' ')[0]}, sua encomenda da *{pkg.transportadora}* chegou na Portaria!"
+                               </p>
+                            </div>
                           )}
-                        </button>
+                        </div>
                       ) : pkg.status === 'AGUARDANDO' ? (
                         <button 
                           onClick={() => handleManualWhatsApp(pkg)}
@@ -779,6 +894,7 @@ export default function EncomendasPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </DashboardLayout>
   );
 }

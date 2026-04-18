@@ -29,7 +29,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
-import { getCurrentOperatorId, capitalize, formatPlate } from '@/lib/utils';
+import { getCurrentOperatorId, capitalize, formatPlate, formatCPF, formatRG } from '@/lib/utils';
 import { vehiclesService, VehicleAccessLog } from '@/lib/vehicles-service';
 
 interface Vehicle {
@@ -105,7 +105,8 @@ export default function VeiculosPage() {
   });
 
   // --- NOVOS ESTADOS ---
-  const [activeTab, setActiveTab] = useState<'ATIVOS' | 'PENDENCIAS' | 'HISTORICO'>('ATIVOS');
+  const [activeTab, setActiveTab] = useState<'ATIVOS' | 'HISTORICO'>('ATIVOS');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DENTRO' | 'PENDENCIAS' | 'HISTORICO'>('ALL');
   const [settings, setSettings] = useState({ tempo_alerta_permanencia: 480, tipo_padrao_novo_veiculo: 'VISITANTE' });
   const [accessHistory, setAccessHistory] = useState<VehicleAccessLogEnriched[]>([]);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -547,14 +548,17 @@ export default function VeiculosPage() {
     const matchFilter = activeFilters.length === 0 || activeFilters.includes(v.tipo);
     
     if (activeTab === 'ATIVOS') {
-      // Exibir sempre moradores + quem está DENTRO
-      return matchSearch && matchFilter && (isMorador || v.lastAccess?.status === 'DENTRO');
-    }
-    
-    if (activeTab === 'PENDENCIAS') {
-      if (isMorador || !v.lastAccess || v.lastAccess.status !== 'DENTRO') return false;
-      const diffMin = (currentTime.getTime() - new Date(v.lastAccess.hora_entrada).getTime()) / (1000 * 60);
-      return matchSearch && (diffMin > settings.tempo_alerta_permanencia);
+      const baseMatch = isMorador || v.lastAccess?.status === 'DENTRO';
+      const statusMatch = statusFilter === 'DENTRO' ? (v.lastAccess?.status === 'DENTRO') : true;
+      
+      // Lógica de Pendências unificada nos cards
+      if (statusFilter === 'PENDENCIAS') {
+         if (isMorador || !v.lastAccess || v.lastAccess.status !== 'DENTRO') return false;
+         const diffMin = (currentTime.getTime() - new Date(v.lastAccess.hora_entrada).getTime()) / (1000 * 60);
+         return matchSearch && matchFilter && (diffMin > settings.tempo_alerta_permanencia);
+      }
+      
+      return matchSearch && matchFilter && baseMatch && statusMatch;
     }
 
     return false;
@@ -573,66 +577,77 @@ export default function VeiculosPage() {
     <DashboardLayout>
       {/* HEADER & DASHBOARD */}
       <div className="flex flex-col gap-6 mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white">Veículos</h2>
-            <p className="text-slate-500 mt-1 text-sm">Controle operacional de acesso vehicular</p>
+            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Veículos</h2>
+            <p className="text-slate-500 mt-1 text-sm font-bold uppercase tracking-widest">Controle operacional de acesso vehicular</p>
           </motion.div>
 
-          <div className="flex flex-wrap items-center gap-3">
-             {(userRole === 'Owner' || userRole === 'Admin') && (
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            <button 
+              onClick={fetchVehicles} 
+              className="flex-1 md:flex-none px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-xs transition-colors uppercase"
+            >
+              Atualizar
+            </button>
+            {(userRole === 'Owner' || userRole === 'Admin') && (
               <button 
                 onClick={() => setShowSettings(true)}
-                className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-600 hover:bg-slate-200 transition-all"
+                className="p-2.5 bg-slate-100 dark:bg-slate-800 rounded-xl text-slate-600 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all border border-slate-200 dark:border-slate-800"
                 title="Configurações"
               >
                 <Settings size={20} />
               </button>
-             )}
+            )}
             <motion.button 
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
               onClick={() => setShowModal(true)}
-              className="flex items-center gap-2 bg-primary text-white px-5 py-2.5 rounded-lg font-bold text-sm hover:bg-primary/90 shadow-lg shadow-primary/20"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 bg-blue-500 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl font-black text-xs shadow-lg shadow-blue-500/20 transition-all uppercase tracking-widest"
             >
               <Plus size={18} />
-              Entrada / Cadastro
+              Nova Entrada
             </motion.button>
           </div>
         </div>
 
-        {/* CARDS INDICADORES */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">No Condomínio Agora</p>
-              <p className="text-2xl sm:text-3xl font-black text-green-600">{noCondominioCount}</p>
-            </div>
-            <div className="size-10 sm:size-12 bg-green-50 dark:bg-green-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-green-600">
-              <Car size={20} className="sm:hidden" />
-              <Car size={24} className="hidden sm:block" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">Entradas Hoje</p>
-              <p className="text-2xl sm:text-3xl font-black text-blue-600">{entradasHojeCount}</p>
-            </div>
-            <div className="size-10 sm:size-12 bg-blue-50 dark:bg-blue-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-blue-600">
-              <LogIn size={20} className="sm:hidden" />
-              <LogIn size={24} className="hidden sm:block" />
-            </div>
-          </div>
-          <div className="bg-white dark:bg-slate-900 p-4 sm:p-5 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm flex items-center justify-between col-span-1 sm:col-span-2 lg:col-span-1">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 sm:mb-1">Permanência Longa</p>
-              <p className="text-2xl sm:text-3xl font-black text-red-600">{pendenciasCount}</p>
-            </div>
-            <div className="size-10 sm:size-12 bg-red-50 dark:bg-red-900/10 rounded-lg sm:rounded-xl flex items-center justify-center text-red-600">
-              <AlertTriangle size={20} className="sm:hidden" />
-              <AlertTriangle size={24} className="hidden sm:block" />
-            </div>
-          </div>
+        {/* Panel Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+           {/* Total Registrados */}
+           <div 
+             onClick={() => { setActiveTab('ATIVOS'); setStatusFilter('ALL'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all hover:border-slate-400 ${activeTab === 'ATIVOS' && statusFilter === 'ALL' ? 'bg-slate-900 border-slate-900 text-white scale-[1.02]' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ATIVOS' && statusFilter === 'ALL' ? 'text-slate-400' : 'text-slate-400'}`}>Total Registrados</p>
+             <p className={`text-2xl font-black ${activeTab === 'ATIVOS' && statusFilter === 'ALL' ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{loading ? '-' : vehicles.length}</p>
+           </div>
+           
+           {/* No Condomínio */}
+           <div 
+             onClick={() => { setActiveTab('ATIVOS'); setStatusFilter('DENTRO'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all hover:border-emerald-400 ${activeTab === 'ATIVOS' && statusFilter === 'DENTRO' ? 'bg-emerald-500 border-emerald-500 text-white scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ATIVOS' && statusFilter === 'DENTRO' ? 'text-emerald-100' : 'text-emerald-600'}`}>Dentro Agora</p>
+             <p className={`text-2xl font-black ${activeTab === 'ATIVOS' && statusFilter === 'DENTRO' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : noCondominioCount}</p>
+           </div>
+           
+           {/* Entradas Hoje */}
+           <div 
+             onClick={() => { setActiveTab('HISTORICO'); setStatusFilter('HISTORICO'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all hover:border-blue-400 ${activeTab === 'HISTORICO' ? 'bg-blue-500 border-blue-500 text-white scale-[1.02]' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/30'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'HISTORICO' ? 'text-blue-100' : 'text-blue-600'}`}>Entradas Hoje</p>
+             <p className={`text-2xl font-black ${activeTab === 'HISTORICO' ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>{loading ? '-' : entradasHojeCount}</p>
+           </div>
+
+           {/* Alertas */}
+           <div 
+             onClick={() => { setActiveTab('ATIVOS'); setStatusFilter('PENDENCIAS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all hover:border-red-400 ${activeTab === 'ATIVOS' && statusFilter === 'PENDENCIAS' ? 'bg-red-500 border-red-500 text-white scale-[1.02]' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ATIVOS' && statusFilter === 'PENDENCIAS' ? 'text-red-100' : (pendenciasCount > 0 ? 'text-red-500' : 'text-red-600')}`}>Alertas Permanência</p>
+             <p className={`text-2xl font-black ${activeTab === 'ATIVOS' && statusFilter === 'PENDENCIAS' ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>{loading ? '-' : pendenciasCount}</p>
+           </div>
         </div>
 
         {/* ALERT BANNER */}
@@ -641,7 +656,7 @@ export default function VeiculosPage() {
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             className="bg-red-600 text-white p-2.5 sm:p-3 rounded-lg sm:rounded-xl flex items-center justify-between shadow-lg shadow-red-600/20 cursor-pointer"
-            onClick={() => setActiveTab('PENDENCIAS')}
+            onClick={() => { setActiveTab('ATIVOS'); setStatusFilter('PENDENCIAS'); }}
           >
             <div className="flex items-center gap-2 sm:gap-3">
               <AlertCircle size={18} className="animate-pulse flex-none" />
@@ -652,53 +667,45 @@ export default function VeiculosPage() {
         )}
       </div>
 
-      {/* TABS & SEARCH */}
-      <div className="flex flex-col gap-4 mb-6">
-        <div className="flex border-b border-slate-200 dark:border-slate-800 overflow-x-auto scrollbar-hide">
-          <button 
-            onClick={() => setActiveTab('ATIVOS')}
-            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'ATIVOS' ? 'border-primary text-primary' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-            <span className="sm:hidden">Ativos</span>
-            <span className="hidden sm:inline">Ativos / No Momentos</span>
-          </button>
-          <button 
-            onClick={() => setActiveTab('PENDENCIAS')}
-            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'PENDENCIAS' ? 'border-red-500 text-red-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-            ⚠️ Pendências {pendenciasCount > 0 && <span className="bg-red-100 text-red-600 px-1.5 rounded-full text-[10px]">{pendenciasCount}</span>}
-          </button>
-          <button 
-            onClick={() => setActiveTab('HISTORICO')}
-            className={`px-4 sm:px-6 py-2.5 sm:py-3 font-bold text-xs sm:text-sm transition-all border-b-2 whitespace-nowrap ${activeTab === 'HISTORICO' ? 'border-amber-500 text-amber-500' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-          >
-            <span className="sm:hidden">Histórico</span>
-            <span className="hidden sm:inline">Histórico Geral</span>
-          </button>
-        </div>
+        {/* Tab & Search Control Row */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+           <div className="flex p-1 bg-slate-100 dark:bg-slate-800 rounded-xl w-full md:w-auto overflow-x-auto scrollbar-hide">
+              <button 
+                onClick={() => { setActiveTab('ATIVOS'); setStatusFilter('ALL'); }}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-[10px] transition-all uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'ATIVOS' && statusFilter === 'ALL' ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                No Momento
+              </button>
+              <button 
+                onClick={() => { setActiveTab('HISTORICO'); setStatusFilter('HISTORICO'); }}
+                className={`flex-1 md:flex-none px-6 py-2 rounded-lg font-bold text-[10px] transition-all uppercase tracking-widest flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'HISTORICO' ? 'bg-white dark:bg-slate-700 text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                <History size={14} /> Histórico
+              </button>
+           </div>
 
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input 
-              type="text"
-              placeholder="Buscar por placa, modelo ou unidade..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg shadow-sm"
-            />
-          </div>
-          {activeTab === 'HISTORICO' && (
-            <button 
-              onClick={exportCSV}
-              className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-3 rounded-lg font-bold text-sm hover:bg-emerald-700 shadow-md"
-            >
-              <Download size={18} />
-              Exportar CSV
-            </button>
-          )}
+           <div className="flex w-full md:w-auto items-center gap-2 px-2">
+              <div className="relative flex-1 md:w-80">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
+                  type="text"
+                  placeholder="Buscar placa, modelo ou unidade..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs transition-all focus:ring-4 focus:ring-blue-500/10 outline-none"
+                />
+              </div>
+              {activeTab === 'HISTORICO' && (
+                <button 
+                  onClick={exportCSV}
+                  className="p-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-all shadow-lg shadow-emerald-600/20"
+                  title="Exportar CSV"
+                >
+                  <Download size={18} />
+                </button>
+              )}
+           </div>
         </div>
-      </div>
 
       {/* LIST CONTENT */}
       <div className="bg-white dark:bg-slate-900 rounded-xl sm:rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
@@ -764,14 +771,15 @@ export default function VeiculosPage() {
 
                 {/* Row 3: Timestamps (histórico) ou Ações */}
                 {isHistory ? (
-                  <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
-                    <div className="text-[10px] font-bold text-slate-500 space-y-0.5">
-                      <div><span className="text-slate-400">Entrada:</span> {new Date(a.hora_entrada).toLocaleString('pt-BR')}</div>
-                      <div><span className="text-slate-400">Saída:</span> {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '---'}</div>
+                  <div className="flex items-start justify-between pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="flex flex-col gap-1 text-[10px] font-bold text-slate-500">
+                      <span className="flex items-center gap-1"><LogIn size={10} className="text-emerald-500" /> {new Date(a.hora_entrada).toLocaleString('pt-BR')}</span>
+                      <span className="flex items-center gap-1"><LogOut size={10} className="text-red-500" /> {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '---'}</span>
                     </div>
-                    {a.operador_entrada?.nome && (
-                      <span className="text-[10px] font-black text-primary uppercase">{a.operador_entrada.nome.split(' ')[0]}</span>
-                    )}
+                    <div className="flex flex-col items-end gap-1 text-[10px] font-black uppercase text-slate-500">
+                      <p className="flex items-center gap-1"><LogIn size={10} className="text-emerald-500" /> {a.operador_entrada?.nome?.split(' ')[0] || '---'}</p>
+                      {a.hora_saida && <p className="flex items-center gap-1"><LogOut size={10} className="text-red-500" /> {a.operador_saida?.nome?.split(' ')[0] || (a.operador_entrada?.nome?.split(' ')[0] || '---')}</p>}
+                    </div>
                   </div>
                 ) : (
                   <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
@@ -920,15 +928,18 @@ export default function VeiculosPage() {
                     ) : (
                       <>
                         <td className="p-4">
-                          <div className="flex flex-col text-[10px] font-bold">
-                            <span className="text-slate-700 dark:text-slate-300">E: {new Date(a.hora_entrada).toLocaleString('pt-BR')}</span>
-                            <span className="text-slate-400">S: {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '---'}</span>
-                          </div>
+                           <div className="flex flex-col gap-1 text-xs font-bold text-slate-600 dark:text-slate-400">
+                              <span className="flex items-center gap-1" title="Horário de Entrada"><LogIn size={12} className="text-emerald-500" /> {a.hora_entrada ? new Date(a.hora_entrada).toLocaleString('pt-BR') : '-'}</span>
+                              <span className="flex items-center gap-1" title="Horário de Saída"><LogOut size={12} className="text-red-500" /> {a.hora_saida ? new Date(a.hora_saida).toLocaleString('pt-BR') : '-'}</span>
+                           </div>
                         </td>
                         <td className="p-4">
-                          <span className="text-[10px] font-black text-primary uppercase">
-                            {a.operador_entrada?.nome?.split(' ')[0] || '---'}
-                          </span>
+                           <div className="flex flex-col gap-1 text-[10px] font-bold uppercase text-slate-500">
+                              <p className="flex items-center gap-1" title="Quem registrou entrada"><LogIn size={10} className="text-emerald-500" /> {a.operador_entrada?.nome?.split(' ')[0] || '---'}</p>
+                              {a.hora_saida && (
+                                <p className="flex items-center gap-1" title="Quem registrou saída"><LogOut size={10} className="text-red-500" /> {a.operador_saida?.nome?.split(' ')[0] || (a.operador_entrada?.nome?.split(' ')[0] || '---')}</p>
+                              )}
+                           </div>
                         </td>
                       </>
                     )}
@@ -989,7 +1000,7 @@ export default function VeiculosPage() {
                 <textarea 
                   value={exitNotes}
                   onChange={(e) => setExitNotes(e.target.value)}
-                  className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl text-sm"
+                  className="w-full p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500/20"
                   placeholder="Ex: Deixou chave na portaria..."
                 />
               </div>
@@ -1114,8 +1125,12 @@ export default function VeiculosPage() {
                         <input 
                           type="text"
                           value={formData.documento}
-                          onChange={(e) => setFormData({...formData, documento: e.target.value})}
-                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-mono"
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const masked = formData.tipoDocumento === 'CPF' ? formatCPF(val) : formatRG(val);
+                            setFormData({...formData, documento: masked});
+                          }}
+                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-white"
                           placeholder={formData.tipoDocumento === 'CPF' ? '000.000.000-00' : '00.000.000-0'}
                           maxLength={formData.tipoDocumento === 'CPF' ? 14 : 12}
                         />
@@ -1133,14 +1148,17 @@ export default function VeiculosPage() {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-bold mb-2 text-primary">Placa *</label>
-                      <input 
-                        type="text"
-                        value={formData.placa}
-                        onChange={(e) => setFormData({...formData, placa: e.target.value.toUpperCase()})}
-                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-lg"
-                        placeholder="AAA-0000"
-                        maxLength={8}
-                      />
+                        <input 
+                          type="text"
+                          value={formData.placa}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            setFormData({...formData, placa: formatPlate(val)});
+                          }}
+                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-lg text-slate-900 dark:text-white"
+                          placeholder="AAA-0000"
+                          maxLength={8}
+                        />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">

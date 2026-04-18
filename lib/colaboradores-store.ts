@@ -67,7 +67,8 @@ export async function getRegistrosColaboradores(filtros?: { dataInicio?: string,
     .select(`
       *,
       colaboradores (nome, cargo, empresa),
-      operators:porteiro_id (nome)
+      porteiro_entrada:operators!porteiro_id (nome),
+      porteiro_saida:operators!porteiro_saida_id (nome)
     `)
     .order('hora_entrada', { ascending: false });
 
@@ -96,7 +97,8 @@ export async function getRegistrosColaboradores(filtros?: { dataInicio?: string,
 
   return result.map((item: any) => ({
     ...item,
-    porteiro_nome: item.operators?.nome,
+    porteiro_nome: item.porteiro_entrada?.nome,
+    porteiro_saida_nome: item.porteiro_saida?.nome,
     colaborador: item.colaboradores
   }));
 }
@@ -125,6 +127,11 @@ export async function registrarEntradaColaborador(colaborador_id: string, observ
 }
 
 export async function registrarSaidaColaborador(registro_id: string, observacoes?: string): Promise<RegistroColaborador> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.user) throw new Error('Não autorizado. Faça login primeiro.');
+
+  const porteiro_saida_id = session.user.id;
+
   // Buscar o registro original para calcular os minutos
   const { data: registroAnterior, error: fetchErr } = await supabase
     .from('registros_colaboradores')
@@ -152,6 +159,7 @@ export async function registrarSaidaColaborador(registro_id: string, observacoes
       hora_saida,
       permanencia_min,
       status: 'SAIU',
+      porteiro_saida_id,
       observacoes: finalObs
     })
     .eq('id', registro_id)

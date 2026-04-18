@@ -14,7 +14,7 @@ import { RegistroColaboradorModal } from '@/components/RegistroColaboradorModal'
 import { supabase } from '@/lib/supabase';
 
 export default function ColaboradoresPage() {
-  const [activeTab, setActiveTab] = useState<'ativos' | 'pendencias' | 'historico'>('ativos');
+  const [activeTab, setActiveTab] = useState<'ativos' | 'historico'>('ativos');
   const [colaboradores, setColaboradores] = useState<Colaborador[]>([]);
   const [registros, setRegistros] = useState<RegistroColaborador[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,14 +83,12 @@ export default function ColaboradoresPage() {
            const expectedTime = new Date();
            expectedTime.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
            
-           if (!isInside && now.getTime() > expectedTime.getTime() + (2 * 60 * 60 * 1000) && todayRegs.length === 0) {
-              newMissing.add(c.id);
-           }
-           
-           if (todayRegs.length > 0) {
-              const entradaFirst = new Date(todayRegs[todayRegs.length - 1].hora_entrada!); // since it's ordered desc, last in array is first of day
-              if (entradaFirst.getTime() > expectedTime.getTime() + (30 * 60000)) {
-                 newLate.add(c.id);
+           if (todayRegs.length === 0) {
+              const diffMs = now.getTime() - expectedTime.getTime();
+              if (diffMs > (2 * 60 * 60 * 1000)) {
+                  newMissing.add(c.id); // Mais de 2h = Falta
+              } else if (diffMs > (30 * 60 * 1000)) {
+                  newLate.add(c.id); // Mais de 30m e menos de 2h = Atraso
               }
            }
        }
@@ -185,7 +183,8 @@ export default function ColaboradoresPage() {
           'Cargo': r.colaborador?.cargo || '',
           'Status': r.status,
           'Perminencia(m)': r.permanencia_min || '',
-          'Porteiro': r.porteiro_nome || '',
+          'Porteiro Entrada': r.porteiro_nome || '',
+          'Porteiro Saída': r.porteiro_saida_nome || '',
           'Anotações': r.observacoes || ''
       }));
 
@@ -232,51 +231,54 @@ export default function ColaboradoresPage() {
         {/* Panel Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
            <div 
-             onClick={() => setStatusFilter(statusFilter === 'ALL' ? 'ALL' : 'ALL')}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ALL' ? 'bg-slate-900 border-slate-900 text-white scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+             onClick={() => { setActiveTab('ativos'); setStatusFilter('ALL'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${activeTab === 'ativos' && statusFilter === 'ALL' ? 'bg-slate-900 border-slate-900 text-white scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ALL' ? 'text-slate-400' : 'text-slate-400'}`}>Total Ativos</p>
-             <p className={`text-2xl font-black ${statusFilter === 'ALL' ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{loading ? '-' : totalAtivos}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ativos' && statusFilter === 'ALL' ? 'text-slate-400' : 'text-slate-400'}`}>Total Ativos</p>
+             <p className={`text-2xl font-black ${activeTab === 'ativos' && statusFilter === 'ALL' ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{loading ? '-' : totalAtivos}</p>
            </div>
            
            <div 
-             onClick={() => setStatusFilter(statusFilter === 'DENTRO' ? 'ALL' : 'DENTRO')}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'DENTRO' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
+             onClick={() => { setActiveTab('ativos'); setStatusFilter(statusFilter === 'DENTRO' ? 'ALL' : 'DENTRO'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${activeTab === 'ativos' && statusFilter === 'DENTRO' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'DENTRO' ? 'text-emerald-100' : 'text-emerald-600'}`}>Dentro Agora</p>
-             <p className={`text-2xl font-black ${statusFilter === 'DENTRO' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : dentroAgoraCount}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ativos' && statusFilter === 'DENTRO' ? 'text-emerald-100' : 'text-emerald-600'}`}>Dentro Agora</p>
+             <p className={`text-2xl font-black ${activeTab === 'ativos' && statusFilter === 'DENTRO' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : dentroAgoraCount}</p>
            </div>
            
            <div 
-             onClick={() => setStatusFilter(statusFilter === 'ATRASOS' ? 'ALL' : 'ATRASOS')}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ATRASOS' ? 'bg-amber-500 border-amber-500 scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+             onClick={() => { setActiveTab('ativos'); setStatusFilter(statusFilter === 'ATRASOS' ? 'ALL' : 'ATRASOS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${activeTab === 'ativos' && statusFilter === 'ATRASOS' ? 'bg-amber-500 border-amber-500 scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ATRASOS' ? 'text-amber-100' : 'text-amber-600'}`}>Atrasados Hoje</p>
-             <p className={`text-2xl font-black ${statusFilter === 'ATRASOS' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : atrasosIds.size}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ativos' && statusFilter === 'ATRASOS' ? 'text-amber-100' : 'text-amber-600'}`}>Atrasados Hoje</p>
+             <p className={`text-2xl font-black ${activeTab === 'ativos' && statusFilter === 'ATRASOS' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : atrasosIds.size}</p>
            </div>
            
            <div 
-             onClick={() => setStatusFilter(statusFilter === 'FALTAS' ? 'ALL' : 'FALTAS')}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'FALTAS' ? 'bg-red-500 border-red-500 scale-[1.02]' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 hover:border-red-400'}`}
+             onClick={() => { setActiveTab('ativos'); setStatusFilter(statusFilter === 'FALTAS' ? 'ALL' : 'FALTAS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${activeTab === 'ativos' && statusFilter === 'FALTAS' ? 'bg-red-500 border-red-500 scale-[1.02]' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/30 hover:border-red-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'FALTAS' ? 'text-red-100' : 'text-red-600'}`}>Faltas Hoje</p>
-             <p className={`text-2xl font-black ${statusFilter === 'FALTAS' ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>{loading ? '-' : faltasIds.size}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ativos' && statusFilter === 'FALTAS' ? 'text-red-100' : 'text-red-600'}`}>Faltas Hoje</p>
+             <p className={`text-2xl font-black ${activeTab === 'ativos' && statusFilter === 'FALTAS' ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>{loading ? '-' : faltasIds.size}</p>
            </div>
         </div>
 
         {/* Tabs & Search */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-slate-800 p-2 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm">
-          <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-stretch md:self-auto overflow-x-auto">
-            <button onClick={() => setActiveTab('ativos')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'ativos' ? 'bg-white dark:bg-slate-800 text-blue-600 dark:text-blue-400 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 scale-95'}`}>
-              Lista Geral
-            </button>
-            <button onClick={() => setActiveTab('pendencias')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'pendencias' ? 'bg-white dark:bg-slate-800 text-red-600 dark:text-red-400 shadow-sm scale-100' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 scale-95'}`}>
-              ⚠️ Pendências
-            </button>
-            <button onClick={() => setActiveTab('historico')} className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap ${activeTab === 'historico' ? 'bg-white dark:bg-slate-800 text-slate-800 dark:text-white shadow-sm scale-100' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 scale-95'}`}>
-              <Clock size={14} className="inline mr-1" /> Histórico
-            </button>
-          </div>
+           <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-stretch md:self-auto overflow-x-auto">
+             <button 
+               onClick={() => { setActiveTab('ativos'); setStatusFilter('ALL'); }} 
+               className={`px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'ativos' && statusFilter === 'ALL' ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             >
+               Lista Geral
+             </button>
+             <button 
+               onClick={() => { setActiveTab('historico'); setStatusFilter('ALL'); }} 
+               className={`px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap flex items-center gap-2 ${activeTab === 'historico' ? 'bg-white dark:bg-slate-800 text-amber-500 shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             >
+               <Clock size={14} /> Histórico
+             </button>
+           </div>
           
           {activeTab === 'ativos' && (
             <div className="relative w-full md:w-72 mt-2 md:mt-0">
@@ -391,13 +393,7 @@ export default function ColaboradoresPage() {
              </div>
            )}
 
-           {activeTab === 'pendencias' && (
-             <div className="p-8 text-center bg-red-50/50 dark:bg-red-900/5">
-                <AlertTriangle size={32} className="mx-auto text-red-400 mb-3" />
-                <h3 className="font-black text-red-600 dark:text-red-400 uppercase text-lg">Sem Pendências Alarmantes</h3>
-                <p className="text-slate-500 text-sm mt-1">O sistema está monitorando os horários automaticamente.</p>
-             </div>
-           )}
+
 
            {activeTab === 'historico' && (
              <div className="overflow-x-auto">
@@ -407,7 +403,7 @@ export default function ColaboradoresPage() {
                      <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Colaborador / Cargo</th>
                      <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Entrada/Saída (Registro)</th>
                      <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Perm.</th>
-                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Porteiro</th>
+                     <th className="p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Resp. pela Porta</th>
                    </tr>
                  </thead>
                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -433,7 +429,12 @@ export default function ColaboradoresPage() {
                               <span className="bg-emerald-50 dark:bg-emerald-900/10 text-emerald-600 font-black text-[10px] px-2 py-1 rounded uppercase">DENTRO</span>
                            )}
                         </td>
-                        <td className="p-4 text-xs font-bold uppercase text-slate-500">{reg.porteiro_nome || 'N/A'}</td>
+                        <td className="p-4">
+                           <div className="flex flex-col gap-1 text-[10px] font-bold uppercase text-slate-500">
+                              <p className="flex items-center gap-1" title="Quem abriu a entrada"><LogIn size={10} className="text-emerald-500" /> {reg.porteiro_nome || 'N/A'}</p>
+                              {reg.hora_saida && <p className="flex items-center gap-1" title="Quem fechou a saída"><LogOut size={10} className="text-red-500" /> {reg.porteiro_saida_nome || 'N/A'}</p>}
+                           </div>
+                        </td>
                      </tr>
                    ))}
                  </tbody>

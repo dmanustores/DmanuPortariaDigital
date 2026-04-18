@@ -167,67 +167,94 @@ export default function VagasPage() {
 
   return (
     <DashboardLayout>
-      <div className="p-4 sm:p-8 max-w-7xl mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="space-y-6">
+        
+        {/* Header */}
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-3">
-              <KeySquare className="text-primary size-8 sm:size-10" />
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tight flex items-center gap-3">
+              <span className="p-2.5 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <KeySquare size={24} />
+              </span>
               Gestão de Vagas
             </h1>
-            <p className="text-slate-500 mt-2 text-sm font-medium">Controle de locação, ocupação e mapeamento de garagem.</p>
+            <p className="text-sm font-bold text-slate-500 mt-1 uppercase tracking-widest">
+              Controle de locação, ocupação e mapeamento de garagem
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={fetchVagas} className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-bold text-sm transition-colors uppercase">
+              Atualizar
+            </button>
           </div>
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <button 
-            onClick={() => setStatusFilter(null)}
-            className={`text-left bg-white dark:bg-slate-900 p-4 rounded-xl border transition-all ${statusFilter === null ? 'border-primary ring-2 ring-primary/20 shadow-md shadow-primary/10' : 'border-slate-200 dark:border-slate-800 hover:border-primary/50'}`}
-          >
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Total Geral</p>
-            <p className="text-2xl font-black mt-1">{loading ? '...' : totalVagas}</p>
-          </button>
-          
-          <button 
-            onClick={() => setStatusFilter('LIVRE')}
-            className={`text-left bg-emerald-50 dark:bg-emerald-900/10 p-4 rounded-xl border transition-all ${statusFilter === 'LIVRE' ? 'border-emerald-500 ring-2 ring-emerald-500/20 shadow-md shadow-emerald-500/10' : 'border-emerald-100 dark:border-emerald-800 hover:border-emerald-500/50'}`}
-          >
-            <p className="text-xs font-bold text-emerald-600 uppercase tracking-widest">Livre</p>
-            <p className="text-2xl font-black text-emerald-600 mt-1">{loading ? '...' : livres}</p>
-          </button>
-
-          <button 
-            onClick={() => setStatusFilter('OCUPADA')}
-            className={`text-left bg-amber-50 dark:bg-amber-900/10 p-4 rounded-xl border transition-all ${statusFilter === 'OCUPADA' ? 'border-amber-500 ring-2 ring-amber-500/20 shadow-md shadow-amber-500/10' : 'border-amber-100 dark:border-amber-800 hover:border-amber-500/50'}`}
-          >
-            <p className="text-xs font-bold text-amber-600 uppercase tracking-widest">Ocupada</p>
-            <p className="text-2xl font-black text-amber-600 mt-1">{loading ? '...' : ocupadas}</p>
-          </button>
-
-          <button 
-            onClick={() => setStatusFilter('ALUGADA')}
-            className={`text-left bg-purple-50 dark:bg-purple-900/10 p-4 rounded-xl border transition-all ${statusFilter === 'ALUGADA' ? 'border-purple-500 ring-2 ring-purple-500/20 shadow-md shadow-purple-500/10' : 'border-purple-100 dark:border-purple-800 hover:border-purple-500/50'}`}
-          >
-            <p className="text-xs font-bold text-purple-600 uppercase tracking-widest">Alugada / Emprestada</p>
-            <p className="text-2xl font-black text-purple-600 mt-1">{loading ? '...' : alugadas}</p>
-          </button>
+        {/* Panel Stats */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+           {/* Total */}
+           <div 
+             onClick={() => setStatusFilter(null)}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === null ? 'bg-slate-900 border-slate-900 text-white scale-[1.02]' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === null ? 'text-slate-400' : 'text-slate-400'}`}>Total Geral</p>
+             <p className={`text-2xl font-black ${statusFilter === null ? 'text-white' : 'text-slate-800 dark:text-white'}`}>{loading ? '-' : totalVagas}</p>
+           </div>
+           
+           {/* Livre */}
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'LIVRE' ? null : 'LIVRE')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'LIVRE' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'LIVRE' ? 'text-emerald-100' : 'text-emerald-600'}`}>Livre</p>
+             <p className={`text-2xl font-black ${statusFilter === 'LIVRE' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : livres}</p>
+           </div>
+           
+           {/* Ocupada */}
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'OCUPADA' ? null : 'OCUPADA')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'OCUPADA' ? 'bg-amber-500 border-amber-500 scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'OCUPADA' ? 'text-amber-100' : 'text-amber-600'}`}>Ocupada</p>
+             <p className={`text-2xl font-black ${statusFilter === 'OCUPADA' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : ocupadas}</p>
+           </div>
+           
+           {/* Alugada */}
+           <div 
+             onClick={() => setStatusFilter(statusFilter === 'ALUGADA' ? null : 'ALUGADA')}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ALUGADA' ? 'bg-purple-500 border-purple-500 scale-[1.02]' : 'bg-purple-50 dark:bg-purple-900/10 border-purple-200 dark:border-purple-800/30 hover:border-purple-400'}`}
+           >
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ALUGADA' ? 'text-purple-100' : 'text-purple-600'}`}>Alugada / Emprestada</p>
+             <p className={`text-2xl font-black ${statusFilter === 'ALUGADA' ? 'text-white' : 'text-purple-600 dark:text-purple-400'}`}>{loading ? '-' : alugadas}</p>
+           </div>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
-          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 size-5" />
-              <input
-                type="text"
-                placeholder="Buscar por placa, modelo ou código (Ex: B08)..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-sm focus:ring-2 focus:ring-primary/20 outline-none"
-              />
-            </div>
-          </div>
+        {/* Controls */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+           <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl self-stretch md:self-auto overflow-x-auto">
+             <button 
+               onClick={() => { setStatusFilter(null); }} 
+               className={`px-6 py-2 rounded-lg text-xs font-bold uppercase transition-all whitespace-nowrap flex items-center gap-2 ${statusFilter === null ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+             >
+               Mapa Completo
+             </button>
+           </div>
 
-          <div className="overflow-x-auto">
+           <div className="relative w-full md:w-80">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+              <input 
+                 type="text"
+                 placeholder="Buscar por placa, modelo ou vaga..."
+                 value={search}
+                 onChange={(e) => setSearch(e.target.value)}
+                 className="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-800 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-primary/20"
+              />
+           </div>
+        </div>
+
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+           <div className="overflow-x-auto">
             <table className="w-full text-sm text-left">
               <thead className="bg-slate-50 dark:bg-slate-800 text-xs uppercase text-slate-500 font-bold">
                 <tr>

@@ -26,8 +26,10 @@ export interface Colaborador {
 export interface RegistroColaborador {
   id: string;
   colaborador_id: string;
-  porteiro_id: string;
+  porteiro_id: string; // operator who registered entrance
   porteiro_nome?: string; // Joined from operators
+  porteiro_saida_id?: string | null; // operator who registered exit
+  porteiro_saida_nome?: string; // Joined from operators
   hora_entrada: string | null;
   hora_saida: string | null;
   permanencia_min: number | null;
