@@ -431,25 +431,49 @@ export default function UnidadesPage() {
 
       {units.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 sm:gap-4 mb-6">
-          <div className="bg-white dark:bg-slate-900 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-800 p-3 sm:p-4 text-center">
-            <p className="text-xl sm:text-3xl font-black text-slate-900 dark:text-white">{stats.total}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 uppercase font-bold tracking-wider">Total</p>
+          {/* Total */}
+          <div 
+            onClick={() => setFilterStatus('')}
+            className={`cursor-pointer transition-all duration-300 rounded-lg sm:rounded-xl border p-3 sm:p-4 text-center ${!filterStatus ? 'bg-slate-900 border-slate-900 text-white shadow-lg shadow-slate-500/20' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-slate-400'}`}
+          >
+            <p className={`text-xl sm:text-3xl font-black ${!filterStatus ? 'text-white' : 'text-slate-900 dark:text-white'}`}>{stats.total}</p>
+            <p className={`text-[10px] sm:text-xs uppercase font-bold tracking-wider ${!filterStatus ? 'text-slate-400' : 'text-slate-500'}`}>Total</p>
           </div>
-          <div className="bg-green-50 dark:bg-green-900/10 rounded-lg sm:rounded-xl border border-green-200 dark:border-green-800/50 p-3 sm:p-4 text-center">
-            <p className="text-xl sm:text-3xl font-black text-green-600 dark:text-green-400">{stats.occupied}</p>
-            <p className="text-[10px] sm:text-xs text-green-600 dark:text-green-400 uppercase font-bold tracking-wider">Ocupadas</p>
+
+          {/* Ocupadas */}
+          <div 
+            onClick={() => setFilterStatus('OCUPADA')}
+            className={`cursor-pointer transition-all duration-300 rounded-lg sm:rounded-xl border p-3 sm:p-4 text-center ${filterStatus === 'OCUPADA' ? 'bg-green-600 border-green-600 text-white shadow-lg shadow-green-500/20' : 'bg-green-50 dark:bg-green-900/10 border-green-200 dark:border-green-800/50 hover:border-green-400'}`}
+          >
+            <p className={`text-xl sm:text-3xl font-black ${filterStatus === 'OCUPADA' ? 'text-white' : 'text-green-600 dark:text-green-400'}`}>{stats.occupied}</p>
+            <p className={`text-[10px] sm:text-xs uppercase font-bold tracking-wider ${filterStatus === 'OCUPADA' ? 'text-green-100' : 'text-green-600 dark:text-green-400'}`}>Ocupadas</p>
           </div>
-          <div className="bg-slate-50 dark:bg-slate-800 rounded-lg sm:rounded-xl border border-slate-200 dark:border-slate-700 p-3 sm:p-4 text-center">
-            <p className="text-xl sm:text-3xl font-black text-slate-600 dark:text-slate-400">{stats.vacant}</p>
-            <p className="text-[10px] sm:text-xs text-slate-500 uppercase font-bold tracking-wider">Vagas</p>
+
+          {/* Vagas */}
+          <div 
+            onClick={() => setFilterStatus('VAGA')}
+            className={`cursor-pointer transition-all duration-300 rounded-lg sm:rounded-xl border p-3 sm:p-4 text-center ${filterStatus === 'VAGA' ? 'bg-slate-700 border-slate-700 text-white shadow-lg shadow-slate-500/20' : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-400'}`}
+          >
+            <p className={`text-xl sm:text-3xl font-black ${filterStatus === 'VAGA' ? 'text-white' : 'text-slate-600 dark:text-slate-400'}`}>{stats.vacant}</p>
+            <p className={`text-[10px] sm:text-xs uppercase font-bold tracking-wider ${filterStatus === 'VAGA' ? 'text-slate-300' : 'text-slate-500'}`}>Vagas</p>
           </div>
-          <div className="bg-amber-50 dark:bg-amber-900/10 rounded-lg sm:rounded-xl border border-amber-200 dark:border-amber-800/50 p-3 sm:p-4 text-center">
-            <p className="text-xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">{stats.obras}</p>
-            <p className="text-[10px] sm:text-xs text-amber-600 dark:text-amber-400 uppercase font-bold tracking-wider">Em Obras</p>
+
+          {/* Em Obras */}
+          <div 
+            onClick={() => setFilterStatus('OBRAS')}
+            className={`cursor-pointer transition-all duration-300 rounded-lg sm:rounded-xl border p-3 sm:p-4 text-center ${filterStatus === 'OBRAS' ? 'bg-amber-500 border-amber-500 text-white shadow-lg shadow-amber-500/20' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+          >
+            <p className={`text-xl sm:text-3xl font-black ${filterStatus === 'OBRAS' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{stats.obras}</p>
+            <p className={`text-[10px] sm:text-xs uppercase font-bold tracking-wider ${filterStatus === 'OBRAS' ? 'text-amber-100' : 'text-amber-600'}`}>Em Obras</p>
           </div>
-          <div className="bg-red-50 dark:bg-red-900/10 rounded-lg sm:rounded-xl border border-red-200 dark:border-red-800/50 p-3 sm:p-4 text-center">
-            <p className="text-xl sm:text-3xl font-black text-red-600 dark:text-red-400">{stats.manutencao}</p>
-            <p className="text-[10px] sm:text-xs text-red-600 dark:text-red-400 uppercase font-bold tracking-wider">Manutenção</p>
+
+          {/* Manutenção */}
+          <div 
+            onClick={() => setFilterStatus('MANUTENCAO')}
+            className={`cursor-pointer transition-all duration-300 rounded-lg sm:rounded-xl border p-3 sm:p-4 text-center ${filterStatus === 'MANUTENCAO' ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-500/20' : 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-800/50 hover:border-red-400'}`}
+          >
+            <p className={`text-xl sm:text-3xl font-black ${filterStatus === 'MANUTENCAO' ? 'text-white' : 'text-red-600 dark:text-red-400'}`}>{stats.manutencao}</p>
+            <p className={`text-[10px] sm:text-xs uppercase font-bold tracking-wider ${filterStatus === 'MANUTENCAO' ? 'text-red-100' : 'text-red-600'}`}>Manutenção</p>
           </div>
         </div>
       )}
@@ -535,10 +559,9 @@ export default function UnidadesPage() {
             return (
               <motion.div
                 key={bloco}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="bg-white dark:bg-slate-900 rounded-2xl border-2 transition-all p-4 flex flex-col border-slate-200 dark:border-slate-800 hover:border-primary/50"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="bg-white dark:bg-slate-900 rounded-2xl border-2 transition-all p-4 flex flex-col border-slate-200 dark:border-slate-800 hover:border-primary/30"
               >
                   <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
@@ -575,7 +598,7 @@ export default function UnidadesPage() {
                       <button
                         key={unit.numero}
                         onClick={() => openDetail(unit)}
-                        className="h-14 rounded-lg border flex flex-col items-center justify-center text-[10px] font-black transition-all hover:scale-105 relative group/item overflow-hidden border-l-4"
+                        className="h-14 rounded-lg border flex flex-col items-center justify-center text-[10px] font-black transition-all relative group/item overflow-hidden border-l-4"
                         style={{ 
                           borderLeftColor: statusConfig.color,
                           backgroundColor: statusConfig.bgColor,
@@ -700,10 +723,9 @@ export default function UnidadesPage() {
             return (
               <motion.div
                 key={unit.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: unit.status === 'MANUTENCAO' ? 0.5 : 1, y: 0 }}
-                whileHover={{ scale: 1.02 }}
-                className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden cursor-pointer hover:shadow-xl transition-all ${
+                initial={{ opacity: 0 }}
+                animate={{ opacity: unit.status === 'MANUTENCAO' ? 0.3 : 1 }}
+                className={`relative bg-white dark:bg-slate-900 rounded-xl border-2 overflow-hidden cursor-pointer hover:shadow-md transition-all ${
                   unit.status === 'VAGA' ? 'border-dashed border-slate-300 dark:border-slate-600' : ''
                 }`}
                 style={{ borderLeftColor: statusConfig.color, borderLeftWidth: '4px' }}

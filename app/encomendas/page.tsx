@@ -424,11 +424,19 @@ export default function EncomendasPage() {
             <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Unidade</th>
-                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Transportadora</th>
-                <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Volumes</th>
-                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Recebimento</th>
+                {statusFilter === 'WHATSAPP' ? (
+                  <>
+                    <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Destinatário</th>
+                    <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Mensagem Enviada</th>
+                  </>
+                ) : (
+                  <>
+                    <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Transportadora</th>
+                    <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest text-center">Volumes</th>
+                  </>
+                )}
+                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">{statusFilter === 'WHATSAPP' ? 'Data/Hora Aviso' : 'Recebimento'}</th>
                 <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
-                <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">WhatsApp</th>
                 <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">Ações</th>
               </tr>
             </thead>
@@ -442,16 +450,40 @@ export default function EncomendasPage() {
                   <td className="p-4">
                     <span className="font-semibold text-sm">{pkg.unidade_desc || '-'}</span>
                   </td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Truck size={16} className="text-slate-400" />
-                      <span className="text-sm">{pkg.transportadora}</span>
-                      {pkg.numero && <span className="text-xs text-slate-400">#{pkg.numero}</span>}
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    <span className="text-sm">{pkg.volumes}</span>
-                  </td>
+
+                  {statusFilter === 'WHATSAPP' ? (
+                    <>
+                      <td className="p-4">
+                        <div className="flex flex-col">
+                          <span className="font-black text-slate-900 dark:text-white uppercase text-sm leading-tight">
+                            {pkg.residente?.nome || 'Morador'}
+                          </span>
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                            {pkg.residente?.celular || '-'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="p-4">
+                        <p className="text-xs text-slate-600 dark:text-slate-400 max-w-sm">
+                           Olá {pkg.residente?.nome?.split(' ')[0] || 'Morador'}, sua encomenda da {pkg.transportadora} chegou na Portaria!
+                        </p>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="p-4">
+                        <div className="flex items-center gap-2">
+                          <Truck size={16} className="text-slate-400" />
+                          <span className="text-sm">{pkg.transportadora}</span>
+                          {pkg.numero && <span className="text-xs text-slate-400">#{pkg.numero}</span>}
+                        </div>
+                      </td>
+                      <td className="p-4 text-center">
+                        <span className="text-sm">{pkg.volumes}</span>
+                      </td>
+                    </>
+                  )}
+
                   <td className="p-4">
                     <div className="flex flex-col items-center leading-tight">
                       <span className="font-bold text-slate-700 dark:text-slate-200 text-sm">
@@ -461,139 +493,98 @@ export default function EncomendasPage() {
                         {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
                       </span>
                       {pkg.operador_recebe?.nome && (
-                        <span className="text-[9px] uppercase font-bold text-primary mt-1">
-                          RECEBIDO: {pkg.operador_recebe.nome.split(' ')[0]}
+                        <span className="text-[9px] uppercase font-black text-blue-500 mt-1">
+                           → {pkg.operador_recebe.nome.split(' ')[0]}
                         </span>
                       )}
                     </div>
                   </td>
+
                   <td className="p-4">
-                    <span className={`inline-flex px-2 py-1 rounded-full text-xs font-bold ${
-                      pkg.status === 'AGUARDANDO' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
-                      pkg.status === 'RETIRADA' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                      'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {pkg.status === 'AGUARDANDO' ? 'Aguardando' :
-                       pkg.status === 'RETIRADA' ? 'Retirada' : 'Recusada'}
-                    </span>
+                    <div className="flex flex-col items-start gap-1">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                        pkg.status === 'AGUARDANDO' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
+                        pkg.status === 'RETIRADA' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                        'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                      }`}>
+                        {pkg.status === 'AGUARDANDO' ? 'Aguardando' :
+                         pkg.status === 'RETIRADA' ? 'Retirada' : 'Recusada'}
+                      </span>
+                      
+                      {pkg.status === 'RETIRADA' && (
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter">
+                           {pkg.hora_retirada ? `${new Date(pkg.hora_retirada).toLocaleDateString('pt-BR')} ${new Date(pkg.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        </span>
+                      )}
+                      {pkg.status === 'RECUSADA' && (
+                        <span className="text-[10px] font-bold text-red-400 uppercase tracking-tighter">
+                           {pkg.hora_recusa ? `${new Date(pkg.hora_recusa).toLocaleDateString('pt-BR')} ${new Date(pkg.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ''}
+                        </span>
+                      )}
+                    </div>
                   </td>
+
                   <td className="p-4 text-center">
-                    <div className="flex flex-col items-center justify-center gap-1">
-                      {pkg.whatsapp_enviado ? (
-                        <div className="flex flex-col items-center">
-                          <button 
-                            onClick={() => toggleWhatsAppLido(pkg)}
-                            className={`flex items-center gap-1.5 bg-green-50 dark:bg-green-900/20 px-2 py-1.5 rounded-lg border border-green-100 dark:border-green-800 transition-all ${
-                              pkg.whatsapp_lido ? 'cursor-default' : 'hover:scale-105 cursor-pointer'
-                            }`}
-                            title={pkg.whatsapp_lido ? "Mensagem confirmada como lida" : "Clique para marcar como lida"}
-                          >
-                            {pkg.whatsapp_lido ? (
-                              <>
-                                <Eye size={12} className="text-primary animate-pulse" />
-                                <span className="text-[10px] font-black text-primary uppercase leading-none">Lida</span>
-                              </>
-                            ) : (
-                              <>
-                                <Check size={12} className="text-green-600" />
-                                <span className="text-[10px] font-bold text-green-600 uppercase leading-none">Enviada</span>
-                              </>
-                            )}
-                          </button>
-                          
-                          {/* Detalhes do Destinatário (Requisito Especial) */}
-                          <div className="mt-2 text-center">
-                             <p className="text-[11px] font-black text-slate-800 dark:text-slate-200 uppercase leading-tight">
-                                {pkg.residente?.nome || 'Morador'}
-                             </p>
-                             <p className="text-[9px] font-bold text-slate-500 flex items-center justify-center gap-1">
-                                <TruckIcon size={8} /> {pkg.residente?.celular || '-'}
-                             </p>
-                          </div>
-                          
-                          {/* Histórico da Mensagem */}
-                          {statusFilter === 'WHATSAPP' && (
-                            <div className="mt-2 p-2 bg-indigo-50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-lg max-w-[200px]">
-                               <p className="text-[9px] text-indigo-700 dark:text-indigo-400 italic leading-snug">
-                                 "Olá {pkg.residente?.nome?.split(' ')[0]}, sua encomenda da *{pkg.transportadora}* chegou na Portaria!"
-                               </p>
+                    {/* Botões de Ação ou Dados de Finalização */}
+                    {statusFilter === 'WHATSAPP' ? (
+                       <div className="flex flex-col items-center gap-1">
+                          {pkg.whatsapp_lido ? (
+                            <div className="flex items-center gap-1 text-primary">
+                              <Eye size={12} className="animate-pulse" />
+                              <span className="text-[10px] font-black uppercase">Mensagem Lida</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1 text-green-600">
+                              <Check size={12} />
+                              <span className="text-[10px] font-bold uppercase">Enviada</span>
                             </div>
                           )}
-                        </div>
-                      ) : pkg.status === 'AGUARDANDO' ? (
-                        <button 
-                          onClick={() => handleManualWhatsApp(pkg)}
-                          className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 hover:bg-primary/10 hover:border-primary/30 transition-all group"
-                          title="Clique para enviar notificação via WhatsApp"
-                        >
-                          <MessageSquare size={12} className="text-slate-400 group-hover:text-primary" />
-                          <span className="text-[10px] font-bold text-slate-400 uppercase leading-none group-hover:text-primary">Notificar</span>
-                        </button>
-                      ) : (
-                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-2 py-1.5 rounded-lg border border-slate-100 dark:border-slate-700 opacity-30 grayscale cursor-not-allowed">
-                          <MessageSquare size={12} className="text-slate-400" />
-                          <span className="text-[10px] font-bold text-slate-400 uppercase leading-none">-</span>
-                        </div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="p-4 text-center">
-                    {pkg.status === 'AGUARDANDO' && (
-                      <div className="flex justify-center gap-1.5">
-                        <button 
-                          onClick={() => {
-                            setSelectedPackage(pkg);
-                            setShowRetireModal(true);
-                          }}
-                          title="Registrar Retirada"
-                          className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition-colors border border-emerald-100 dark:border-emerald-800/50"
-                        >
-                          <CheckCircle2 size={18} />
-                        </button>
-                        <button 
-                          onClick={() => {
-                            setSelectedPackage(pkg);
-                            setShowRejectModal(true);
-                          }}
-                          title="Recusar Encomenda"
-                          className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors border border-red-100 dark:border-red-800/50"
-                        >
-                          <Ban size={18} />
-                        </button>
-                      </div>
-                    )}
-
-                    {pkg.status === 'RETIRADA' && pkg.retirado_por && (
-                      <div className="flex flex-col items-center leading-tight">
-                        <span className="text-xs font-bold text-emerald-600 mb-1">
-                          Retirado por: {pkg.retirado_por}
-                        </span>
-                        <span className="text-[10px] text-slate-500 uppercase font-medium">
-                          {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleDateString('pt-BR') : ''} - {pkg.hora_retirada ? new Date(pkg.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                        </span>
-                        {pkg.operador_retira?.nome && (
-                          <span className="text-[9px] uppercase font-black text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full text-center">
-                            PORTEIRO: {pkg.operador_retira.nome.toUpperCase()}
-                          </span>
+                       </div>
+                    ) : (
+                      <>
+                        {pkg.status === 'AGUARDANDO' && (
+                          <div className="flex justify-center gap-1.5">
+                            <button 
+                              onClick={() => { setSelectedPackage(pkg); setShowRetireModal(true); }}
+                              className="p-2.5 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-100 dark:border-emerald-800/50"
+                            >
+                              <CheckCircle2 size={18} />
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedPackage(pkg); setShowRejectModal(true); }}
+                              className="p-2.5 bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/40 border border-red-100 dark:border-red-800/50"
+                            >
+                              <Ban size={18} />
+                            </button>
+                          </div>
                         )}
-                      </div>
-                    )}
-
-                    {pkg.status === 'RECUSADA' && (
-                      <div className="flex flex-col items-center leading-tight">
-                        <span className="text-[10px] uppercase font-black text-red-600 block mb-1">RECUSADA</span>
-                        <span className="text-xs font-bold text-red-600 mb-1">
-                          "{pkg.motivo_recusa}"
-                        </span>
-                        <span className="text-[10px] text-slate-500 uppercase font-medium">
-                          {pkg.hora_recusa ? `${new Date(pkg.hora_recusa).toLocaleDateString('pt-BR')} - ${new Date(pkg.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '-'}
-                        </span>
-                        {pkg.operador_recusa?.nome && (
-                          <span className="text-[9px] uppercase font-black text-primary mt-1.5 pt-1 border-t border-slate-100 dark:border-slate-800 w-full text-center">
-                            PORTEIRO: {pkg.operador_recusa.nome.toUpperCase()}
-                          </span>
+                        
+                        {pkg.status === 'RETIRADA' && (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase">
+                              {pkg.retirado_por || 'N/A'}
+                            </span>
+                            {pkg.operador_retira?.nome && (
+                              <span className="text-[9px] font-black text-blue-500 uppercase mt-0.5">
+                                → {pkg.operador_retira.nome.split(' ')[0]}
+                              </span>
+                            )}
+                          </div>
                         )}
-                      </div>
+
+                        {pkg.status === 'RECUSADA' && (
+                          <div className="flex flex-col items-center leading-tight">
+                            <span className="text-xs font-bold text-red-600 uppercase">
+                               {pkg.motivo_recusa || 'Recusada'}
+                            </span>
+                            {pkg.operador_recusa?.nome && (
+                              <span className="text-[9px] font-black text-blue-500 uppercase mt-0.5">
+                                → {pkg.operador_recusa.nome.split(' ')[0]}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
                   </td>
                 </tr>
