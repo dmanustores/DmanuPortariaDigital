@@ -45,6 +45,7 @@ interface Unit {
   totalMoradores?: number;
   totalVehicles?: number;
   vagas?: any[];
+  tem_elevador?: boolean;
 }
 
 const blocos = Array.from({ length: 22 }, (_, i) => String(i + 1).padStart(2, '0'));
@@ -78,7 +79,8 @@ export default function UnidadesPage() {
     tipo: 'RESIDENCIAL',
     status: 'VAGA',
     vagasGaragem: 0,
-    observacoes: ''
+    observacoes: '',
+    tem_elevador: true // Default: Possui elevador
   });
 
   // Estados para o Gerador Flexível
@@ -198,6 +200,7 @@ export default function UnidadesPage() {
             tipo: 'RESIDENCIAL',
             status: 'VAGA',
             vagasgaragem: 1,
+            tem_elevador: true,
             observacoes: null
           });
         }
@@ -246,6 +249,7 @@ export default function UnidadesPage() {
           tipo: formData.tipo,
           status: formData.status,
           vagasgaragem: formData.vagasGaragem,
+          tem_elevador: formData.tem_elevador,
           observacoes: formData.observacoes || null
         }).eq('id', selectedUnit.id);
         
@@ -273,6 +277,7 @@ export default function UnidadesPage() {
           tipo: formData.tipo,
           status: formData.status,
           vagasgaragem: formData.vagasGaragem,
+          tem_elevador: formData.tem_elevador,
           observacoes: formData.observacoes || null
         }).select().single();
 
@@ -312,6 +317,7 @@ export default function UnidadesPage() {
       tipo: unit.tipo,
       status: unit.status,
       vagasGaragem: unit.vagasGaragem || 0,
+      tem_elevador: unit.tem_elevador !== false, // If null or undefined, defaults to true
       observacoes: unit.observacoes || ''
     });
     setShowModal(true);
@@ -330,6 +336,7 @@ export default function UnidadesPage() {
       tipo: 'RESIDENCIAL',
       status: 'VAGA',
       vagasGaragem: 0,
+      tem_elevador: true,
       observacoes: ''
     });
   };
@@ -398,7 +405,7 @@ export default function UnidadesPage() {
           </p>
         </motion.div>
 
-        <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto overflow-x-auto pb-2 sm:pb-0 scrollbar-hide">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {isAdmin && units.length === 0 && (
             <motion.button 
               whileHover={{ scale: 1.05 }}
@@ -895,15 +902,31 @@ export default function UnidadesPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-bold mb-2">Vagas de Garagem</label>
-                  <input
-                    type="number"
-                    value={formData.vagasGaragem}
-                    onChange={(e) => setFormData({...formData, vagasGaragem: parseInt(e.target.value) || 0})}
-                    min="0"
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Vagas de Garagem</label>
+                    <input
+                      type="number"
+                      value={formData.vagasGaragem}
+                      onChange={(e) => setFormData({...formData, vagasGaragem: parseInt(e.target.value) || 0})}
+                      min="0"
+                      className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-bold mb-2">Possui Elevador?</label>
+                    <div className="flex items-center h-[46px] px-3 border border-slate-200 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800">
+                      <label className="flex items-center cursor-pointer gap-2 w-full">
+                        <input
+                          type="checkbox"
+                          checked={formData.tem_elevador}
+                          onChange={(e) => setFormData({...formData, tem_elevador: e.target.checked})}
+                          className="w-4 h-4 text-primary bg-slate-100 border-slate-300 rounded focus:ring-primary"
+                        />
+                        <span className="text-sm font-bold text-slate-700 dark:text-slate-300 select-none">Unidade usa elevador</span>
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
