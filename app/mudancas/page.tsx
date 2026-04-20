@@ -71,9 +71,34 @@ export default function MudancasPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showConcludeModal, setShowConcludeModal] = useState(false);
+  const [concludeObservation, setConcludeObservation] = useState('');
+  const [moveToConclude, setMoveToConclude] = useState<Move | null>(null);
+  const [showReopenModal, setShowReopenModal] = useState(false);
+  const [reopenObservation, setReopenObservation] = useState('');
+  const [moveToReopen, setMoveToReopen] = useState<Move | null>(null);
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveObservation, setArchiveObservation] = useState('');
+  const [moveToArchive, setMoveToArchive] = useState<Move | null>(null);
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
   const [search, setSearch] = useState('');
+  const [currentOperator, setCurrentOperator] = useState<{ nome: string; role: string } | null>(null);
   
+  useEffect(() => {
+    const fetchOperator = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('operators')
+          .select('nome, role')
+          .eq('id', session.user.id)
+          .single();
+        if (profile) setCurrentOperator(profile);
+      }
+    };
+    fetchOperator();
+  }, []);
+
   const [activeTab, setActiveTab] = useState<'ATIVAS' | 'HISTORICO'>('ATIVAS');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'AGENDADA' | 'EM_ANDAMENTO' | 'URGENTES'>('ALL');
 
@@ -188,6 +213,51 @@ export default function MudancasPage() {
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     await supabase.from('moves').update({ status: newStatus }).eq('id', id);
+    fetchMoves();
+  };
+
+  const handleConfirmConclude = async () => {
+    if (!moveToConclude) return;
+    const note = concludeObservation.trim() || 'Sem imprevistos registrados.';
+    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const currentObs = moveToConclude.observacoes || '';
+    const finalObs = currentObs ? `${currentObs}\n[FECHAMENTO]${roleTag}: ${note}` : `[FECHAMENTO]${roleTag}: ${note}`;
+    try {
+      await supabase.from('moves').update({ status: 'CONCLUIDA', observacoes: finalObs }).eq('id', moveToConclude.id);
+    } catch (err) { console.error(err); }
+    setShowConcludeModal(false);
+    setMoveToConclude(null);
+    setConcludeObservation('');
+    fetchMoves();
+  };
+
+  const handleConfirmReopen = async () => {
+    if (!moveToReopen) return;
+    const note = reopenObservation.trim() || 'Mudança reaberta pela portaria.';
+    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const currentObs = moveToReopen.observacoes || '';
+    const finalObs = currentObs ? `${currentObs}\n[REABERTURA]${roleTag}: ${note}` : `[REABERTURA]${roleTag}: ${note}`;
+    try {
+      await supabase.from('moves').update({ status: 'AGENDADA', observacoes: finalObs }).eq('id', moveToReopen.id);
+    } catch (err) { console.error(err); }
+    setShowReopenModal(false);
+    setMoveToReopen(null);
+    setReopenObservation('');
+    fetchMoves();
+  };
+
+  const handleConfirmArchive = async () => {
+    if (!moveToArchive) return;
+    const note = archiveObservation.trim() || 'Arquivado administrativamente.';
+    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const currentObs = moveToArchive.observacoes || '';
+    const finalObs = currentObs ? `${currentObs}\n[ARQUIVAMENTO]${roleTag}: ${note}` : `[ARQUIVAMENTO]${roleTag}: ${note}`;
+    try {
+      await supabase.from('moves').update({ status: 'ARQUIVADA', observacoes: finalObs }).eq('id', moveToArchive.id);
+    } catch (err) { console.error(err); }
+    setShowArchiveModal(false);
+    setMoveToArchive(null);
+    setArchiveObservation('');
     fetchMoves();
   };
 
@@ -432,7 +502,11 @@ export default function MudancasPage() {
                                         )}
                                         {move.status === 'EM_ANDAMENTO' && (
                                           <button 
-                                            onClick={() => handleStatusChange(move.id, 'CONCLUIDA')}
+                                            onClick={() => {
+                                              setMoveToConclude(move);
+                                              setConcludeObservation('');
+                                              setShowConcludeModal(true);
+                                            }}
                                             className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all uppercase flex items-center gap-1.5"
                                           >
                                             <CheckCircle2 size={12} /> Concluir
@@ -446,7 +520,7 @@ export default function MudancasPage() {
                                      {activeTab === 'HISTORICO' ? (
                                         <>
                                           <button 
-                                            onClick={() => handleStatusChange(move.id, 'EM_ANDAMENTO')}
+                                            onClick={() => { setMoveToReopen(move); setReopenObservation(''); setShowReopenModal(true); }}
                                             className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black border border-blue-200 dark:border-blue-700/50 hover:bg-blue-100 dark:hover:bg-blue-800 transition-all uppercase flex items-center gap-1.5"
                                             title="Reabrir Mudança"
                                           >
@@ -469,16 +543,16 @@ export default function MudancasPage() {
                                             <Search size={16} />
                                          </button>
                                          <button 
-                                           onClick={() => {
-                                             if(confirm('Deseja realmente arquivar este registro?')) {
-                                                handleStatusChange(move.id, 'ARQUIVADA');
-                                             }
-                                           }}
-                                           className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 rounded-lg transition-all"
-                                           title="Arquivar Mudança"
-                                         >
-                                           <Archive size={16} />
-                                         </button>
+                                            onClick={() => {
+                                              setMoveToArchive(move);
+                                              setArchiveObservation('');
+                                              setShowArchiveModal(true);
+                                            }}
+                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 rounded-lg transition-all"
+                                            title="Arquivar Mudança"
+                                          >
+                                            <Archive size={16} />
+                                          </button>
                                        </>
                                      )}
                                   </div>
@@ -756,7 +830,6 @@ export default function MudancasPage() {
                   disabled={!formData.unidadeDesc || !formData.responsavelNome || !formData.dataMovimentacao}
                   className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs disabled:opacity-50 flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-blue-500/30 transition-all"
                 >
-                  <Save size={16} />
                   Confirmar Agendamento
                 </button>
               </div>
@@ -801,86 +874,174 @@ export default function MudancasPage() {
 
               {/* Timeline Info Content */}
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
-                <div className="space-y-4 relative">
-                  <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                {(() => {
+                  const rawObs = selectedMove.observacoes || '';
+                  const baseObs = rawObs.split(/\n?\[(REABERTURA|FECHAMENTO|ARQUIVAMENTO)\]/)[0].trim();
+                  
+                  const occurrences: { type: 'REABERTURA' | 'FECHAMENTO' | 'ARQUIVAMENTO', role?: string, note: string }[] = [];
+                  const eventRegex = /\[(REABERTURA|FECHAMENTO|ARQUIVAMENTO)\](?:\s*\((.*?)\))?:\s*([\s\S]*?)(?=\n\[|$)/g;
+                  let match;
+                  while ((match = eventRegex.exec(rawObs)) !== null) {
+                    occurrences.push({ 
+                      type: match[1] as 'REABERTURA' | 'FECHAMENTO' | 'ARQUIVAMENTO', 
+                      role: match[2],
+                      note: match[3].trim() 
+                    });
+                  }
 
-                  <div className="relative flex items-start gap-4">
-                     <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700`}>
-                        <Calendar size={16} />
-                     </div>
-                     <div className={`flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm transition-all`}>
-                        <div className="flex items-center justify-between gap-4 mb-2">
-                           <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">Criação / Agendamento</span>
-                              <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">SISTEMA</span>
-                           </div>
-                           <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                             <Clock size={10} /> {new Date(selectedMove.created_at).toLocaleString('pt-BR')}
-                           </span>
+                  return (
+                    <div className="space-y-4 relative">
+                      <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+
+                      {/* Agendamento */}
+                      <div className="relative flex items-start gap-4">
+                        <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700`}>
+                            <Calendar size={16} />
                         </div>
-                        <p className="text-sm font-semibold">{selectedMove.responsavelNome} {selectedMove.responsavelTelefone ? `- ${selectedMove.responsavelTelefone}` : ''}</p>
-                     </div>
-                  </div>
+                        <div className={`flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm transition-all`}>
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                              <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">Criação / Agendamento</span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">SISTEMA</span>
+                              </div>
+                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
+                                <Clock size={10} /> {new Date(selectedMove.created_at).toLocaleString('pt-BR')}
+                              </span>
+                            </div>
+                            <p className="text-sm font-semibold">{selectedMove.responsavelNome} {selectedMove.responsavelTelefone ? `- ${selectedMove.responsavelTelefone}` : ''}</p>
+                        </div>
+                      </div>
 
-                  <div className="relative flex items-start gap-4">
-                     <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-blue-100 dark:bg-blue-900/30 border-blue-200 text-blue-600`}>
-                        <Truck size={16} />
-                     </div>
-                     <div className={`flex-1 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all`}>
-                         <div className="flex items-center justify-between gap-4 mb-2">
-                           <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Dados da Movimentação</span>
-                           </div>
-                         </div>
-                         <div className="grid grid-cols-2 gap-4 text-sm font-semibold mt-3">
-                           <div>
-                             <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Data Prevista</span>
-                             {new Date(selectedMove.dataMovimentacao).toLocaleDateString('pt-BR')}
-                           </div>
-                           <div>
-                             <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Horário</span>
-                             {selectedMove.horaInicio} às {selectedMove.horaFim}
-                           </div>
-                           <div className="col-span-2">
-                             <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Natureza</span>
-                             {selectedMove.tipo} - Elevador: {selectedMove.elevadorServico ? 'Sim' : 'Não'}
-                           </div>
-                           {(selectedMove.veiculoPlaca || selectedMove.veiculoModelo) && (
-                             <div className="col-span-2">
-                               <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Veículo Associado</span>
-                               {selectedMove.veiculoPlaca} {selectedMove.veiculoModelo}
-                             </div>
-                           )}
-                           {selectedMove.observacoes && (
-                             <div className="col-span-2">
-                               <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Observações</span>
-                               <p className="text-xs text-slate-500 italic mt-1">{selectedMove.observacoes}</p>
-                             </div>
-                           )}
-                         </div>
-                     </div>
-                  </div>
+                      {/* Dados */}
+                      <div className="relative flex items-start gap-4">
+                        <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-blue-100 dark:bg-blue-900/30 border-blue-200 text-blue-600`}>
+                            <Truck size={16} />
+                        </div>
+                        <div className={`flex-1 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all`}>
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                              <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Dados da Movimentação</span>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4 text-sm font-semibold mt-3">
+                              <div>
+                                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Data Prevista</span>
+                                {new Date(selectedMove.dataMovimentacao).toLocaleDateString('pt-BR')}
+                              </div>
+                              <div>
+                                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Horário</span>
+                                {selectedMove.horaInicio} às {selectedMove.horaFim}
+                              </div>
+                              <div className="col-span-2">
+                                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Natureza</span>
+                                {selectedMove.tipo} - Elevador: {selectedMove.elevadorServico ? 'Sim' : 'Não'}
+                              </div>
+                              {(selectedMove.veiculoPlaca || selectedMove.veiculoModelo) && (
+                                <div className="col-span-2">
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Veículo Associado</span>
+                                  {selectedMove.veiculoPlaca} {selectedMove.veiculoModelo}
+                                </div>
+                              )}
+                              {baseObs && (
+                                <div className="col-span-2">
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Observações</span>
+                                  <p className="text-xs text-slate-500 italic mt-1 whitespace-pre-wrap">{baseObs}</p>
+                                </div>
+                              )}
+                            </div>
+                        </div>
+                      </div>
 
-                  {(selectedMove.status === 'CONCLUIDA' || selectedMove.status === 'ARQUIVADA') && (
-                    <div className="relative flex items-start gap-4">
-                       <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 ${selectedMove.status === 'CONCLUIDA' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'}`}>
-                          {selectedMove.status === 'CONCLUIDA' ? <CheckCircle2 size={16} /> : <Archive size={16} />}
-                       </div>
-                       <div className={`flex-1 p-4 rounded-2xl shadow-sm transition-all border ${selectedMove.status === 'CONCLUIDA' ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30' : 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30'}`}>
-                           <div className="flex items-center justify-between gap-4 mb-2">
-                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Finalização</span>
-                             </div>
-                           </div>
-                           <p className="text-xs font-semibold">
-                             <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest mr-2 ${selectedMove.status === 'CONCLUIDA' ? 'bg-emerald-200 dark:bg-emerald-800 text-emerald-800 dark:text-emerald-200' : 'bg-red-200 dark:bg-red-800 text-red-800 dark:text-red-200'}`}>{selectedMove.status}</span>
-                             A movimentação foi {selectedMove.status === 'CONCLUIDA' ? 'concluída' : 'arquivada'}.
-                           </p>
-                       </div>
+                      {/* Status Atual info (if EM_ANDAMENTO) */}
+                      {selectedMove.status === 'EM_ANDAMENTO' && (
+                        <div className="relative flex items-start gap-4">
+                          <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-amber-100 dark:bg-amber-900/30 border-amber-200 text-amber-600`}>
+                              <Clock size={16} />
+                          </div>
+                          <div className={`flex-1 p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 shadow-sm transition-all`}>
+                              <div className="flex items-center justify-between gap-4 mb-2">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Acompanhamento</span>
+                                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">PORTARIA</span>
+                                </div>
+                              </div>
+                              <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                <span className="px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest mr-2 bg-amber-200 dark:bg-amber-900/50 text-amber-800 dark:text-amber-400">EM ANDAMENTO</span>
+                                Movimentação autorizada e em execução.
+                              </p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Log de Ocorrências (Reaberturas, Fechamentos e Arquivamentos) */}
+                      {occurrences.map((occ, idx) => {
+                        const isClosure = occ.type === 'FECHAMENTO';
+                        const isReopen = occ.type === 'REABERTURA';
+                        const isArchive = occ.type === 'ARQUIVAMENTO';
+
+                        return (
+                          <div key={idx} className="relative flex items-start gap-4">
+                            <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 ${
+                              isClosure ? 'bg-emerald-100 text-emerald-600' : 
+                              isArchive ? 'bg-red-100 text-red-600' :
+                              'bg-blue-100 text-blue-600'
+                            }`}>
+                              {isClosure ? <CheckCircle2 size={16} /> : 
+                               isArchive ? <Archive size={16} /> :
+                               <RotateCcw size={16} />}
+                            </div>
+                            <div className={`flex-1 p-4 rounded-2xl shadow-sm transition-all border ${
+                              isClosure ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30' : 
+                              isArchive ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' :
+                              'bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/30'
+                            }`}>
+                              <div className="flex items-center justify-between gap-4 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                                    {isClosure ? 'Finalização' : isArchive ? 'Arquivamento' : 'Reabertura'}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">
+                                    {occ.role || 'SISTEMA'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="mt-2 p-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
+                                <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1 ${
+                                  isClosure ? 'text-emerald-600' : 
+                                  isArchive ? 'text-red-600' :
+                                  'text-blue-600'
+                                }`}>
+                                  {isClosure ? <AlertTriangle size={10} /> : 
+                                   isArchive ? <Archive size={10} /> :
+                                   <RotateCcw size={10} />} 
+                                  {isClosure ? 'Ocorrência de Fechamento' : isArchive ? 'Registro de Arquivamento' : 'Registro de Reabertura'}
+                                </p>
+                                <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold whitespace-pre-wrap">{occ.note}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Finalização status final (if ARQUIVADA or CONCLUIDA but redundant since occurrences show it? Let's keep it simple and just use occurrences for the notes) */}
+                      {selectedMove.status === 'ARQUIVADA' && (
+                         <div className="relative flex items-start gap-4">
+                            <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-red-100 text-red-600">
+                               <Archive size={16} />
+                            </div>
+                            <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 shadow-sm">
+                                <div className="flex items-center justify-between gap-4 mb-2">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-red-900 dark:text-white">Registro Arquivado</span>
+                                </div>
+                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                  Esta movimentação foi arquivada administrativamente.
+                                </p>
+                            </div>
+                         </div>
+                      )}
                     </div>
-                  )}
-
-                </div>
+                  );
+                })()}
               </div>
 
               {/* Botão de Fechar Unificado */}
@@ -897,6 +1058,184 @@ export default function MudancasPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      {/* MODAL FECHAMENTO */}
+      <AnimatePresence>
+        {showConcludeModal && moveToConclude && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+            onClick={() => setShowConcludeModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                 <h3 className="text-xl font-black uppercase text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+                   <CheckCircle2 size={24} className="text-emerald-500" />
+                   Concluir Mudança
+                 </h3>
+                 <button onClick={() => setShowConcludeModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                    <X size={20} className="text-slate-400" />
+                 </button>
+              </div>
+
+              <div className="p-6 bg-slate-50 dark:bg-slate-900/50 space-y-4">
+                 <div className="flex items-center gap-2 mb-4">
+                    <span className="px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-md text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                      {moveToConclude.unidadeDesc}
+                    </span>
+                    <span className="text-xs font-bold text-slate-500 uppercase">
+                      {moveToConclude.responsavelNome}
+                    </span>
+                 </div>
+
+                 <div>
+                   <label className="block text-[10px] uppercase tracking-widest font-black text-slate-500 mb-2">Observações de Finalização (Opcional)</label>
+                   <textarea 
+                     value={concludeObservation}
+                     onChange={(e) => setConcludeObservation(e.target.value)}
+                     className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl h-28 resize-none bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-emerald-500/20"
+                     placeholder="Aconteceu alguma anormalidade? Ex: Morador quebrou a luminária do hall..."
+                   />
+                 </div>
+              </div>
+
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-3">
+                 <button 
+                   onClick={() => setShowConcludeModal(false)}
+                   className="flex-1 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-xs uppercase transition-all"
+                 >
+                   Cancelar
+                 </button>
+                 <button 
+                   onClick={handleConfirmConclude}
+                   className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-emerald-500/30 transition-all"
+                 >
+                   Finalizar Agora
+                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL REABERTURA */}
+      <AnimatePresence>
+        {showReopenModal && moveToReopen && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+            onClick={() => setShowReopenModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-xl font-black uppercase text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+                  <RotateCcw size={22} className="text-blue-500" />
+                  Reabrir Mudança
+                </h3>
+                <button onClick={() => setShowReopenModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <div className="p-6 bg-slate-50 dark:bg-slate-900/50 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-md text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                    {moveToReopen.unidadeDesc}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">{moveToReopen.responsavelNome}</span>
+                </div>
+                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700/40 rounded-xl">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 dark:text-blue-400">⚠ Atenção</p>
+                  <p className="text-xs text-blue-700 dark:text-blue-300 font-medium mt-1">A reabertura ficará registrada na linha do tempo desta movimentação.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest font-black text-slate-500 mb-2">Motivo da Reabertura (Opcional)</label>
+                  <textarea
+                    value={reopenObservation}
+                    onChange={(e) => setReopenObservation(e.target.value)}
+                    className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl h-24 resize-none bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-blue-500/20"
+                    placeholder="Ex: Morador solicitou nova data. Reagendado para 25/04..."
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-3">
+                <button onClick={() => setShowReopenModal(false)} className="flex-1 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-xs uppercase transition-all">
+                  Cancelar
+                </button>
+                <button onClick={handleConfirmReopen} className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-blue-500/30 transition-all">
+                  Confirmar Reabertura
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL ARQUIVAMENTO */}
+      <AnimatePresence>
+        {showArchiveModal && moveToArchive && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[70]"
+            onClick={() => setShowArchiveModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-md overflow-hidden shadow-2xl"
+            >
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
+                <h3 className="text-xl font-black uppercase text-slate-900 dark:text-white flex items-center gap-2 tracking-tight">
+                  <Archive size={22} className="text-red-500" />
+                  Arquivar Mudança
+                </h3>
+                <button onClick={() => setShowArchiveModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                  <X size={20} className="text-slate-400" />
+                </button>
+              </div>
+              <div className="p-6 bg-slate-50 dark:bg-slate-900/50 space-y-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2 py-1 bg-slate-200 dark:bg-slate-800 rounded-md text-xs font-black uppercase tracking-widest text-slate-700 dark:text-slate-300">
+                    {moveToArchive.unidadeDesc}
+                  </span>
+                  <span className="text-xs font-bold text-slate-500 uppercase">{moveToArchive.responsavelNome}</span>
+                </div>
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700/40 rounded-xl">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">⚠ Atenção</p>
+                  <p className="text-xs text-red-700 dark:text-red-300 font-medium mt-1">O arquivamento encerrará o processo e ficará registrado no histórico.</p>
+                </div>
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest font-black text-slate-500 mb-2">Motivo do Arquivamento (Opcional)</label>
+                  <textarea
+                    value={archiveObservation}
+                    onChange={(e) => setArchiveObservation(e.target.value)}
+                    className="w-full p-4 border border-slate-200 dark:border-slate-700 rounded-2xl h-24 resize-none bg-white dark:bg-slate-800 text-sm font-medium focus:ring-2 focus:ring-red-500/20"
+                    placeholder="Ex: Mudança cancelada pelo morador. Agendamento duplicado..."
+                  />
+                </div>
+              </div>
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex gap-3">
+                <button onClick={() => setShowArchiveModal(false)} className="flex-1 py-3 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-bold text-xs uppercase transition-all">
+                  Cancelar
+                </button>
+                <button onClick={handleConfirmArchive} className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-black text-xs flex items-center justify-center gap-2 uppercase tracking-widest shadow-lg shadow-red-500/30 transition-all">
+                  Confirmar Arquivamento
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </DashboardLayout>
   );
 }
