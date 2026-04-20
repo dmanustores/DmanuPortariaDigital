@@ -77,6 +77,15 @@ export default function ReservasPage() {
   useEffect(() => {
     fetchData();
     getCurrentOperatorId(supabase).then(setOperatorId);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowAreaModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const handleSubmit = async () => {

@@ -64,6 +64,14 @@ export default function AcessosPage() {
   useEffect(() => {
     fetchAccesses();
     getCurrentOperatorId(supabase).then(setOperatorId);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const fetchAccesses = async () => {

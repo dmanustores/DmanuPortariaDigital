@@ -123,6 +123,15 @@ export default function OcorrenciasPage() {
   useEffect(() => {
     fetchOccurrences();
     getCurrentOperatorId(supabase).then(setOperatorId);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowAtenderModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const handleSubmit = async () => {

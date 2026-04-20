@@ -126,8 +126,22 @@ export default function VeiculosPage() {
         setShowUnidadeDropdown(false);
       }
     };
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowSettings(false);
+        setShowExitModal(false);
+        setShowSaidasHoje(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEsc);
+    };
   }, []);
 
   const fetchResidents = async () => {

@@ -90,6 +90,14 @@ export default function AdminPage() {
   useEffect(() => {
     fetchOperators();
     fetchCurrentUser();
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal();
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const fetchCurrentUser = async () => {

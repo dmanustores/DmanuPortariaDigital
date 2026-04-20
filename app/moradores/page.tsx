@@ -23,6 +23,16 @@ export default function MoradoresPage() {
       setResidents(data);
     };
     loadResidents();
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsFormOpen(false);
+        setEditingResident(undefined);
+        setIsReadOnly(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const handleSave = async (resident: Resident) => {

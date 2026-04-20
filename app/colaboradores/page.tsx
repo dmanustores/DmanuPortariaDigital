@@ -52,7 +52,19 @@ export default function ColaboradoresPage() {
     };
     fetchRole();
     const interval = setInterval(() => setCurrentTime(new Date()), 60000); // refresh every minute
-    return () => clearInterval(interval);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowFormModal(false);
+        setShowRegistroModal(null);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('keydown', handleEsc);
+    };
   }, []);
 
   const fetchData = async () => {

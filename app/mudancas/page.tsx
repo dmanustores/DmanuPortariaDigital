@@ -133,8 +133,23 @@ export default function MudancasPage() {
         setShowUnidadeDropdown(false);
       }
     };
+    
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowDetailsModal(false);
+        setShowConcludeModal(false);
+        setShowReopenModal(false);
+        setShowArchiveModal(false);
+      }
+    };
+
     document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    window.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('keydown', handleEsc);
+    };
   }, []);
 
   const fetchResidents = async () => {
@@ -170,6 +185,10 @@ export default function MudancasPage() {
       const unitConf = unitsConfig.find(u => String(u.bloco).replace(/^0+/, '') === cleanBloco && String(u.numero) === cleanApto);
       const isElevatorApplicable = unitConf ? unitConf.tem_elevador !== false : true;
 
+      const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+      const creationLog = `[CRIACAO]${roleTag}: Registro criado`;
+      const finalObs = formData.observacoes ? `${formData.observacoes}\n${creationLog}` : creationLog;
+
       await supabase.from('moves').insert({
         unidadeId: unitId,
         unidadeDesc: formData.unidadeDesc,
@@ -178,7 +197,7 @@ export default function MudancasPage() {
         dataMovimentacao: formData.dataMovimentacao,
         horaInicio: formData.horaInicio,
         horaFim: formData.horaFim,
-        observacoes: formData.observacoes || null,
+        observacoes: finalObs,
         elevadorServico: isElevatorApplicable ? formData.elevadorServico : false,
         veiculoPlaca: formData.veiculoPlaca || null,
         veiculoModelo: formData.veiculoModelo || null,
@@ -212,14 +231,29 @@ export default function MudancasPage() {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    await supabase.from('moves').update({ status: newStatus }).eq('id', id);
+    const move = moves.find(m => m.id === id);
+    if (!move) return;
+
+    let finalObs = move.observacoes || '';
+    if (newStatus === 'EM_ANDAMENTO') {
+      const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+      const startLog = `[INICIO]${roleTag}: Iniciado`;
+      finalObs = finalObs ? `${finalObs}\n${startLog}` : startLog;
+    }
+
+    try {
+      await supabase.from('moves').update({ 
+        status: newStatus,
+        observacoes: finalObs 
+      }).eq('id', id);
+    } catch (err) { console.error(err); }
     fetchMoves();
   };
 
   const handleConfirmConclude = async () => {
     if (!moveToConclude) return;
     const note = concludeObservation.trim() || 'Sem imprevistos registrados.';
-    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
     const currentObs = moveToConclude.observacoes || '';
     const finalObs = currentObs ? `${currentObs}\n[FECHAMENTO]${roleTag}: ${note}` : `[FECHAMENTO]${roleTag}: ${note}`;
     try {
@@ -234,7 +268,7 @@ export default function MudancasPage() {
   const handleConfirmReopen = async () => {
     if (!moveToReopen) return;
     const note = reopenObservation.trim() || 'Mudança reaberta pela portaria.';
-    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
     const currentObs = moveToReopen.observacoes || '';
     const finalObs = currentObs ? `${currentObs}\n[REABERTURA]${roleTag}: ${note}` : `[REABERTURA]${roleTag}: ${note}`;
     try {
@@ -249,7 +283,7 @@ export default function MudancasPage() {
   const handleConfirmArchive = async () => {
     if (!moveToArchive) return;
     const note = archiveObservation.trim() || 'Arquivado administrativamente.';
-    const roleTag = currentOperator ? ` (${currentOperator.role})` : '';
+    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
     const currentObs = moveToArchive.observacoes || '';
     const finalObs = currentObs ? `${currentObs}\n[ARQUIVAMENTO]${roleTag}: ${note}` : `[ARQUIVAMENTO]${roleTag}: ${note}`;
     try {
@@ -876,18 +910,22 @@ export default function MudancasPage() {
               <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
                 {(() => {
                   const rawObs = selectedMove.observacoes || '';
-                  const baseObs = rawObs.split(/\n?\[(REABERTURA|FECHAMENTO|ARQUIVAMENTO)\]/)[0].trim();
+                  const baseObs = rawObs.split(/\n?\[(CRIACAO|INICIO|REABERTURA|FECHAMENTO|ARQUIVAMENTO)\]/)[0].trim();
                   
-                  const occurrences: { type: 'REABERTURA' | 'FECHAMENTO' | 'ARQUIVAMENTO', role?: string, note: string }[] = [];
-                  const eventRegex = /\[(REABERTURA|FECHAMENTO|ARQUIVAMENTO)\](?:\s*\((.*?)\))?:\s*([\s\S]*?)(?=\n\[|$)/g;
+                  const occurrences: { type: string, author?: string, note: string }[] = [];
+                  const eventRegex = /\[(CRIACAO|INICIO|REABERTURA|FECHAMENTO|ARQUIVAMENTO)\](?:\s*\((.*?)\))?:\s*([\s\S]*?)(?=\n\[|$)/g;
                   let match;
                   while ((match = eventRegex.exec(rawObs)) !== null) {
                     occurrences.push({ 
-                      type: match[1] as 'REABERTURA' | 'FECHAMENTO' | 'ARQUIVAMENTO', 
-                      role: match[2],
+                      type: match[1], 
+                      author: match[2],
                       note: match[3].trim() 
                     });
                   }
+
+                  const creationEntry = occurrences.find(o => o.type === 'CRIACAO');
+                  const initiationEntry = occurrences.find(o => o.type === 'INICIO');
+                  const historyOccurrences = occurrences.filter(o => o.type !== 'CRIACAO' && o.type !== 'INICIO');
 
                   return (
                     <div className="space-y-4 relative">
@@ -902,7 +940,9 @@ export default function MudancasPage() {
                             <div className="flex items-center justify-between gap-4 mb-2">
                               <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">Criação / Agendamento</span>
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">SISTEMA</span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={creationEntry?.author}>
+                                    {creationEntry?.author || 'SISTEMA'}
+                                  </span>
                               </div>
                               <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
                                 <Clock size={10} /> {new Date(selectedMove.created_at).toLocaleString('pt-BR')}
@@ -962,7 +1002,9 @@ export default function MudancasPage() {
                               <div className="flex items-center justify-between gap-4 mb-2">
                                 <div className="flex items-center gap-2">
                                     <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 dark:text-amber-400">Acompanhamento</span>
-                                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">PORTARIA</span>
+                                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={initiationEntry?.author}>
+                                      {initiationEntry?.author || 'PORTARIA'}
+                                    </span>
                                 </div>
                               </div>
                               <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
@@ -974,7 +1016,7 @@ export default function MudancasPage() {
                       )}
 
                       {/* Log de Ocorrências (Reaberturas, Fechamentos e Arquivamentos) */}
-                      {occurrences.map((occ, idx) => {
+                      {historyOccurrences.map((occ, idx) => {
                         const isClosure = occ.type === 'FECHAMENTO';
                         const isReopen = occ.type === 'REABERTURA';
                         const isArchive = occ.type === 'ARQUIVAMENTO';
@@ -1000,8 +1042,8 @@ export default function MudancasPage() {
                                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
                                     {isClosure ? 'Finalização' : isArchive ? 'Arquivamento' : 'Reabertura'}
                                   </span>
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">
-                                    {occ.role || 'SISTEMA'}
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={occ.author}>
+                                    {occ.author || 'SISTEMA'}
                                   </span>
                                 </div>
                               </div>

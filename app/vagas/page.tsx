@@ -104,6 +104,14 @@ export default function VagasPage() {
   useEffect(() => {
     fetchVagas();
     fetchResidents();
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowEditModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const totalVagas = vagas.length;

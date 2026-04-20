@@ -67,6 +67,15 @@ export default function AvisosPage() {
   useEffect(() => {
     fetchNotices();
     getCurrentOperatorId(supabase).then(setOperatorId);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowViewModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   const handleSubmit = async () => {

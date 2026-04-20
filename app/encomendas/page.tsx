@@ -102,6 +102,16 @@ export default function EncomendasPage() {
     fetchPackages();
     fetchResidents();
     getCurrentOperatorId(supabase).then(setOperatorId);
+
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowModal(false);
+        setShowRetireModal(false);
+        setShowRejectModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
   }, []);
 
   // Filtragem de unidades para o dropdown
