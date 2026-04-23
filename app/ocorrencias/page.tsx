@@ -124,7 +124,35 @@ export default function OcorrenciasPage() {
       .order('created_at', { ascending: false })
       .limit(200);
     
-    if (data) setOccurrences(data);
+    if (data) {
+      const fixEncoding = (str: string | null) => {
+        if (!str) return str;
+        return str
+          .replace(/Ã\x81/g, 'Á')
+          .replace(/Ãrea/g, 'Área')
+          .replace(/Ã¡/g, 'á')
+          .replace(/Ã¢/g, 'â')
+          .replace(/Ã£/g, 'ã')
+          .replace(/Ã§/g, 'ç')
+          .replace(/Ã©/g, 'é')
+          .replace(/Ãª/g, 'ê')
+          .replace(/Ã­/g, 'í')
+          .replace(/Ã³/g, 'ó')
+          .replace(/Ã´/g, 'ô')
+          .replace(/Ãµ/g, 'õ')
+          .replace(/Ãº/g, 'ú')
+          .replace(/Ã‡/g, 'Ç')
+          .replace(/Ãƒ/g, 'Ã');
+      };
+      
+      const cleaned = data.map((occ: any) => ({
+        ...occ,
+        unidade_desc: fixEncoding(occ.unidade_desc),
+        titulo: fixEncoding(occ.titulo),
+        descricao: fixEncoding(occ.descricao)
+      }));
+      setOccurrences(cleaned);
+    }
     setLoading(false);
   };
 
@@ -629,7 +657,7 @@ export default function OcorrenciasPage() {
                                          <button 
                                             onClick={() => openReopen(occ)}
                                             className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
-                                            title="Reabrir OcorrÃªncia"
+                                         title="Reabrir Ocorrência"
                                          >
                                             <RotateCcw size={16} />
                                          </button>
@@ -637,7 +665,7 @@ export default function OcorrenciasPage() {
                                        <button 
                                          onClick={() => openArchive(occ)}
                                          className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
-                                         title="Arquivar OcorrÃªncia"
+                                         title="Arquivar Ocorrência"
                                        >
                                          <Archive size={16} />
                                        </button>
@@ -681,7 +709,7 @@ export default function OcorrenciasPage() {
               className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="text-xl font-bold">Registrar Nova OcorrÃªncia</h3>
+                <h3 className="text-xl font-bold">Registrar Nova Ocorrência</h3>
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
                   <X size={20} />
                 </button>
@@ -709,7 +737,6 @@ export default function OcorrenciasPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold mb-2">TÃ­tulo *</label>
                   <label className="block text-sm font-bold mb-2">Título *</label>
                   <input 
                     type="text"
