@@ -302,20 +302,19 @@ export default function VagasPage() {
                       )}
                       <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                         <td className="px-6 py-3 font-black text-slate-900 dark:text-white">{vaga.codigo}</td>
-                        <td className="px-6 py-3 pt-4">
+                        <td className="px-6 py-3">
                           {allResidents.some(r => r.bloco === vaga.unidade.bloco && r.apto === vaga.unidade.numero) ? (
-                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/50 text-[11px] font-bold uppercase tracking-wide shadow-sm tooltip" title="Morador cadastrado na unidade">
-                               <User size={12} className="text-indigo-500 dark:text-indigo-400" />
-                               Apt {vaga.unidade.numero}
+                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-900/5 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                               APT {vaga.unidade.numero}
                              </span>
                           ) : (
-                             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-50 text-slate-500 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700 text-[11px] font-semibold uppercase tracking-wide">
-                               Apt {vaga.unidade.numero}
+                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-slate-50 dark:bg-slate-800/50 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider">
+                               APT {vaga.unidade.numero}
                              </span>
                           )}
                         </td>
                         <td className="px-6 py-3">
-                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-wider ${
                             vaga.status === 'LIVRE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30' :
                             vaga.status === 'OCUPADA' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30' :
                             'bg-purple-100 text-purple-700 dark:bg-purple-900/30'
@@ -342,9 +341,11 @@ export default function VagasPage() {
                         </td>
                         <td className="px-6 py-3">
                           {vaga.alugado_para ? (
-                             <div className="flex flex-col">
-                               <span className="font-bold text-slate-900 dark:text-white text-xs">{vaga.alugado_para.nome}</span>
-                               <span className="text-[10px] text-slate-500">Bl {vaga.alugado_para.bloco}, Ap {vaga.alugado_para.apto}</span>
+                             <div className="flex flex-col gap-1">
+                               <span className="inline-block px-2 py-0.5 max-w-fit bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
+                                 BLOCO {String(vaga.alugado_para.bloco).padStart(2, '0')}, APT {vaga.alugado_para.apto}
+                               </span>
+                               <span className="text-xs font-bold text-slate-900 dark:text-white block uppercase tracking-tight">{vaga.alugado_para.nome}</span>
                              </div>
                           ) : vaga.status === 'OCUPADA' ? (
                             <span className="text-slate-400 text-xs italic">Proprietário Principal</span>

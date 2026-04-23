@@ -10,6 +10,7 @@ import {
   MessageSquare,
   Info,
   Clock,
+  Calendar,
   X,
   Save,
   FileText,
@@ -21,11 +22,13 @@ import {
   CheckCircle2,
   AlertCircle,
   UserCheck,
-  RotateCcw
+  RotateCcw,
+  ChevronLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { ActionConfirmModal } from '@/components/ActionConfirmModal';
 import { lookupUnitId, getCurrentOperatorId } from '@/lib/utils';
 
 interface Occurrence {
@@ -46,6 +49,7 @@ interface Occurrence {
   // Joined fields
   operador?: { nome: string; role: string };
   operador_resolucao?: { nome: string; role: string };
+  resident?: { nome: string; bloco: string; apto: string };
 }
 
 interface Interaction {
@@ -88,6 +92,7 @@ export default function OcorrenciasPage() {
   const [activeTab, setActiveTab] = useState<'ATIVAS' | 'HISTORICO'>('ATIVAS');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Aberta' | 'Andamento' | 'URGENTES'>('ALL');
   const [operatorId, setOperatorId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     tipo: 'MANUTENCAO',
     titulo: '',
@@ -97,6 +102,19 @@ export default function OcorrenciasPage() {
     areaComum: '',
     prioridade: 'Normal'
   });
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    type: 'danger' | 'info' | 'success';
+    confirmText?: string;
+  }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, type: 'info' });
+
+  const openConfirm = (title: string, description: string, onConfirm: () => void, type: 'danger' | 'info' | 'success' = 'info', confirmText?: string) => {
+    setConfirmModal({ isOpen: true, title, description, onConfirm, type, confirmText });
+  };
 
   const fetchOccurrences = async () => {
     setLoading(true);
@@ -120,14 +138,25 @@ export default function OcorrenciasPage() {
     if (data) setInteractions(data);
   };
 
+
   useEffect(() => {
     fetchOccurrences();
-    getCurrentOperatorId(supabase).then(setOperatorId);
+    getCurrentOperatorId(supabase).then(id => {
+      setOperatorId(id);
+      if (id) {
+        supabase.from('operators').select('role').eq('id', id).single()
+          .then(({ data }: { data: { role: string } | null }) => setUserRole(data?.role || null));
+      }
+    });
 
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowModal(false);
         setShowAtenderModal(false);
+        setIsViewingDetails(false);
+        setIsResolving(false);
+        setIsArchiving(false);
+        setIsReopening(false);
       }
     };
     window.addEventListener('keydown', handleEsc);
@@ -288,6 +317,27 @@ export default function OcorrenciasPage() {
     setShowAtenderModal(true);
   };
 
+  const handleDeleteOccurrence = async (occId: string) => {
+    if (!occId || userRole !== 'Owner') return;
+    
+    openConfirm(
+      'Excluir Ocorrência',
+      '⚠️ ATENÇÃO: Deseja excluir permanentemente esta ocorrência? Esta ação não pode ser desfeita e removerá todo o histórico associado.',
+      async () => {
+        try {
+          const { error } = await supabase.from('occurrences').delete().eq('id', occId);
+          if (error) throw error;
+          setOccurrences(prev => prev.filter(o => o.id !== occId));
+        } catch (err) {
+          alert('Erro ao excluir ocorrência.');
+          console.error(err);
+        }
+      },
+      'danger',
+      'Excluir Permanentemente'
+    );
+  };
+
   const getTipoIcon = (tipo: string) => {
     const t = tipos.find(x => x.value === tipo);
     return t ? t.icon : Info;
@@ -437,7 +487,7 @@ export default function OcorrenciasPage() {
                          ) : (
                             <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Responsáveis</th>
                          )}
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">{activeTab === 'HISTORICO' ? 'Ações' : 'Admin'}</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">ADMIN</th>
                       </tr>
                    </thead>
                    <tbody>
@@ -464,20 +514,29 @@ export default function OcorrenciasPage() {
                                   </div>
                                </td>
                                <td className="p-4">
-                                  <div className="flex flex-col gap-1">
-                                     <span className="inline-block px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap w-fit uppercase">
-                                       {occ.unidade_desc || 'Condomínio'}
-                                     </span>
-                                  </div>
+                                   <div className="flex flex-col gap-1">
+                                      <span className="inline-block px-2 py-0.5 max-w-fit bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
+                                        {(occ.resident as any)?.bloco && (occ.resident as any)?.apto
+                                          ? `BLOCO ${String((occ.resident as any).bloco).padStart(2, '0')}, APT ${(occ.resident as any).apto}`
+                                          : (occ.unidade_desc || 'Condomínio')}
+                                      </span>
+                                      {(occ.resident as any)?.nome && (
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight uppercase tracking-tight">{(occ.resident as any).nome}</p>
+                                      )}
+                                   </div>
                                </td>
                                <td className="p-4">
-                                  <div className="flex flex-col gap-1 text-[10px] font-bold text-slate-500">
-                                     <span className="flex items-center gap-1"><Clock size={12} className="text-slate-400" /> {new Date(occ.created_at).toLocaleString('pt-BR')}</span>
-                                     {occ.resolvida_em && (
-                                       <span className="flex items-center gap-1"><CheckCircle2 size={12} className="text-emerald-500" /> {new Date(occ.resolvida_em).toLocaleString('pt-BR')}</span>
-                                     )}
-                                  </div>
-                               </td>
+                                   <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
+                                      <div className="flex items-center gap-1.5" title="Data de Abertura">
+                                         <Calendar size={12} className="text-blue-500" /> 
+                                         <span className="uppercase tracking-widest">{new Date(occ.created_at).toLocaleDateString('pt-BR')}</span>
+                                      </div>
+                                      <div className="flex items-center gap-1.5">
+                                         <Clock size={12} className="text-amber-500" />
+                                         <span className="tracking-widest uppercase">{new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                                      </div>
+                                   </div>
+                                </td>
                                <td className="p-4">
                                   <div className="flex flex-col gap-2 items-start">
                                      <button 
@@ -505,29 +564,29 @@ export default function OcorrenciasPage() {
                                </td>
                                {activeTab !== 'HISTORICO' ? (
                                   <td className="p-4 text-center">
-                                     <div className="flex justify-center gap-2">
+                                     <div className="flex flex-col gap-2">
                                         {occ.status === 'Aberta' && (
                                           <button 
                                             onClick={() => openAtender(occ)}
-                                            className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black border border-blue-100 hover:bg-blue-100 transition-all uppercase flex items-center gap-1.5"
+                                            className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl text-[10px] font-black border border-blue-500/20 hover:bg-blue-500 hover:text-white transition-all uppercase flex items-center gap-2 shadow-sm"
                                           >
-                                            <Wrench size={12} /> Atender
+                                            <Wrench size={16} /> Atender
                                           </button>
                                         )}
                                         {occ.status !== 'Resolvida' && occ.status !== 'Arquivada' && (
                                           <button 
                                             onClick={() => openResolve(occ)}
-                                            className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all uppercase flex items-center gap-1.5"
+                                            className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl text-[10px] font-black border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all uppercase flex items-center gap-2 shadow-sm"
                                           >
-                                            <CheckCircle2 size={12} /> Resolver
+                                            <CheckCircle2 size={16} /> Resolver
                                           </button>
                                         )}
                                         {occ.status === 'Arquivada' && (
                                           <button 
                                             onClick={() => openDetails(occ)}
-                                            className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-black border border-slate-200 hover:bg-slate-200 transition-all uppercase flex items-center gap-1.5"
+                                            className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 rounded-xl text-[10px] font-black border border-slate-200 dark:border-slate-700 hover:bg-slate-200 transition-all uppercase flex items-center gap-2 shadow-sm"
                                           >
-                                            <Search size={12} /> Detalhes
+                                            <Search size={16} /> Detalhes
                                           </button>
                                         )}
                                      </div>
@@ -555,42 +614,44 @@ export default function OcorrenciasPage() {
                                   </td>
                                )}
                                <td className="p-4 text-right">
-                                  <div className="flex justify-end gap-2 text-slate-400">
-                                     {activeTab === 'HISTORICO' ? (
-                                        <>
-                                          <button 
-                                             onClick={() => openReopen(occ)}
-                                             className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black border border-blue-200 dark:border-blue-700/50 hover:bg-blue-100 dark:hover:bg-blue-800 transition-all uppercase flex items-center gap-1.5"
-                                             title="Reabrir Ocorrência"
-                                          >
-                                             <RotateCcw size={12} />
-                                          </button>
-                                          <button 
-                                             onClick={() => openDetails(occ)}
-                                             className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-[10px] font-black border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase flex items-center gap-1.5"
-                                          >
-                                             <Search size={12} /> Detalhes
-                                          </button>
-                                        </>
-                                     ) : (
-                                       <>
+                                  <div className="flex justify-end gap-2">
+                                     {/* 1) LUPA (Sempre Primeiro) */}
+                                     <button 
+                                        onClick={() => openDetails(occ)}
+                                        className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                        title="Ver Detalhes"
+                                     >
+                                        <Search size={16} />
+                                     </button>
+
+                                     {/* 2) REABRIR / ARQUIVAR */}
+                                     {activeTab === "HISTORICO" ? (
                                          <button 
-                                            onClick={() => openDetails(occ)}
-                                            className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-400 hover:text-blue-500 rounded-lg transition-all"
-                                            title="Ver Detalhes/Histórico"
+                                            onClick={() => openReopen(occ)}
+                                            className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                            title="Reabrir OcorrÃªncia"
                                          >
-                                            <Search size={16} />
+                                            <RotateCcw size={16} />
                                          </button>
-                                         {occ.status !== 'Arquivada' && (
-                                           <button 
-                                             onClick={() => openArchive(occ)}
-                                             className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 rounded-lg transition-all"
-                                             title="Arquivar"
-                                           >
-                                             <Archive size={16} />
-                                           </button>
-                                         )}
-                                       </>
+                                     ) : (
+                                       <button 
+                                         onClick={() => openArchive(occ)}
+                                         className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                         title="Arquivar OcorrÃªncia"
+                                       >
+                                         <Archive size={16} />
+                                       </button>
+                                     )}
+
+                                     {/* 3) EXCLUIR (Owner Apenas) */}
+                                     {userRole === 'Owner' && (
+                                       <button 
+                                         onClick={() => handleDeleteOccurrence(occ.id)}
+                                         className="p-2 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-700/50 hover:bg-red-100 dark:hover:bg-red-800 transition-all font-black text-[10px]"
+                                         title="Excluir Permanentemente"
+                                       >
+                                         <Trash2 size={14} />
+                                       </button>
                                      )}
                                   </div>
                                </td>
@@ -620,7 +681,7 @@ export default function OcorrenciasPage() {
               className="bg-white dark:bg-slate-900 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto"
             >
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-                <h3 className="text-xl font-bold">Nova Ocorrência</h3>
+                <h3 className="text-xl font-bold">Registrar Nova OcorrÃªncia</h3>
                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-slate-100 rounded-lg">
                   <X size={20} />
                 </button>
@@ -648,6 +709,7 @@ export default function OcorrenciasPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-bold mb-2">TÃ­tulo *</label>
                   <label className="block text-sm font-bold mb-2">Título *</label>
                   <input 
                     type="text"
@@ -659,7 +721,7 @@ export default function OcorrenciasPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold mb-2">Descrição</label>
+                  <label className="block text-sm font-bold mb-2">Descrição Detalhada</label>
                   <textarea 
                     value={formData.descricao}
                     onChange={(e) => setFormData({...formData, descricao: e.target.value})}
@@ -691,7 +753,7 @@ export default function OcorrenciasPage() {
                         value={formData.unidade_desc}
                         onChange={(e) => setFormData({...formData, unidade_desc: e.target.value})}
                         className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                        placeholder="Ex: Bloco A, Apto 101"
+                        placeholder="Ex: Vazamento no corredor, Barulho excessivo..."
                       />
                   ) : (
                       <select 
@@ -702,12 +764,14 @@ export default function OcorrenciasPage() {
                          <option value="">Selecione a área (opcional)...</option>
                          <option value="Portaria">Portaria</option>
                          <option value="Garagem">Garagem</option>
-                         <option value="Piscina">Piscina</option>
                          <option value="Salão de Festas">Salão de Festas</option>
+                         <option value="Churrasqueira">Churrasqueira</option>
                          <option value="Academia">Academia</option>
-                         <option value="Elevador ou Hall">Elevador / Hall</option>
+                         <option value="Piscina">Piscina</option>
+                         <option value="Hall de Entrada">Hall de Entrada</option>
+                         <option value="Elevador">Elevador</option>
                          <option value="Fachada ou Muros">Fachada / Muros</option>
-                         <option value="Caixa D'água ou Bombas">Caixa D'água / Bombas</option>
+                         <option value="Caixa D'Água ou Bombas">Caixa D'Água / Bombas</option>
                          <option value="Outros / Estrutural">Outros (Estrutural)</option>
                       </select>
                   )}
@@ -776,33 +840,103 @@ export default function OcorrenciasPage() {
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]"
+              className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800"
             >
               {/* Modal Header */}
               <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-start">
-                <div>
-                   <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
-                     <HistoryLog size={20} className="text-blue-500" />
-                     {isViewingDetails ? 'Detalhes da Ocorrência' : isArchiving ? 'Arquivar Ocorrência' : isReopening ? 'Reabrir Ocorrência' : isResolving ? 'Finalizar Ocorrência' : (selectedOcc?.status === 'Resolvida' || selectedOcc?.status === 'Arquivada') ? 'Ocorrência Finalizada' : 'Fluxo de Atendimento'}
-                   </h3>
-                   <div className="flex items-center gap-2 mt-1">
-                      <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedOcc?.titulo}</span>
-                      <span className="size-1 rounded-full bg-slate-400" />
-                      <span className="text-[10px] font-black text-blue-500 uppercase tracking-widest">{selectedOcc?.status}</span>
-                   </div>
-                </div>
-                <button onClick={() => setShowAtenderModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                  <X size={20} className="text-slate-400" />
-                </button>
-              </div>
+                 <div>
+                    <h2 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                      <HistoryLog size={20} className="text-blue-500" />
+                      Detalhes da Movimentação - Ocorrências
+                    </h2>
+                    <div className="flex items-center gap-2 mt-2">
+                       <span className="inline-block px-2 py-0.5 bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
+                         {selectedOcc?.unidade_desc || 'CONDOMÍNIO'}
+                       </span>
+                       <span className="size-1 rounded-full bg-slate-400" />
+                       <span className={`text-[10px] font-black uppercase tracking-widest ${
+                         selectedOcc?.status === 'Aberta' ? 'text-amber-500' :
+                         selectedOcc?.status === 'Andamento' ? 'text-blue-500' :
+                         selectedOcc?.status === 'Resolvida' ? 'text-rose-500' :
+                         'text-slate-500'
+                       }`}>
+                         • {selectedOcc?.status}
+                       </span>
+                    </div>
+                 </div>
+                 <button onClick={() => setShowAtenderModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                   <X size={20} className="text-slate-400" />
+                 </button>
+               </div>
 
               {/* Timeline Content */}
-              {interactions.length > 0 && (
+              {true && (
                 <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
-                  <div className="space-y-4">
+                  <div className="space-y-4 relative">
+                    <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                    
+                    {/* Passo 1: Criação */}
+                    <div className="relative flex items-start gap-4">
+                      <div className="p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50">
+                        <LogIn size={16} />
+                      </div>
+                      <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
+                        <div className="flex items-center justify-between gap-4 mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) Abertura</span>
+                            <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                              {selectedOcc.operador?.nome?.split(' ')[0] || 'SISTEMA'}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-400 uppercase">{selectedOcc.operador?.role || 'Admin'}</span>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
+                            <Clock size={10} /> {new Date(selectedOcc.created_at).toLocaleString('pt-BR')}
+                          </span>
+                        </div>
+                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed">
+                          Ocorrência registrada no sistema.
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Passo 2: Dados da Ocorrência */}
+                    <div className="flex gap-4 group relative z-10">
+                      <div className="flex flex-col items-center">
+                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 border-2 bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/50 dark:text-blue-400">
+                          <Info size={14} />
+                        </div>
+                      </div>
+                      <div className="flex-1 pb-4">
+                        <div className="flex items-center justify-between gap-2 mb-1">
+                           <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">2) Dados da Ocorrência</p>
+                        </div>
+                        <div className="text-sm p-4 rounded-2xl bg-blue-50/50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800/30 shadow-sm transition-all">
+                            <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+                               <div>
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Tipo / Categoria</span>
+                                  <span className="text-blue-900 dark:text-blue-100">{selectedOcc.tipo}</span>
+                               </div>
+                               <div>
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Prioridade</span>
+                                  <span className={selectedOcc.prioridade === 'Urgente' ? 'text-red-500' : 'text-blue-900 dark:text-blue-100'}>{selectedOcc.prioridade}</span>
+                               </div>
+                               <div className="col-span-2">
+                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Localização</span>
+                                  <span className="text-blue-900 dark:text-blue-100">{selectedOcc.unidade_desc || 'Condomínio'}</span>
+                               </div>
+                               {selectedOcc.descricao && (
+                                 <div className="col-span-2 mt-2 pt-2 border-t border-blue-100/50">
+                                    <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Relato Inicial</span>
+                                    <p className="text-slate-700 dark:text-slate-300 italic whitespace-pre-wrap">"{selectedOcc.descricao}"</p>
+                                 </div>
+                               )}
+                            </div>
+                        </div>
+                      </div>
+                    </div>
                     {interactions.map((it, idx) => {
                       const isStatusChange = it.tipo === 'StatusChange';
-                      const match = it.mensagem.match(/^\[(.*?)\] (.*)$/s);
+                      const match = it.mensagem.match(/^\[(.*?)\] ([\s\S]*)$/);
                       
                       let Icon = UserCheck;
                       let iconColor = 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700';
@@ -825,11 +959,16 @@ export default function OcorrenciasPage() {
                             iconColor = 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-400';
                             bgColor = 'bg-amber-50/50 border border-amber-100 text-amber-700 font-bold italic dark:bg-amber-900/10 dark:border-amber-800/30 dark:text-amber-300';
                             badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
+                         } else if (it.mensagem.startsWith('[RESOLVIDA]') || it.mensagem.startsWith('[ARQUIVADA]')) {
+                            Icon = CheckCircle2;
+                            iconColor = 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800/50 dark:text-rose-400';
+                            bgColor = 'bg-rose-50/50 border border-rose-100 text-rose-700 font-bold italic dark:bg-rose-900/10 dark:border-rose-800/30 dark:text-rose-300';
+                            badgeColor = 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300';
                          } else {
                             Icon = CheckCircle2;
-                            iconColor = 'bg-emerald-50 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50 dark:text-emerald-400';
-                            bgColor = 'bg-emerald-50/50 border border-emerald-100 text-emerald-700 font-bold italic dark:bg-emerald-900/10 dark:border-emerald-800/30 dark:text-emerald-300';
-                            badgeColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300';
+                            iconColor = 'bg-slate-100 border-slate-200 text-slate-600';
+                            bgColor = 'bg-white border-slate-200 text-slate-600';
+                            badgeColor = 'bg-slate-100 text-slate-600';
                          }
                       }
 
@@ -892,6 +1031,7 @@ export default function OcorrenciasPage() {
                         >
                           Voltar
                         </button>
+
                         {isArchiving ? (
                           <button 
                             disabled={!atenderObs.trim()}
@@ -914,7 +1054,7 @@ export default function OcorrenciasPage() {
                             onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Resolvida', atenderObs)}
                             className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                           >
-                            <CheckCircle2 size={16} /> Confirmar Solução
+                             <CheckCircle2 size={16} /> Confirmar Solução
                           </button>
                         ) : selectedOcc?.status === 'Aberta' ? (
                           <button 
@@ -930,26 +1070,35 @@ export default function OcorrenciasPage() {
                             onClick={handleAddInteraction}
                             className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
                           >
-                            <Save size={16} /> Registrar Interação
+                             <Save size={16} /> Registrar Interação
                           </button>
                         )}
                      </div>
                    </>
                  ) : (
                     <div className="flex flex-col items-center">
-                       <button 
-                          onClick={() => setShowAtenderModal(false)}
-                          className="w-full py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl text-xs font-black uppercase transition-all hover:bg-slate-200"
-                       >
-                          Voltar
-                       </button>
+                        <button 
+                           onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); setIsArchiving(false); setIsReopening(false); setIsResolving(false); }}
+                           className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center gap-2"
+                        >
+                           <ChevronLeft size={16} /> Voltar
+                        </button>
                     </div>
                  )}
-              </div>
+               </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+      <ActionConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+      />
     </DashboardLayout>
   );
 }

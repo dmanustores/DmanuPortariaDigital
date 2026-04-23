@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -19,11 +19,13 @@ import {
   Archive,
   Edit3,
   UserCheck,
-  RotateCcw
+  RotateCcw,
+  Home
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { supabase } from '@/lib/supabase';
+import { ActionConfirmModal } from '@/components/ActionConfirmModal';
 import { lookupUnitId, formatPhone, formatPlate } from '@/lib/utils';
 
 interface Resident {
@@ -83,6 +85,19 @@ export default function MudancasPage() {
   const [selectedMove, setSelectedMove] = useState<Move | null>(null);
   const [search, setSearch] = useState('');
   const [currentOperator, setCurrentOperator] = useState<{ nome: string; role: string } | null>(null);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    type: 'danger' | 'info' | 'success';
+    confirmText?: string;
+  }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, type: 'info' });
+
+  const openConfirm = (title: string, description: string, onConfirm: () => void, type: 'danger' | 'info' | 'success' = 'info', confirmText?: string) => {
+    setConfirmModal({ isOpen: true, title, description, onConfirm, type, confirmText });
+  };
   
   useEffect(() => {
     const fetchOperator = async () => {
@@ -176,6 +191,24 @@ export default function MudancasPage() {
     setLoading(false);
   };
 
+  const handleDeleteMove = async (id: string) => {
+    if (!id || currentOperator?.role !== 'Owner') return;
+    openConfirm(
+      'Excluir Mudança',
+      '⚠️ ATENÇÃO: Deseja realmente excluir este registro de mudança? Esta ação é irreversível!',
+      async () => {
+        try {
+          await supabase.from('moves').delete().eq('id', id);
+          fetchMoves();
+        } catch (err) {
+          console.error(err);
+        }
+      },
+      'danger',
+      'Excluir Registro'
+    );
+  };
+
   const handleSubmit = async () => {
     try {
       const unitId = await lookupUnitId(supabase, formData.unidadeDesc);
@@ -236,7 +269,8 @@ export default function MudancasPage() {
 
     let finalObs = move.observacoes || '';
     if (newStatus === 'EM_ANDAMENTO') {
-      const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+      const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+      const roleTag = currentOperator ? ` (${currentOperator.nome} às ${now})` : ` (SISTEMA às ${now})`;
       const startLog = `[INICIO]${roleTag}: Iniciado`;
       finalObs = finalObs ? `${finalObs}\n${startLog}` : startLog;
     }
@@ -252,9 +286,10 @@ export default function MudancasPage() {
 
   const handleConfirmConclude = async () => {
     if (!moveToConclude) return;
-    const note = concludeObservation.trim() || 'Sem imprevistos registrados.';
-    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const roleTag = currentOperator ? ` (${currentOperator.nome} às ${now})` : ` (SISTEMA às ${now})`;
     const currentObs = moveToConclude.observacoes || '';
+    const note = concludeObservation.trim() || 'Concluída pela portaria.';
     const finalObs = currentObs ? `${currentObs}\n[FECHAMENTO]${roleTag}: ${note}` : `[FECHAMENTO]${roleTag}: ${note}`;
     try {
       await supabase.from('moves').update({ status: 'CONCLUIDA', observacoes: finalObs }).eq('id', moveToConclude.id);
@@ -268,7 +303,8 @@ export default function MudancasPage() {
   const handleConfirmReopen = async () => {
     if (!moveToReopen) return;
     const note = reopenObservation.trim() || 'Mudança reaberta pela portaria.';
-    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const roleTag = currentOperator ? ` (${currentOperator.nome} às ${now})` : ` (SISTEMA às ${now})`;
     const currentObs = moveToReopen.observacoes || '';
     const finalObs = currentObs ? `${currentObs}\n[REABERTURA]${roleTag}: ${note}` : `[REABERTURA]${roleTag}: ${note}`;
     try {
@@ -283,7 +319,8 @@ export default function MudancasPage() {
   const handleConfirmArchive = async () => {
     if (!moveToArchive) return;
     const note = archiveObservation.trim() || 'Arquivado administrativamente.';
-    const roleTag = currentOperator ? ` (${currentOperator.nome})` : '';
+    const now = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const roleTag = currentOperator ? ` (${currentOperator.nome} às ${now})` : ` (SISTEMA às ${now})`;
     const currentObs = moveToArchive.observacoes || '';
     const finalObs = currentObs ? `${currentObs}\n[ARQUIVAMENTO]${roleTag}: ${note}` : `[ARQUIVAMENTO]${roleTag}: ${note}`;
     try {
@@ -462,13 +499,16 @@ export default function MudancasPage() {
                 <table className="w-full text-left border-collapse">
                    <thead>
                       <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Unidade e Morador</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Morador / Unidade</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Veículo / Tipo</th>
                          <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Data / Horário</th>
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Tipo / Prioridade</th>
-                         {activeTab !== 'HISTORICO' && (
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Status / Prioridade</th>
+                         {activeTab !== 'HISTORICO' ? (
                             <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Ação Portaria</th>
+                         ) : (
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Responsável</th>
                          )}
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">{activeTab === 'HISTORICO' ? 'Ações' : 'Admin'}</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">ADMIN</th>
                       </tr>
                    </thead>
                    <tbody>
@@ -476,24 +516,43 @@ export default function MudancasPage() {
                          const IconComp = getTipoIcon(move.tipo);
                          return (
                             <tr key={move.id} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                               {/* COL 1: MORADOR / UNIDADE */}
                                <td className="p-4">
                                   <div className="flex gap-3 items-center">
-                                     <div className="size-10 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-600 flex items-center justify-center shrink-0">
-                                       <IconComp size={20} />
+                                     <div className="size-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 flex items-center justify-center shrink-0 border border-indigo-100 dark:border-indigo-800/30">
+                                       <Home size={18} />
                                      </div>
                                      <div className="flex flex-col gap-1">
-                                        <span className="inline-block px-2 py-0.5 max-w-fit bg-slate-100 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase">
-                                          {move.unidadeDesc || 'Desconhecida'}
+                                        <span className="inline-block px-2 py-0.5 max-w-fit bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
+                                          {move.bloco && move.apto ? `BLOCO ${String(move.bloco).padStart(2, '0')}, APT ${move.apto}` : (move.unidadeDesc || 'Desconhecida')}
                                         </span>
-                                        <p className="text-sm font-black text-slate-800 dark:text-slate-200 leading-tight block">{move.responsavelNome}</p>
-                                        {(move.observacoes || move.veiculoPlaca) && (
-                                          <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[250px] uppercase font-bold mt-1">
-                                            {move.veiculoPlaca ? `[${move.veiculoPlaca}] ` : ''}{move.observacoes}
-                                          </p>
+                                        <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight block uppercase tracking-tight">{move.responsavelNome}</p>
+                                     </div>
+                                  </div>
+                               </td>
+
+                               {/* COL 2: VEÍCULO / TIPO */}
+                               <td className="p-4">
+                                  <div className="flex gap-3 items-center">
+                                     <div className="size-10 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-500 flex items-center justify-center shrink-0 border border-purple-100 dark:border-purple-800/30">
+                                       <IconComp size={18} />
+                                     </div>
+                                     <div className="flex flex-col gap-1">
+                                        {move.veiculoPlaca ? (
+                                          <span className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-tight">{move.veiculoPlaca}</span>
+                                        ) : (
+                                          <span className="text-[10px] italic text-slate-400">Sem veículo</span>
+                                        )}
+                                        <span className="inline-block px-2 py-0.5 max-w-fit bg-purple-50 dark:bg-purple-900/20 rounded-md text-[10px] font-black text-purple-700 dark:text-purple-400 border border-purple-200 dark:border-purple-800/30 whitespace-nowrap uppercase tracking-wider">
+                                          {move.tipo}
+                                        </span>
+                                        {move.observacoes && (
+                                          <p className="text-[10px] text-slate-400 line-clamp-1 max-w-[180px] font-bold uppercase mt-0.5">{move.observacoes}</p>
                                         )}
                                      </div>
                                   </div>
                                </td>
+
                                <td className="p-4">
                                   <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
                                      <span className="flex items-center gap-1.5"><Calendar size={12} className="text-blue-500" /> <span className="uppercase tracking-widest">{new Date(move.dataMovimentacao).toLocaleDateString('pt-BR')}</span></span>
@@ -523,72 +582,85 @@ export default function MudancasPage() {
                                      </span>
                                   </div>
                                </td>
-                               {activeTab !== 'HISTORICO' && (
+                               {activeTab !== 'HISTORICO' ? (
                                   <td className="p-4 text-center">
                                      <div className="flex justify-center gap-2">
                                         {move.status === 'AGENDADA' && (
-                                          <button 
-                                            onClick={() => handleStatusChange(move.id, 'EM_ANDAMENTO')}
-                                            className="px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black border border-blue-100 hover:bg-blue-100 transition-all uppercase flex items-center gap-1.5"
-                                          >
-                                            <LogIn size={12} /> Iniciar
-                                          </button>
+                                           <button 
+                                             onClick={() => handleStatusChange(move.id, 'EM_ANDAMENTO')}
+                                             className="px-4 py-2 bg-blue-500/10 text-blue-500 rounded-xl text-[10px] font-black border border-blue-500/20 hover:bg-blue-500 hover:text-white transition-all uppercase flex items-center gap-2 shadow-sm"
+                                           >
+                                             <LogIn size={14} /> Iniciar
+                                           </button>
                                         )}
                                         {move.status === 'EM_ANDAMENTO' && (
-                                          <button 
-                                            onClick={() => {
-                                              setMoveToConclude(move);
-                                              setConcludeObservation('');
-                                              setShowConcludeModal(true);
-                                            }}
-                                            className="px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-lg text-[10px] font-black border border-emerald-100 hover:bg-emerald-100 transition-all uppercase flex items-center gap-1.5"
-                                          >
-                                            <CheckCircle2 size={12} /> Concluir
-                                          </button>
+                                           <button 
+                                             onClick={() => {
+                                               setMoveToConclude(move);
+                                               setConcludeObservation('');
+                                               setShowConcludeModal(true);
+                                             }}
+                                             className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl text-[10px] font-black border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all uppercase flex items-center gap-2 shadow-sm"
+                                           >
+                                             <CheckCircle2 size={14} /> Concluir
+                                           </button>
                                         )}
+                                     </div>
+                                  </td>
+                               ) : (
+                                <td className="p-4">
+                                     <div className="flex items-center gap-2 text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                        <div className="size-5 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[8px] font-bold">
+                                          S
+                                        </div>
+                                        Operador
                                      </div>
                                   </td>
                                )}
                                <td className="p-4 text-right">
-                                  <div className="flex justify-end gap-2 text-slate-400">
-                                     {activeTab === 'HISTORICO' ? (
-                                        <>
-                                          <button 
-                                            onClick={() => { setMoveToReopen(move); setReopenObservation(''); setShowReopenModal(true); }}
-                                            className="p-2 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded-lg text-[10px] font-black border border-blue-200 dark:border-blue-700/50 hover:bg-blue-100 dark:hover:bg-blue-800 transition-all uppercase flex items-center gap-1.5"
-                                            title="Reabrir Mudança"
-                                          >
-                                            <RotateCcw size={12} />
-                                          </button>
-                                          <button 
-                                             onClick={() => { setSelectedMove(move); setShowDetailsModal(true); }}
-                                             className="p-2 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-lg text-[10px] font-black border border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700 transition-all uppercase flex items-center gap-1.5"
-                                          >
-                                             <Search size={12} /> Detalhes
-                                          </button>
-                                        </>
-                                     ) : (
-                                       <>
-                                         <button 
-                                            onClick={() => { setSelectedMove(move); setShowDetailsModal(true); }}
-                                            className="p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-slate-400 hover:text-blue-500 rounded-lg transition-all"
-                                            title="Ver Detalhes/Histórico"
+                                  <div className="flex justify-end gap-2">
+                                      {/* 1) LUPA (Sempre Primeiro) */}
+                                      <button 
+                                         onClick={() => { setSelectedMove(move); setShowDetailsModal(true); }}
+                                         className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                         title="Ver Detalhes"
+                                      >
+                                         <Search size={16} />
+                                      </button>
+
+                                      {/* 2) ARQUIVAR / REABRIR */}
+                                      {activeTab === 'HISTORICO' ? (
+                                        <button 
+                                          onClick={() => { setMoveToReopen(move); setReopenObservation(''); setShowReopenModal(true); }}
+                                          className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                          title="Reabrir Mudança"
+                                        >
+                                          <RotateCcw size={16} />
+                                        </button>
+                                      ) : (
+                                        <button 
+                                           onClick={() => {
+                                             setMoveToArchive(move);
+                                             setArchiveObservation('');
+                                             setShowArchiveModal(true);
+                                           }}
+                                           className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                           title="Arquivar Mudança"
                                          >
-                                            <Search size={16} />
+                                           <Archive size={16} />
                                          </button>
-                                         <button 
-                                            onClick={() => {
-                                              setMoveToArchive(move);
-                                              setArchiveObservation('');
-                                              setShowArchiveModal(true);
-                                            }}
-                                            className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-slate-400 hover:text-red-500 rounded-lg transition-all"
-                                            title="Arquivar Mudança"
-                                          >
-                                            <Archive size={16} />
-                                          </button>
-                                       </>
-                                     )}
+                                      )}
+
+                                      {/* 3) EXCLUIR (Owner Apenas, Último) */}
+                                      {currentOperator?.role === 'Owner' && (
+                                        <button 
+                                          onClick={() => handleDeleteMove(move.id)}
+                                          className="p-2.5 bg-slate-100 dark:bg-slate-800 text-slate-400 hover:text-red-600 hover:bg-red-100 dark:hover:bg-red-900/40 rounded-xl border border-slate-200 dark:border-slate-700 transition-all shadow-sm"
+                                          title="Excluir Registro (Owner)"
+                                        >
+                                          <Trash2 size={16} />
+                                        </button>
+                                      )}
                                   </div>
                                </td>
                             </tr>
@@ -893,7 +965,7 @@ export default function MudancasPage() {
                 <div>
                    <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                      <HistoryLog size={20} className="text-blue-500" />
-                     Detalhes da Movimentação
+                     Detalhes da Movimentação - Mudanças
                    </h3>
                    <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedMove.unidadeDesc}</span>
@@ -932,14 +1004,14 @@ export default function MudancasPage() {
                       <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
 
                       {/* Agendamento */}
-                      <div className="relative flex items-start gap-4">
-                        <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700`}>
+                       <div className="relative flex items-start gap-4">
+                        <div className={`p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50`}>
                             <Calendar size={16} />
                         </div>
                         <div className={`flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm transition-all`}>
                             <div className="flex items-center justify-between gap-4 mb-2">
                               <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">Criação / Agendamento</span>
+                                  <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">1) Criação / Agendamento</span>
                                   <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={creationEntry?.author}>
                                     {creationEntry?.author || 'SISTEMA'}
                                   </span>
@@ -960,7 +1032,7 @@ export default function MudancasPage() {
                         <div className={`flex-1 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all`}>
                             <div className="flex items-center justify-between gap-4 mb-2">
                               <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">Dados da Movimentação</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) Dados da Movimentação</span>
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 text-sm font-semibold mt-3">
@@ -1024,8 +1096,7 @@ export default function MudancasPage() {
                         return (
                           <div key={idx} className="relative flex items-start gap-4">
                             <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 ${
-                              isClosure ? 'bg-emerald-100 text-emerald-600' : 
-                              isArchive ? 'bg-red-100 text-red-600' :
+                              isClosure || isArchive ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:border-red-800/50' : 
                               'bg-blue-100 text-blue-600'
                             }`}>
                               {isClosure ? <CheckCircle2 size={16} /> : 
@@ -1033,24 +1104,22 @@ export default function MudancasPage() {
                                <RotateCcw size={16} />}
                             </div>
                             <div className={`flex-1 p-4 rounded-2xl shadow-sm transition-all border ${
-                              isClosure ? 'bg-emerald-50/50 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-800/30' : 
-                              isArchive ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' :
+                              isClosure || isArchive ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' : 
                               'bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/30'
                             }`}>
                               <div className="flex items-center justify-between gap-4 mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
-                                    {isClosure ? 'Finalização' : isArchive ? 'Arquivamento' : 'Reabertura'}
+                                    {isClosure ? '3) Finalização' : isArchive ? '3) Arquivamento' : 'Reabertura'}
                                   </span>
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={occ.author}>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[200px]" title={occ.author}>
                                     {occ.author || 'SISTEMA'}
                                   </span>
                                 </div>
                               </div>
                               <div className="mt-2 p-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
                                 <p className={`text-[10px] font-black uppercase tracking-widest mb-1 flex items-center gap-1 ${
-                                  isClosure ? 'text-emerald-600' : 
-                                  isArchive ? 'text-red-600' :
+                                  isClosure || isArchive ? 'text-red-600' :
                                   'text-blue-600'
                                 }`}>
                                   {isClosure ? <AlertTriangle size={10} /> : 
@@ -1278,6 +1347,15 @@ export default function MudancasPage() {
         )}
       </AnimatePresence>
 
+      <ActionConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+      />
     </DashboardLayout>
   );
 }

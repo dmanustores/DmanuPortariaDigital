@@ -50,15 +50,14 @@ export const ResidentList: React.FC<ResidentListProps> = ({ residents, onEdit, o
                   <Home size={16} />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="text-sm lg:text-base font-bold text-slate-900 dark:text-white truncate uppercase leading-tight">{resident.nome}</h3>
-                  <div className="flex items-center gap-1.5 mt-1">
-                    <span className="text-[9px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 uppercase tracking-wider">
-                      BL {resident.bloco}
-                    </span>
-                    <span className="text-[9px] font-black text-primary bg-primary/5 px-2 py-0.5 rounded border border-primary/10 uppercase tracking-wider">
-                      AP {resident.apto}
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <span className="text-[9px] font-black text-slate-600 dark:text-slate-400 bg-slate-900/5 dark:bg-slate-800 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-700 uppercase tracking-wider">
+                      BLOCO {String(resident.bloco).padStart(2, '0')}, APT {resident.apto}
                     </span>
                   </div>
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-white truncate uppercase leading-tight tracking-tight">
+                    {resident.nome}
+                  </h3>
                 </div>
               </div>
               <div className="flex items-start gap-2">

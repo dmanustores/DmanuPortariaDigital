@@ -10,12 +10,26 @@ import { PlusCircle, ArrowLeft } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/DashboardLayout';
+import { ActionConfirmModal } from '@/components/ActionConfirmModal';
 
 export default function MoradoresPage() {
   const [residents, setResidents] = useState<Resident[]>([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingResident, setEditingResident] = useState<Resident | undefined>(undefined);
   const [isReadOnly, setIsReadOnly] = useState(false);
+
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    description: string;
+    onConfirm: () => void;
+    type: 'danger' | 'info' | 'success';
+    confirmText?: string;
+  }>({ isOpen: false, title: '', description: '', onConfirm: () => {}, type: 'info' });
+
+  const openConfirm = (title: string, description: string, onConfirm: () => void, type: 'danger' | 'info' | 'success' = 'info', confirmText?: string) => {
+    setConfirmModal({ isOpen: true, title, description, onConfirm, type, confirmText });
+  };
 
   useEffect(() => {
     const loadResidents = async () => {
@@ -47,19 +61,25 @@ export default function MoradoresPage() {
       console.error('Failed to save resident:', error);
       if (error.message && error.message.startsWith('DUPLICATE_CPF:')) {
         const msg = error.message.replace('DUPLICATE_CPF:', '');
-        if (window.confirm(`${msg}\n\nDeseja cadastrar mesmo assim?`)) {
-          try {
-            await saveResident(resident, true);
-            const data = await getResidents();
-            setResidents(data);
-            setIsFormOpen(false);
-            setEditingResident(undefined);
-            setIsReadOnly(false);
-          } catch (forceError: any) {
-            console.error('Failed to forcefully save resident:', forceError);
-            alert(forceError.message || 'Erro ao salvar morador. Por favor, tente novamente.');
-          }
-        }
+        openConfirm(
+          'CPF Duplicado',
+          `${msg}\n\nDeseja cadastrar mesmo assim?`,
+          async () => {
+            try {
+              await saveResident(resident, true);
+              const data = await getResidents();
+              setResidents(data);
+              setIsFormOpen(false);
+              setEditingResident(undefined);
+              setIsReadOnly(false);
+            } catch (forceError: any) {
+              console.error('Failed to forcefully save resident:', forceError);
+              alert(forceError.message || 'Erro ao salvar morador. Por favor, tente novamente.');
+            }
+          },
+          'info',
+          'Cadastrar Mesmo Assim'
+        );
       } else {
         alert(error.message || 'Erro ao salvar morador. Por favor, tente novamente.');
       }
@@ -67,16 +87,22 @@ export default function MoradoresPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Tem certeza que deseja excluir este morador?')) {
-      try {
-        await deleteResident(id);
-        const data = await getResidents();
-        setResidents(data);
-      } catch (error) {
-        console.error('Failed to delete resident:', error);
-        alert('Erro ao excluir morador. Verifique se há dados vinculados ou tente novamente.');
-      }
-    }
+    openConfirm(
+      'Excluir Morador',
+      '⚠️ ATENÇÃO: Tem certeza que deseja excluir este morador? Esta ação pode impactar outros registros vinculados.',
+      async () => {
+        try {
+          await deleteResident(id);
+          const data = await getResidents();
+          setResidents(data);
+        } catch (error) {
+          console.error('Failed to delete resident:', error);
+          alert('Erro ao excluir morador. Verifique se há dados vinculados ou tente novamente.');
+        }
+      },
+      'danger',
+      'Excluir Permanentemente'
+    );
   };
 
   const handleEdit = (resident: Resident) => {
@@ -181,6 +207,15 @@ export default function MoradoresPage() {
           </motion.div>
         )}
       </AnimatePresence>
+      <ActionConfirmModal 
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        description={confirmModal.description}
+        type={confirmModal.type}
+        confirmText={confirmModal.confirmText}
+      />
     </DashboardLayout>
   );
 }
