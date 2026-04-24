@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -1248,7 +1248,7 @@ export default function VeiculosPage() {
                 <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest border-l border-slate-100 dark:border-slate-800/50 pl-6">ENTRADA / SAÍDA</th>
                 <th className="text-left p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">STATUS / TEMPO</th>
                 <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                  {activeTab === 'HISTORICO' ? 'RESPONSÁVEIS' : 'AÇÃO PORTARIA'}
+                  {activeTab === 'HISTORICO' ? 'RESPONSÁVEL' : 'AÇÃO PORTARIA'}
                 </th>
                 <th className="text-right p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest">ADMIN</th>
               </tr>
@@ -1339,7 +1339,7 @@ export default function VeiculosPage() {
                        ) : (
                          <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 opacity-60">
                            <span className="px-2 py-0.5 bg-slate-50 dark:bg-slate-800/50 rounded border border-slate-100 dark:border-slate-700 text-[9px] font-black uppercase tracking-widest">
-                             Acesso Fixo
+                             Acesso Permanente
                            </span>
                          </div>
                        )}
@@ -2010,7 +2010,7 @@ export default function VeiculosPage() {
                       selectedVehicle.status === 'ATIVO' ? 'text-blue-500' : 
                       'text-slate-500'
                     }`}>
-                      • {selectedAccess?.status === 'SAIU' ? 'SAÍDA REGISTRADA' : (selectedVehicle.status === 'ATIVO' ? (selectedVehicle.tipo?.toUpperCase() === 'ACESSO FIXO' ? 'CADASTRO ATIVO' : 'EM ANDAMENTO') : selectedVehicle.status?.replace('_', ' '))}
+                      • {selectedAccess?.status === 'SAIU' ? 'SAÍDA REGISTRADA' : (selectedVehicle.status === 'ATIVO' ? (selectedVehicle.tipo?.toUpperCase() === 'Acesso Permanente' ? 'CADASTRO ATIVO' : 'EM ANDAMENTO') : selectedVehicle.status?.replace('_', ' '))}
                     </span>
                   </div>
                 </div>

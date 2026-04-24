@@ -556,7 +556,7 @@ export default function MudancasPage() {
                                <td className="p-4">
                                   <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
                                      <span className="flex items-center gap-1.5"><Calendar size={12} className="text-blue-500" /> <span className="uppercase tracking-widest">{new Date(move.dataMovimentacao).toLocaleDateString('pt-BR')}</span></span>
-                                     <span className="flex items-center gap-1.5"><Clock size={12} className="text-amber-500" /> {move.horaInicio} às {move.horaFim} {move.elevadorServico && <span className="bg-amber-100 text-amber-700 px-1 font-black rounded ml-1">ELEVADOR</span>}</span>
+                                     <span className="flex items-center gap-1.5"><Clock size={12} className="text-amber-500" /> {move.horaInicio?.replace(":00", "")}–{move.horaFim?.replace(":00", "")} {move.elevadorServico && <span className="bg-amber-100 text-amber-700 px-1 font-black rounded ml-1">ELEVADOR</span>}</span>
                                   </div>
                                </td>
                                <td className="p-4">

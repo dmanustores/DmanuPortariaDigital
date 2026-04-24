@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -508,12 +508,12 @@ export default function OcorrenciasPage() {
                       <tr className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
                          <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Ocorrência / Tipo</th>
                          <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Localização</th>
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">{activeTab === 'HISTORICO' ? 'Abertura / Resolução' : 'Data de Abertura'}</th>
-                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Status / Priorid.</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">{activeTab === 'HISTORICO' ? 'Abertura / Resolução' : 'Data / Horário'}</th>
+                         <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Status / Prioridade</th>
                          {activeTab !== 'HISTORICO' ? (
                             <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-center">Ação Portaria</th>
                          ) : (
-                            <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Responsáveis</th>
+                            <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest">Responsável</th>
                          )}
                          <th className="p-4 text-[10px] font-black uppercase text-slate-400 tracking-widest text-right">ADMIN</th>
                       </tr>
@@ -556,13 +556,19 @@ export default function OcorrenciasPage() {
                                <td className="p-4">
                                    <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
                                       <div className="flex items-center gap-1.5" title="Data de Abertura">
-                                         <Calendar size={12} className="text-blue-500" /> 
-                                         <span className="uppercase tracking-widest">{new Date(occ.created_at).toLocaleDateString('pt-BR')}</span>
+                                         <Calendar size={12} className="text-blue-500" />
+                                         <span className="uppercase tracking-widest">
+                                           {new Date(occ.created_at).toLocaleDateString('pt-BR')} · {new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                         </span>
                                       </div>
-                                      <div className="flex items-center gap-1.5">
-                                         <Clock size={12} className="text-amber-500" />
-                                         <span className="tracking-widest uppercase">{new Date(occ.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
-                                      </div>
+                                      {activeTab === 'HISTORICO' && occ.resolvida_em && (
+                                        <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500" title="Data de Resolução">
+                                          <CheckCircle2 size={12} />
+                                          <span className="uppercase tracking-widest">
+                                            {new Date(occ.resolvida_em).toLocaleDateString('pt-BR')} · {new Date(occ.resolvida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                          </span>
+                                        </div>
+                                      )}
                                    </div>
                                 </td>
                                <td className="p-4">

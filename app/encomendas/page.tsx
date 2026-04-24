@@ -565,7 +565,7 @@ export default function EncomendasPage() {
                 <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Data / Horário</th>
                 <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Status</th>
                 {activeTab !== 'HISTORICO' ? (
-                   <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Ação da Portaria</th>
+                   <th className="text-center p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Ação Portaria</th>
                  ) : (
                    <th className="text-left p-3 sm:p-4 text-[10px] font-black text-slate-500 uppercase tracking-widest whitespace-nowrap">Responsável</th>
                  )}
@@ -620,20 +620,26 @@ export default function EncomendasPage() {
 
                   {/* 4) DATA / HORÁRIO */}
                   <td className="p-4">
-                    <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
-                       <div className="flex items-center gap-1.5">
-                          <Calendar size={12} className="text-blue-500" />
-                          <span className="uppercase tracking-widest">
-                            {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleDateString('pt-BR') : '-'}
-                          </span>
-                       </div>
-                       <div className="flex items-center gap-1.5">
-                          <Clock size={12} className="text-amber-500" />
-                          <span className="tracking-widest uppercase">
-                            {pkg.recebida_em ? new Date(pkg.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                          </span>
-                       </div>
-                    </div>
+                     <div className="flex flex-col gap-1.5 text-[10px] font-bold text-slate-500">
+                        <div className="flex items-center gap-1.5" title="Data de Recebimento">
+                           <Calendar size={12} className="text-blue-500" />
+                           <span className="uppercase tracking-widest">
+                             {pkg.recebida_em ? `${new Date(pkg.recebida_em).toLocaleDateString('pt-BR')} · ${new Date(pkg.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : '-'}
+                           </span>
+                        </div>
+                        {activeTab === 'HISTORICO' && (pkg.hora_retirada || pkg.hora_recusa) && (
+                          <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-500" title={pkg.hora_retirada ? 'Data de Retirada' : 'Data de Recusa'}>
+                             {pkg.hora_retirada ? <CheckCircle2 size={12} /> : <Ban size={12} className="text-red-500" />}
+                             <span className={`uppercase tracking-widest ${pkg.hora_recusa ? 'text-red-500' : ''}`}>
+                               {pkg.hora_retirada
+                                 ? `${new Date(pkg.hora_retirada).toLocaleDateString('pt-BR')} · ${new Date(pkg.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                 : pkg.hora_recusa
+                                   ? `${new Date(pkg.hora_recusa).toLocaleDateString('pt-BR')} · ${new Date(pkg.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                                   : ''}
+                             </span>
+                          </div>
+                        )}
+                     </div>
                   </td>
 
                   {/* 5) STATUS */}
@@ -663,7 +669,7 @@ export default function EncomendasPage() {
                     </div>
                   </td>
 
-                  {/* 6) AÇÃO DA PORTARIA ou RESPONSÁVEL */}
+                  {/* 6) Ação Portaria ou RESPONSÁVEL */}
                   <td className="p-4">
                       {activeTab !== 'HISTORICO' ? (
                         <div className="flex items-center justify-center gap-2">
