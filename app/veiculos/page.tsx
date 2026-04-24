@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -843,9 +843,9 @@ export default function VeiculosPage() {
 
     const { status } = vehicle.lastAccess;
     const styles = {
-      DENTRO: 'bg-green-50 text-green-600 border-green-200',
-      SAIU: 'bg-slate-50 text-slate-500 border-slate-200',
-      NEGADO: 'bg-red-50 text-red-600 border-red-200'
+      DENTRO: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+      SAIU: 'bg-slate-100 text-slate-700 border-slate-200',
+      NEGADO: 'bg-red-100 text-red-700 border-red-200'
     };
     const icons = { DENTRO: '🟢', SAIU: '⚪', NEGADO: '🔴' };
 
@@ -945,7 +945,12 @@ export default function VeiculosPage() {
       <div className="flex flex-col gap-6 mb-8">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }}>
-            <h2 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase">Veículos</h2>
+            <h1 className="text-2xl lg:text-3xl font-black tracking-tight text-slate-900 dark:text-white uppercase flex items-center gap-3">
+              <span className="p-2.5 bg-blue-500 rounded-xl text-white shadow-lg shadow-blue-500/20">
+                <Car size={24} />
+              </span>
+              Veículos
+            </h1>
             <p className="text-slate-500 mt-1 text-sm font-bold uppercase tracking-widest">Controle operacional de acesso vehicular</p>
           </motion.div>
 
@@ -1105,7 +1110,7 @@ export default function VeiculosPage() {
                   <div className="flex flex-col items-end gap-1">
                     {isHistory ? (
                       <span className={`inline-flex px-2 py-1 rounded-full text-[10px] font-black ${
-                        a.status === 'SAIU' ? 'bg-slate-100 text-slate-500' : 'bg-green-100 text-green-700'
+                        a.status === 'SAIU' ? 'bg-slate-100 text-slate-500' : 'bg-emerald-100 text-emerald-700'
                       }`}>{a.status}</span>
                     ) : (
                       <StatusBadge vehicle={item as Vehicle} />

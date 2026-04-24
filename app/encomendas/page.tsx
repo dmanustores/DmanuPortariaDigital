@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -646,9 +646,9 @@ export default function EncomendasPage() {
                   <td className="p-4">
                     <div className="flex flex-col items-start gap-1">
                       <span className={`inline-flex px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-widest border shadow-sm ${
-                        pkg.status === 'AGUARDANDO' ? 'bg-amber-50 dark:bg-amber-600/10 text-amber-700 dark:text-amber-500 border-amber-200 dark:border-amber-500/20' :
-                        pkg.status === 'RETIRADA' ? 'bg-emerald-50 dark:bg-emerald-600/10 text-emerald-700 dark:text-emerald-500 border-emerald-200 dark:border-emerald-500/20' :
-                        'bg-red-50 dark:bg-red-600/10 text-red-700 dark:text-red-500 border-red-200 dark:border-red-500/20'
+                        pkg.status === 'AGUARDANDO' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border-amber-200' :
+                        pkg.status === 'RETIRADA' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 border-emerald-200' :
+                        'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400 border-red-200'
                       }`}>
                         {pkg.status === 'AGUARDANDO' ? 'Aguardando' :
                          pkg.status === 'RETIRADA' ? 'Retirada' : 'Recusada'}

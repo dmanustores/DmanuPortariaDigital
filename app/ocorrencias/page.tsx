@@ -581,7 +581,7 @@ export default function OcorrenciasPage() {
                                        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase flex items-center gap-1 transition-all ${
                                        occ.status === 'Aberta' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' :
                                        occ.status === 'Andamento' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-200' :
-                                       occ.status === 'Resolvida' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200' :
+                                       occ.status === 'Resolvida' ? 'bg-emerald-100 text-emerald-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-200' :
                                        'bg-slate-100 text-slate-500'
                                      }`}>
                                        {(occ.status === 'Andamento' || occ.status === 'Resolvida') && <Edit3 size={10} />}
