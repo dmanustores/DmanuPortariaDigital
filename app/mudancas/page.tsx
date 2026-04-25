@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { 
@@ -524,7 +524,7 @@ export default function MudancasPage() {
                                      </div>
                                      <div className="flex flex-col gap-1">
                                         <span className="inline-block px-2 py-0.5 max-w-fit bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
-                                          {move.bloco && move.apto ? `BLOCO ${String(move.bloco).padStart(2, '0')}, APT ${move.apto}` : (move.unidadeDesc || 'Desconhecida')}
+                                          {move.unidadeDesc || 'Desconhecida'}
                                         </span>
                                         <p className="text-xs font-bold text-slate-900 dark:text-white leading-tight block uppercase tracking-tight">{move.responsavelNome}</p>
                                      </div>
@@ -965,7 +965,7 @@ export default function MudancasPage() {
                 <div>
                    <h3 className="text-xl font-black text-slate-900 dark:text-white flex items-center gap-2">
                      <HistoryLog size={20} className="text-blue-500" />
-                     Detalhes da Movimentação - Mudanças
+                     Detalhes da Movimentação — Mudanças
                    </h3>
                    <div className="flex items-center gap-2 mt-1">
                       <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">{selectedMove.unidadeDesc}</span>
@@ -979,7 +979,7 @@ export default function MudancasPage() {
               </div>
 
               {/* Timeline Info Content */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-slate-900/50">
                 {(() => {
                   const rawObs = selectedMove.observacoes || '';
                   const baseObs = rawObs.split(/\n?\[(CRIACAO|INICIO|REABERTURA|FECHAMENTO|ARQUIVAMENTO)\]/)[0].trim();
@@ -1001,23 +1001,23 @@ export default function MudancasPage() {
 
                   return (
                     <div className="space-y-4 relative">
-                      <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                      <div className="absolute top-4 bottom-4 left-[20px] w-[0px] border-l-2 border-dashed border-slate-200 dark:border-slate-700/50"></div>
 
                       {/* Agendamento */}
                        <div className="relative flex items-start gap-4">
-                        <div className={`p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50`}>
+                        <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
                             <Calendar size={16} />
                         </div>
                         <div className={`flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 shadow-sm transition-all`}>
                             <div className="flex items-center justify-between gap-4 mb-2">
                               <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">1) Criação / Agendamento</span>
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[150px]" title={creationEntry?.author}>
+                                  <span className="text-[10px] font-black uppercase text-slate-900 dark:text-white tracking-widest">1) AGENDAMENTO</span>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">
                                     {creationEntry?.author || 'SISTEMA'}
                                   </span>
                               </div>
                               <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                                <Clock size={10} /> {new Date(selectedMove.created_at).toLocaleString('pt-BR')}
+                                <Clock size={10} /> {new Date(selectedMove.created_at).toLocaleDateString('pt-BR')} · {new Date(selectedMove.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                               </span>
                             </div>
                             <p className="text-sm font-semibold">{selectedMove.responsavelNome} {selectedMove.responsavelTelefone ? `- ${selectedMove.responsavelTelefone}` : ''}</p>
@@ -1026,13 +1026,13 @@ export default function MudancasPage() {
 
                       {/* Dados */}
                       <div className="relative flex items-start gap-4">
-                        <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-blue-100 dark:bg-blue-900/30 border-blue-200 text-blue-600`}>
+                        <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
                             <Truck size={16} />
                         </div>
                         <div className={`flex-1 p-4 rounded-2xl bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 shadow-sm transition-all`}>
                             <div className="flex items-center justify-between gap-4 mb-2">
                               <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) Dados da Movimentação</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) DADOS DA MUDANÇA</span>
                               </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4 text-sm font-semibold mt-3">
@@ -1067,7 +1067,7 @@ export default function MudancasPage() {
                       {/* Status Atual info (if EM_ANDAMENTO) */}
                       {selectedMove.status === 'EM_ANDAMENTO' && (
                         <div className="relative flex items-start gap-4">
-                          <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-amber-100 dark:bg-amber-900/30 border-amber-200 text-amber-600`}>
+                          <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-amber-500 text-white shadow-lg shadow-amber-500/20">
                               <Clock size={16} />
                           </div>
                           <div className={`flex-1 p-4 rounded-2xl bg-amber-50/50 dark:bg-amber-900/10 border border-amber-100 dark:border-amber-800/30 shadow-sm transition-all`}>
@@ -1095,24 +1095,18 @@ export default function MudancasPage() {
 
                         return (
                           <div key={idx} className="relative flex items-start gap-4">
-                            <div className={`p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 ${
-                              isClosure || isArchive ? 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:border-red-800/50' : 
-                              'bg-blue-100 text-blue-600'
-                            }`}>
-                              {isClosure ? <CheckCircle2 size={16} /> : 
+                            <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-red-500 text-white shadow-lg shadow-red-500/20">
+                              {isClosure ? <LogOut size={16} /> : 
                                isArchive ? <Archive size={16} /> :
                                <RotateCcw size={16} />}
                             </div>
-                            <div className={`flex-1 p-4 rounded-2xl shadow-sm transition-all border ${
-                              isClosure || isArchive ? 'bg-red-50/50 dark:bg-red-900/10 border-red-100 dark:border-red-800/30' : 
-                              'bg-blue-50/50 dark:bg-blue-900/10 border-blue-100 dark:border-blue-800/30'
-                            }`}>
+                            <div className={`flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-md transition-all`}>
                               <div className="flex items-center justify-between gap-4 mb-2">
                                 <div className="flex items-center gap-2">
                                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">
-                                    {isClosure ? '3) Finalização' : isArchive ? '3) Arquivamento' : 'Reabertura'}
+                                    {isClosure ? '3) FECHAMENTO: CONCLUÍDA' : isArchive ? '3) FECHAMENTO: ARQUIVADA' : 'REABERTURA'}
                                   </span>
-                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500 truncate max-w-[200px]" title={occ.author}>
+                                  <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800/50 text-[9px] font-black uppercase tracking-wider text-slate-500">
                                     {occ.author || 'SISTEMA'}
                                   </span>
                                 </div>
@@ -1125,9 +1119,9 @@ export default function MudancasPage() {
                                   {isClosure ? <AlertTriangle size={10} /> : 
                                    isArchive ? <Archive size={10} /> :
                                    <RotateCcw size={10} />} 
-                                  {isClosure ? 'Ocorrência de Fechamento' : isArchive ? 'Registro de Arquivamento' : 'Registro de Reabertura'}
+                                  {isClosure ? 'FECHAMENTO: CONCLUÍDA' : isArchive ? 'FECHAMENTO: ARQUIVADA' : 'REABERTURA REGISTRADA'}
                                 </p>
-                                <p className="text-xs text-slate-700 dark:text-slate-300 font-semibold whitespace-pre-wrap">{occ.note}</p>
+                                <p className="text-xs text-red-700 dark:text-red-300 font-semibold whitespace-pre-wrap">{occ.note}</p>
                               </div>
                             </div>
                           </div>
@@ -1137,14 +1131,14 @@ export default function MudancasPage() {
                       {/* Finalização status final (if ARQUIVADA or CONCLUIDA but redundant since occurrences show it? Let's keep it simple and just use occurrences for the notes) */}
                       {selectedMove.status === 'ARQUIVADA' && (
                          <div className="relative flex items-start gap-4">
-                            <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-red-100 text-red-600">
+                            <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-red-500 text-white shadow-lg shadow-red-500/20">
                                <Archive size={16} />
                             </div>
-                            <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-900/10 border border-red-100 dark:border-red-800/30 shadow-sm">
+                            <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-md">
                                 <div className="flex items-center justify-between gap-4 mb-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-red-900 dark:text-white">Registro Arquivado</span>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-red-900 dark:text-white">REGISTRO ARQUIVADO</span>
                                 </div>
-                                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                                <p className="text-xs font-semibold text-red-700 dark:text-red-300">
                                   Esta movimentação foi arquivada administrativamente.
                                 </p>
                             </div>

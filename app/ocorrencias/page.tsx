@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -16,6 +16,7 @@ import {
   FileText,
   History as HistoryLog,
   LogIn,
+  LogOut,
   Trash2,
   Archive,
   Edit3,
@@ -93,6 +94,7 @@ export default function OcorrenciasPage() {
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'Aberta' | 'Andamento' | 'URGENTES'>('ALL');
   const [operatorId, setOperatorId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [operatorMap, setOperatorMap] = useState<Record<string, { nome: string; role: string }>>({});
   const [formData, setFormData] = useState({
     tipo: 'MANUTENCAO',
     titulo: '',
@@ -114,6 +116,15 @@ export default function OcorrenciasPage() {
 
   const openConfirm = (title: string, description: string, onConfirm: () => void, type: 'danger' | 'info' | 'success' = 'info', confirmText?: string) => {
     setConfirmModal({ isOpen: true, title, description, onConfirm, type, confirmText });
+  };
+
+  const fetchOperators = async () => {
+    const { data } = await supabase.from('operators').select('id, nome, role');
+    if (data) {
+      const map: Record<string, { nome: string; role: string }> = {};
+      data.forEach((op: any) => { map[op.id] = { nome: op.nome, role: op.role }; });
+      setOperatorMap(map);
+    }
   };
 
   const fetchOccurrences = async () => {
@@ -169,6 +180,7 @@ export default function OcorrenciasPage() {
 
   useEffect(() => {
     fetchOccurrences();
+    fetchOperators();
     getCurrentOperatorId(supabase).then(id => {
       setOperatorId(id);
       if (id) {
@@ -598,7 +610,7 @@ export default function OcorrenciasPage() {
                                </td>
                                {activeTab !== 'HISTORICO' ? (
                                   <td className="p-4 text-center">
-                                     <div className="flex flex-col gap-2">
+                                     <div className="flex flex-col gap-2 items-center">
                                         {occ.status === 'Aberta' && (
                                           <button 
                                             onClick={() => openAtender(occ)}
@@ -867,7 +879,7 @@ export default function OcorrenciasPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]"
-            onClick={() => setShowAtenderModal(false)}
+            onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); }}
           >
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }}
@@ -876,11 +888,11 @@ export default function OcorrenciasPage() {
               className="bg-white dark:bg-slate-900 rounded-3xl w-full max-w-2xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh] border border-slate-200 dark:border-slate-800"
             >
               {/* Modal Header */}
-              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-start">
+              <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-start bg-white dark:bg-slate-900 relative z-10">
                  <div>
-                    <h2 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
+                    <h2 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2 uppercase">
                       <HistoryLog size={20} className="text-blue-500" />
-                      Detalhes da Movimentação - Ocorrências
+                      Detalhes da Movimentação — Ocorrências
                     </h2>
                     <div className="flex items-center gap-2 mt-2">
                        <span className="inline-block px-2 py-0.5 bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
@@ -897,232 +909,269 @@ export default function OcorrenciasPage() {
                        </span>
                     </div>
                  </div>
-                 <button onClick={() => setShowAtenderModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+                 <button onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); }} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
                    <X size={20} className="text-slate-400" />
                  </button>
                </div>
 
               {/* Timeline Content */}
-              {true && (
-                <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
-                  <div className="space-y-4 relative">
-                    <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
-                    
-                    {/* Passo 1: Criação */}
-                    <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50">
-                        <LogIn size={16} />
-                      </div>
-                      <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
-                        <div className="flex items-center justify-between gap-4 mb-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) Abertura</span>
-                            <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                              {selectedOcc.operador?.nome?.split(' ')[0] || 'SISTEMA'}
-                            </span>
-                            <span className="px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-400 uppercase">{selectedOcc.operador?.role || 'Admin'}</span>
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-slate-900/50">
+                <div className="space-y-4 relative">
+                  <div className="absolute top-4 bottom-4 left-[20px] w-[0px] border-l-2 border-dashed border-slate-200 dark:border-slate-700/50"></div>
+                  
+                  {(() => {
+                    const closureInteraction = [...interactions].reverse().find(it => it.tipo === 'StatusChange' && (it.mensagem.includes('[RESOLVIDA]') || it.mensagem.includes('[ARQUIVADA]')));
+                    const filteredInteractions = interactions.filter(it => it.id !== closureInteraction?.id);
+
+                    return (
+                      <>
+                        {/* Passo 1: Abertura */}
+                        <div className="relative flex items-start gap-4">
+                          <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                            <LogIn size={16} />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
-                            <Clock size={10} /> {new Date(selectedOcc.created_at).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        <div className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed">
-                          Ocorrência registrada no sistema.
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Passo 2: Dados da Ocorrência */}
-                    <div className="flex gap-4 group relative z-10">
-                      <div className="flex flex-col items-center">
-                        <div className="size-8 rounded-full flex items-center justify-center shrink-0 border-2 bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/50 dark:text-blue-400">
-                          <Info size={14} />
-                        </div>
-                      </div>
-                      <div className="flex-1 pb-4">
-                        <div className="flex items-center justify-between gap-2 mb-1">
-                           <p className="text-xs font-black text-slate-800 dark:text-slate-200 uppercase tracking-widest">2) Dados da Ocorrência</p>
-                        </div>
-                        <div className="text-sm p-4 rounded-2xl bg-blue-50/50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800/30 shadow-sm transition-all">
-                            <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
-                               <div>
-                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Tipo / Categoria</span>
-                                  <span className="text-blue-900 dark:text-blue-100">{selectedOcc.tipo}</span>
-                               </div>
-                               <div>
-                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Prioridade</span>
-                                  <span className={selectedOcc.prioridade === 'Urgente' ? 'text-red-500' : 'text-blue-900 dark:text-blue-100'}>{selectedOcc.prioridade}</span>
-                               </div>
-                               <div className="col-span-2">
-                                  <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Localização</span>
-                                  <span className="text-blue-900 dark:text-blue-100">{selectedOcc.unidade_desc || 'Condomínio'}</span>
-                               </div>
-                               {selectedOcc.descricao && (
-                                 <div className="col-span-2 mt-2 pt-2 border-t border-blue-100/50">
-                                    <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Relato Inicial</span>
-                                    <p className="text-slate-700 dark:text-slate-300 italic whitespace-pre-wrap">"{selectedOcc.descricao}"</p>
-                                 </div>
-                               )}
-                            </div>
-                        </div>
-                      </div>
-                    </div>
-                    {interactions.map((it, idx) => {
-                      const isStatusChange = it.tipo === 'StatusChange';
-                      const match = it.mensagem.match(/^\[(.*?)\] ([\s\S]*)$/);
-                      
-                      let Icon = UserCheck;
-                      let iconColor = 'bg-slate-100 border-slate-200 text-slate-600 dark:bg-slate-800 dark:border-slate-700';
-                      let bgColor = 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300';
-                      let badgeColor = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
-
-                      if (isStatusChange) {
-                         if (it.mensagem.startsWith('[ARQUIVADA]')) {
-                            Icon = Archive;
-                            iconColor = 'bg-red-50 border-red-200 text-red-600 dark:bg-red-900/30 dark:border-red-800/50 dark:text-red-400';
-                            bgColor = 'bg-red-50/50 border border-red-100 text-red-700 font-bold italic dark:bg-red-900/10 dark:border-red-800/30 dark:text-red-300';
-                            badgeColor = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
-                         } else if (it.mensagem.startsWith('[REABERTA]')) {
-                            Icon = RotateCcw;
-                            iconColor = 'bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/50 dark:text-blue-400';
-                            bgColor = 'bg-blue-50/50 border border-blue-100 text-blue-700 font-bold italic dark:bg-blue-900/10 dark:border-blue-800/30 dark:text-blue-300';
-                            badgeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
-                         } else if (it.mensagem.startsWith('[EM ANDAMENTO]')) {
-                            Icon = Wrench;
-                            iconColor = 'bg-amber-50 border-amber-200 text-amber-600 dark:bg-amber-900/30 dark:border-amber-800/50 dark:text-amber-400';
-                            bgColor = 'bg-amber-50/50 border border-amber-100 text-amber-700 font-bold italic dark:bg-amber-900/10 dark:border-amber-800/30 dark:text-amber-300';
-                            badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
-                         } else if (it.mensagem.startsWith('[RESOLVIDA]') || it.mensagem.startsWith('[ARQUIVADA]')) {
-                            Icon = CheckCircle2;
-                            iconColor = 'bg-rose-50 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800/50 dark:text-rose-400';
-                            bgColor = 'bg-rose-50/50 border border-rose-100 text-rose-700 font-bold italic dark:bg-rose-900/10 dark:border-rose-800/30 dark:text-rose-300';
-                            badgeColor = 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300';
-                         } else {
-                            Icon = CheckCircle2;
-                            iconColor = 'bg-slate-100 border-slate-200 text-slate-600';
-                            bgColor = 'bg-white border-slate-200 text-slate-600';
-                            badgeColor = 'bg-slate-100 text-slate-600';
-                         }
-                      }
-
-                      return (
-                      <div key={it.id} className="flex gap-4 group">
-                        <div className="flex flex-col items-center">
-                           <div className={`size-8 rounded-full flex items-center justify-center shrink-0 border-2 ${iconColor}`}>
-                              <Icon size={14} />
-                           </div>
-                           {idx < interactions.length - 1 && <div className="w-0.5 h-full bg-slate-200 dark:bg-slate-800 mt-1" />}
-                        </div>
-                        <div className="flex-1 pb-4">
-                           <div className="flex items-center justify-between gap-2 mb-1">
-                              <p className="text-xs font-black text-slate-800 dark:text-slate-200">
-                                {it.operador?.nome || 'Sistema'} 
-                                <span className="ml-2 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-[9px] font-black text-slate-500 rounded uppercase">
-                                  {it.operador?.role || 'Admin'}
+                          <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
+                            <div className="flex items-center justify-between gap-4 mb-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) ABERTURA</span>
+                                <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                  {operatorMap[selectedOcc.operador_id || '']?.nome || selectedOcc.operador?.nome || 'SISTEMA'}
                                 </span>
-                              </p>
-                              <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">{new Date(it.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
-                           </div>
-                           <div className={`text-sm p-3 rounded-2xl ${bgColor}`}>
-                             {match ? (
-                               <div className="flex flex-col items-start gap-1">
-                                 <span className={`px-1.5 py-0.5 text-[9px] font-black uppercase rounded ${badgeColor}`}>{match[1]}</span>
-                                 <span>{match[2]}</span>
-                               </div>
-                             ) : (
-                               it.mensagem
-                             )}
-                           </div>
+                              </div>
+                              <span className="text-[10px] font-bold text-emerald-600/70 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
+                                <Clock size={10} /> {new Date(selectedOcc.created_at).toLocaleDateString('pt-BR')} · {new Date(selectedOcc.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            <div className="text-xs font-bold text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
+                              Ocorrência registrada no sistema e aguardando providências.
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                    )})}
-                  </div>
+
+                        {/* Passo 2: Dados da Ocorrência */}
+                        <div className="flex gap-4 group relative z-10">
+                          <div className="flex flex-col items-center">
+                            <div className="size-8 rounded-full flex items-center justify-center shrink-0 border-4 border-white dark:border-slate-900 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+                              <Info size={14} />
+                            </div>
+                          </div>
+                          <div className="flex-1 pb-4">
+                            <div className="flex items-center justify-between gap-2 mb-1">
+                               <p className="text-[10px] font-black text-blue-700 dark:text-blue-400 uppercase tracking-widest">2) DADOS DA OCORRÊNCIA</p>
+                            </div>
+                            <div className="text-sm p-4 rounded-2xl bg-blue-50/50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800/30 shadow-sm transition-all">
+                                <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+                                   <div className="col-span-2">
+                                      <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black mb-0.5">Título da Ocorrência</span>
+                                      <span className="text-slate-900 dark:text-white font-black uppercase tracking-tight">{selectedOcc.titulo}</span>
+                                   </div>
+                                   <div>
+                                      <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Tipo / Categoria</span>
+                                      <span className="text-blue-900 dark:text-blue-100 uppercase">{selectedOcc.tipo}</span>
+                                   </div>
+                                   <div>
+                                      <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Prioridade</span>
+                                      <span className={selectedOcc.prioridade === 'Urgente' ? 'text-red-500' : 'text-blue-900 dark:text-blue-100'}>{selectedOcc.prioridade}</span>
+                                   </div>
+                                   {selectedOcc.descricao && (
+                                     <div className="col-span-2 mt-2 pt-2 border-t border-blue-100/50">
+                                        <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black mb-1">Relato Detalhado</span>
+                                        <p className="text-slate-700 dark:text-slate-300 italic whitespace-pre-wrap">"{selectedOcc.descricao}"</p>
+                                     </div>
+                                   )}
+                                </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {filteredInteractions.map((it, idx) => {
+                          const isStatusChange = it.tipo === 'StatusChange';
+                          const match = it.mensagem.match(/^\[(.*?)\] ([\s\S]*)$/);
+                          
+                          let Icon = UserCheck;
+                          let iconColor = 'bg-slate-500 text-white border-white dark:border-slate-900';
+                          let bgColor = 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300';
+                          let badgeColor = 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400';
+
+                          if (isStatusChange) {
+                             if (it.mensagem.startsWith('[ARQUIVADA]')) {
+                                Icon = Archive;
+                                iconColor = 'bg-red-500 text-white border-white dark:border-slate-900';
+                                bgColor = 'bg-red-50/50 border border-red-100 text-red-700 font-bold italic dark:bg-red-900/10 dark:border-red-800/30 dark:text-red-300';
+                                badgeColor = 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300';
+                             } else if (it.mensagem.startsWith('[REABERTA]')) {
+                                Icon = RotateCcw;
+                                iconColor = 'bg-blue-500 text-white border-white dark:border-slate-900';
+                                bgColor = 'bg-blue-50/50 border border-blue-100 text-blue-700 font-bold italic dark:bg-blue-900/10 dark:border-blue-800/30 dark:text-blue-300';
+                                badgeColor = 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300';
+                             } else if (it.mensagem.startsWith('[EM ANDAMENTO]')) {
+                                Icon = Wrench;
+                                iconColor = 'bg-amber-500 text-white border-white dark:border-slate-900';
+                                bgColor = 'bg-amber-50/50 border border-amber-100 text-amber-700 font-bold italic dark:bg-amber-900/10 dark:border-amber-800/30 dark:text-amber-300';
+                                badgeColor = 'bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300';
+                             } else if (it.mensagem.startsWith('[RESOLVIDA]') || it.mensagem.startsWith('[ARQUIVADA]')) {
+                                Icon = CheckCircle2;
+                                iconColor = 'bg-rose-500 text-white border-white dark:border-slate-900';
+                                bgColor = 'bg-rose-50/50 border border-rose-100 text-rose-700 font-bold italic dark:bg-rose-900/10 dark:border-rose-800/30 dark:text-rose-300';
+                                badgeColor = 'bg-rose-100 text-rose-800 dark:bg-rose-900/50 dark:text-rose-300';
+                             } else {
+                                Icon = CheckCircle2;
+                                iconColor = 'bg-slate-500 text-white border-white dark:border-slate-900';
+                                bgColor = 'bg-white border-slate-200 text-slate-600';
+                                badgeColor = 'bg-slate-100 text-slate-600';
+                             }
+                          }
+
+                          return (
+                            <div key={it.id} className="flex gap-4 group relative z-10">
+                              <div className="flex flex-col items-center">
+                                <div className={`size-8 rounded-full flex items-center justify-center shrink-0 border-4 border-white dark:border-slate-900 ${iconColor} shadow-md`}>
+                                    <Icon size={14} />
+                                </div>
+                              </div>
+                              <div className="flex-1 pb-4">
+                                <div className="flex items-center justify-between gap-2 mb-1">
+                                    <p className="text-[10px] font-black text-slate-800 dark:text-slate-200 uppercase">
+                                      {it.operador?.nome || 'Sistema'} 
+                                      <span className="ml-2 px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-[8px] font-black text-slate-500 rounded tracking-widest">
+                                        {it.operador?.role || 'Admin'}
+                                      </span>
+                                    </p>
+                                    <span className="text-[9px] font-bold text-slate-400 whitespace-nowrap">{new Date(it.created_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                                </div>
+                                <div className={`text-sm p-3 rounded-2xl shadow-sm ${bgColor}`}>
+                                  {match ? (
+                                    <div className="flex flex-col items-start gap-1">
+                                      <span className={`px-1.5 py-0.5 text-[8px] font-black uppercase rounded tracking-widest ${badgeColor}`}>{match[1]}</span>
+                                      <span className="text-xs font-semibold">{match[2]}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs font-semibold">{it.mensagem}</span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+
+                        {/* Passo 3: Fechamento */}
+                        {closureInteraction && (
+                          <div className="relative flex items-start gap-4">
+                            <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-red-500 text-white shadow-lg shadow-red-500/20">
+                              <LogOut size={16} />
+                            </div>
+                            <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-md transition-all">
+                              <div className="flex items-center justify-between gap-4 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-400">
+                                    3) FECHAMENTO: {closureInteraction.mensagem.includes('[RESOLVIDA]') ? 'RESOLVIDA' : 'ARQUIVADA'}
+                                  </span>
+                                  <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-[9px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
+                                    {operatorMap[closureInteraction.operador_id || '']?.nome || closureInteraction.operador?.nome || 'SISTEMA'}
+                                  </span>
+                                </div>
+                                <span className="text-[10px] font-bold text-red-400/60 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
+                                  <Clock size={10} /> {new Date(closureInteraction.created_at).toLocaleDateString('pt-BR')} · {new Date(closureInteraction.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </span>
+                              </div>
+                              <div className="mt-2 p-3 bg-white dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl">
+                                <p className="text-xs text-red-700 dark:text-red-300 font-semibold whitespace-pre-wrap italic">
+                                  "{closureInteraction.mensagem.replace(/^\[.*?\]\s*/, '') || 'Sem observações adicionais.'}"
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
-              )}
+              </div>
 
               {/* Input Area */}
-               <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
-                 {!isViewingDetails && ((selectedOcc?.status !== 'Resolvida' && selectedOcc?.status !== 'Arquivada') || isResolving || isArchiving || isReopening) ? (
-                   <>
-                     <div className="relative group">
-                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-focus-within:text-blue-500 transition-colors">
-                           {isArchiving ? 'Motivo do Arquivamento (Obrigatório)' : isReopening ? 'Motivo da Reabertura (Obrigatório)' : isResolving ? 'Resumo da Solução / Feedback Final' : 'Nova Interação / Relato'}
-                        </label>
-                        <textarea 
-                          rows={3}
-                          value={atenderObs}
-                          onChange={(e) => setAtenderObs(e.target.value)}
-                          placeholder={isArchiving ? "Justifique por qual motivo esta ocorrência está sendo arquivada..." : isReopening ? "Justifique por qual motivo o status desta ocorrência está sendo restaurado..." : isResolving ? "Descreva como o problema foi resolvido..." : "Descreva o que está ocorrendo cirurgicamente..."}
-                          className="w-full p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none dark:text-white"
-                        />
-                     </div>
-
-                     <div className="mt-4 flex gap-3">
-                        <button 
-                          onClick={() => setShowAtenderModal(false)}
-                          className="flex-1 py-3 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all uppercase tracking-widest"
-                        >
-                          Voltar
-                        </button>
-
-                        {isArchiving ? (
-                          <button 
-                            disabled={!atenderObs.trim()}
-                            onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Arquivada', atenderObs)}
-                            className="flex-[2] py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl shadow-lg shadow-red-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <Archive size={16} /> Confirmar Arquivamento
-                          </button>
-                        ) : isReopening ? (
-                          <button 
-                            disabled={!atenderObs.trim()}
-                            onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Aberta', atenderObs)}
-                            className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <RotateCcw size={16} /> Confirmar Reabertura
-                          </button>
-                        ) : isResolving ? (
-                          <button 
-                            disabled={!atenderObs.trim()}
-                            onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Resolvida', atenderObs)}
-                            className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                             <CheckCircle2 size={16} /> Confirmar Solução
-                          </button>
-                        ) : selectedOcc?.status === 'Aberta' ? (
-                          <button 
-                            disabled={!atenderObs.trim()}
-                            onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Andamento', atenderObs)}
-                            className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                            <Wrench size={16} /> Iniciar Atendimento
-                          </button>
-                        ) : (
-                          <button 
-                            disabled={!atenderObs.trim()}
-                            onClick={handleAddInteraction}
-                            className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-                          >
-                             <Save size={16} /> Registrar Interação
-                          </button>
-                        )}
-                     </div>
-                   </>
-                 ) : (
-                    <div className="flex flex-col items-center">
-                        <button 
-                           onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); setIsArchiving(false); setIsReopening(false); setIsResolving(false); }}
-                           className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center gap-2"
-                        >
-                           <ChevronLeft size={16} /> Voltar
-                        </button>
+              <div className="p-6 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                {!isViewingDetails && ((selectedOcc?.status !== 'Resolvida' && selectedOcc?.status !== 'Arquivada') || isResolving || isArchiving || isReopening) ? (
+                  <>
+                    <div className="relative group">
+                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 group-focus-within:text-blue-500 transition-colors">
+                          {isArchiving ? 'Motivo do Arquivamento (Obrigatório)' : isReopening ? 'Motivo da Reabertura (Obrigatório)' : isResolving ? 'Resumo da Solução / Feedback Final' : 'Nova Interação / Relato'}
+                       </label>
+                       <textarea 
+                         rows={3}
+                         value={atenderObs}
+                         onChange={(e) => setAtenderObs(e.target.value)}
+                         placeholder={isArchiving ? "Justifique por qual motivo esta ocorrência está sendo arquivada..." : isReopening ? "Justifique por qual motivo o status desta ocorrência está sendo restaurado..." : isResolving ? "Descreva como o problema foi resolvido..." : "Descreva o que está ocorrendo..."}
+                         className="w-full p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all resize-none dark:text-white"
+                       />
                     </div>
-                 )}
-               </div>
+
+                    <div className="mt-4 flex gap-3">
+                       <button 
+                         onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); }}
+                         className="flex-1 py-3 text-xs font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all uppercase tracking-widest"
+                       >
+                         Voltar
+                       </button>
+
+                       {isArchiving ? (
+                         <button 
+                           disabled={!atenderObs.trim()}
+                           onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Arquivada', atenderObs)}
+                           className="flex-[2] py-3 bg-red-600 hover:bg-red-700 text-white text-xs font-black rounded-xl shadow-lg shadow-red-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                         >
+                           <Archive size={16} /> Confirmar Arquivamento
+                         </button>
+                       ) : isReopening ? (
+                         <button 
+                           disabled={!atenderObs.trim()}
+                           onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Aberta', atenderObs)}
+                           className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                         >
+                           <RotateCcw size={16} /> Confirmar Reabertura
+                         </button>
+                       ) : isResolving ? (
+                         <button 
+                           disabled={!atenderObs.trim()}
+                           onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Resolvida', atenderObs)}
+                           className="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-lg shadow-emerald-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                         >
+                           <CheckCircle2 size={16} /> Confirmar Solução
+                         </button>
+                       ) : selectedOcc?.status === 'Aberta' ? (
+                         <button 
+                           disabled={!atenderObs.trim()}
+                           onClick={() => selectedOcc && handleStatusChange(selectedOcc.id, 'Andamento', atenderObs)}
+                           className="flex-[2] py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-black rounded-xl shadow-lg shadow-blue-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                         >
+                           <Wrench size={16} /> Iniciar Atendimento
+                         </button>
+                       ) : (
+                         <button 
+                           disabled={!atenderObs.trim()}
+                           onClick={handleAddInteraction}
+                           className="flex-[2] py-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/20 transition-all uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+                         >
+                           <Save size={16} /> Registrar Interação
+                         </button>
+                       )}
+                    </div>
+                  </>
+                ) : (
+                   <div className="flex flex-col items-center">
+                       <button 
+                          onClick={() => { setShowAtenderModal(false); setIsViewingDetails(false); setIsArchiving(false); setIsReopening(false); setIsResolving(false); }}
+                          className="w-full py-4 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center gap-2"
+                       >
+                          <ChevronLeft size={16} /> Voltar
+                       </button>
+                   </div>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
+
       <ActionConfirmModal 
         isOpen={confirmModal.isOpen}
         onClose={() => setConfirmModal({ ...confirmModal, isOpen: false })}

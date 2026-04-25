@@ -1610,128 +1610,11 @@ export default function VeiculosPage() {
               </div>
 
               <div className="p-6 space-y-6">
-                {/* SEÇÃO 1: DADOS PESSOAIS */}
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                    <User size={16} />
-                    DADOS PESSOAIS / CONDUTOR
-                  </h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold mb-2 text-primary">Nome Completo *</label>
-                      <input 
-                        type="text"
-                        value={formData.nome}
-                        onChange={(e) => setFormData({...formData, nome: e.target.value})}
-                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                        placeholder="Ex: João da Silva"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold mb-2 text-primary">Tipo *</label>
-                        <select 
-                          value={formData.tipoDocumento}
-                          onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
-                          className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
-                        >
-                          <option value="CPF">CPF</option>
-                          <option value="RG">RG</option>
-                        </select>
-                      </div>
-                      <div className="col-span-2">
-                        <label className="block text-sm font-bold mb-2 text-primary">{formData.tipoDocumento} *</label>
-                        <input 
-                          type="text"
-                          value={formData.documento}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            const masked = formData.tipoDocumento === 'CPF' ? formatCPF(val) : formatRG(val);
-                            setFormData({...formData, documento: masked});
-                          }}
-                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-white"
-                          placeholder={formData.tipoDocumento === 'CPF' ? '000.000.000-00' : '00.000.000-0'}
-                          maxLength={formData.tipoDocumento === 'CPF' ? 14 : 12}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SEÇÃO 2: DADOS DO VEÍCULO */}
-                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
-                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                    <Car size={16} />
-                    DADOS DO VEÍCULO
-                  </h4>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-bold mb-2 text-primary">Placa *</label>
-                        <input 
-                          type="text"
-                          value={formData.placa}
-                          onChange={(e) => {
-                            const val = e.target.value.toUpperCase();
-                            setFormData({...formData, placa: formatPlate(val)});
-                          }}
-                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-lg text-slate-900 dark:text-white"
-                          placeholder="AAA-0000"
-                          maxLength={8}
-                        />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-bold mb-2">Modelo</label>
-                        <input 
-                          type="text"
-                          value={formData.modelo}
-                          onChange={(e) => setFormData({...formData, modelo: e.target.value})}
-                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                          placeholder="Ex: Honda Civic"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-bold mb-2">Cor</label>
-                        <input 
-                          type="text"
-                          value={formData.cor}
-                          onChange={(e) => setFormData({...formData, cor: e.target.value})}
-                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
-                          placeholder="Ex: Prata"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-bold mb-2 text-primary">Tipo de Veículo *</label>
-                      <select 
-                        value={formData.tipo}
-                        onChange={(e) => {
-                          const newTipo = e.target.value;
-                          setFormData({
-                            ...formData, 
-                            tipo: newTipo
-                          });
-                        }}
-                        className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
-                      >
-                        <option value="VISITANTE">Veículo de Visitante</option>
-                        <option value="PROPRIETARIO">Veículo de Proprietário</option>
-                        <option value="LOCATARIO">Veículo de Locatário</option>
-                        <option value="PRESTADOR">Veículo de Prestador</option>
-                        <option value="MUDANCA">Veículo de Mudança</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SEÇÃO 3: UNIDADE DE DESTINO */}
+                {/* SEÇÃO 1: UNIDADE DE DESTINO */}
                 <div ref={unidadeRef} className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 relative">
-                  <h4 className="font-bold text-sm text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
-                    <Building size={16} />
-                    UNIDADE DE DESTINO
+                  <h4 className="font-black text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                    <Building size={16} className="text-blue-500" />
+                    SEÇÃO 1: UNIDADE DE DESTINO
                   </h4>
                   <div className="space-y-4">
                     {/* Campos Bloco e Apartamento */}
@@ -1842,17 +1725,137 @@ export default function VeiculosPage() {
                         </button>
                       </div>
                     )}
-                    {/* Observações da Entrada */}
-                    <div className="pt-4 border-t border-slate-200 dark:border-slate-800">
-                      <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Observações / Motivo da Entrada</label>
-                      <textarea 
-                        value={formData.observacoes}
-                        onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
-                        placeholder="Ex: Entrega de encomenda, visita rápida, manutenção na unidade..."
-                        className="w-full p-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl text-sm focus:border-blue-500 outline-none transition-all min-h-[100px] resize-none"
+                  </div>
+                </div>
+
+                {/* SEÇÃO 2: DADOS PESSOAIS */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-black text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                    <User size={16} className="text-blue-500" />
+                    SEÇÃO 2: DADOS PESSOAIS / CONDUTOR
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Nome Completo *</label>
+                      <input 
+                        type="text"
+                        value={formData.nome}
+                        onChange={(e) => setFormData({...formData, nome: e.target.value})}
+                        className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                        placeholder="Ex: João da Silva"
                       />
                     </div>
+
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-2 text-primary">Tipo *</label>
+                        <select 
+                          value={formData.tipoDocumento}
+                          onChange={(e) => setFormData({...formData, tipoDocumento: e.target.value})}
+                          className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
+                        >
+                          <option value="CPF">CPF</option>
+                          <option value="RG">RG</option>
+                        </select>
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-sm font-bold mb-2 text-primary">{formData.tipoDocumento} *</label>
+                        <input 
+                          type="text"
+                          value={formData.documento}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const masked = formData.tipoDocumento === 'CPF' ? formatCPF(val) : formatRG(val);
+                            setFormData({...formData, documento: masked});
+                          }}
+                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-slate-900 dark:text-white"
+                          placeholder={formData.tipoDocumento === 'CPF' ? '000.000.000-00' : '00.000.000-0'}
+                          maxLength={formData.tipoDocumento === 'CPF' ? 14 : 12}
+                        />
+                      </div>
+                    </div>
                   </div>
+                </div>
+
+                {/* SEÇÃO 3: DADOS DO VEÍCULO */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                  <h4 className="font-black text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                    <Car size={16} className="text-blue-500" />
+                    SEÇÃO 3: DADOS DO VEÍCULO
+                  </h4>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Placa *</label>
+                        <input 
+                          type="text"
+                          value={formData.placa}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase();
+                            setFormData({...formData, placa: formatPlate(val)});
+                          }}
+                          className="w-full p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg font-mono text-lg text-slate-900 dark:text-white uppercase-input"
+                          placeholder="AAA-0000"
+                          maxLength={8}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Modelo</label>
+                        <input 
+                          type="text"
+                          value={formData.modelo}
+                          onChange={(e) => setFormData({...formData, modelo: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          placeholder="Ex: Honda Civic"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-bold mb-2">Cor</label>
+                        <input 
+                          type="text"
+                          value={formData.cor}
+                          onChange={(e) => setFormData({...formData, cor: e.target.value})}
+                          className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                          placeholder="Ex: Prata"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-bold mb-2 text-primary">Tipo de Veículo *</label>
+                      <select 
+                        value={formData.tipo}
+                        onChange={(e) => {
+                          const newTipo = e.target.value;
+                          setFormData({
+                            ...formData, 
+                            tipo: newTipo
+                          });
+                        }}
+                        className="w-full p-3 bg-white text-slate-900 dark:bg-slate-800 dark:text-white border border-slate-200 dark:border-slate-700 rounded-lg"
+                      >
+                        <option value="VISITANTE">Veículo de Visitante</option>
+                        <option value="PROPRIETARIO">Veículo de Proprietário</option>
+                        <option value="LOCATARIO">Veículo de Locatário</option>
+                        <option value="PRESTADOR">Veículo de Prestador</option>
+                        <option value="MUDANCA">Veículo de Mudança</option>
+                      </select>
+                    </div>
+                </div>
+              </div>
+                {/* SEÇÃO 4: OBSERVAÇÕES */}
+                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700">
+                    <h4 className="font-black text-[10px] text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2 uppercase tracking-widest">
+                      <FileText size={16} className="text-blue-500" />
+                      SEÇÃO 4: OBSERVAÇÕES / MOTIVO
+                    </h4>
+                    <textarea 
+                      value={formData.observacoes}
+                      onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
+                      className="w-full p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl h-28 resize-none focus:ring-2 focus:ring-primary/20 outline-none transition-all text-sm font-medium"
+                      placeholder="Ex: Entrega De Encomenda, Visita Rápida, Manutenção Na Unidade..."
+                    />
                 </div>
               </div>
 
@@ -2003,7 +2006,7 @@ export default function VeiculosPage() {
                 <div>
                   <h2 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                     <History size={20} className="text-blue-500" />
-                    Detalhes da Movimentação - Veículos
+                    Detalhes da Movimentação — Veículos
                   </h2>
                   <div className="flex items-center gap-2 mt-2">
                     <span className="inline-block px-2 py-0.5 bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
@@ -2024,28 +2027,28 @@ export default function VeiculosPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-slate-900/50">
                   <div className="space-y-4 relative">
-                    <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                    <div className="absolute top-4 bottom-4 left-[20px] w-[0px] border-l-2 border-dashed border-slate-200 dark:border-slate-700/50"></div>
                     
                     {/* 1) Registro Visitante (VERDE) */}
                     <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50">
+                      <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
                           <LogIn size={16} />
                       </div>
                       <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
                           <div className="flex items-center justify-between gap-4 mb-2">
                             <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) Registro Visitante</span>
+                                <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) REGISTRO DE ENTRADA</span>
                                 <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                  {selectedVehicle.criado_por_nome?.split(' ')[0] || 'SISTEMA'}
+                                  {operatorMap[selectedAccess?.operador_entrada_id || '']?.nome || selectedVehicle.criado_por_nome || 'SISTEMA'}
                                 </span>
                             </div>
-                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                               <Clock size={10} /> {new Date(selectedVehicle.created_at).toLocaleString('pt-BR')}
+                            <span className="text-[10px] font-bold text-emerald-600/70 flex items-center gap-1 uppercase tracking-widest">
+                               <Clock size={10} /> {(selectedAccess?.hora_entrada || selectedVehicle?.created_at) && !isNaN(new Date(selectedAccess?.hora_entrada || selectedVehicle?.created_at).getTime()) ? `${new Date(selectedAccess?.hora_entrada || selectedVehicle?.created_at).toLocaleDateString('pt-BR')} · ${new Date(selectedAccess?.hora_entrada || selectedVehicle?.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ' — '}
                             </span>
                           </div>
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400 leading-relaxed">
+                          <div className="text-xs font-bold text-emerald-700/80 dark:text-emerald-400/80">
                              Registro de entrada efetuado na portaria pelo operador.
                           </div>
                       </div>
@@ -2053,12 +2056,14 @@ export default function VeiculosPage() {
 
                     {/* 2) Dados do Visitante (AZUL) */}
                     <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-blue-50 dark:ring-blue-900/10 relative z-10 bg-blue-100 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/50">
+                      <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
                           <Truck size={16} />
                       </div>
                       <div className="flex-1 p-4 rounded-2xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20 shadow-sm transition-all">
                           <div className="flex items-center justify-between gap-4 mb-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) Dados do Visitante / Movimentação</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:blue-400">
+                              {selectedVehicle.tipo?.toUpperCase() === 'PROPRIETARIO' ? '2) DADOS DO MORADOR' : '2) DADOS DO VISITANTE'}
+                            </span>
                           </div>
                           <div className="grid grid-cols-2 gap-4">
                              <div>
@@ -2082,7 +2087,9 @@ export default function VeiculosPage() {
                              <div>
                                 <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black mb-0.5">Hora de Entrada</span>
                                 <span className="text-xs font-bold text-slate-900 dark:text-white uppercase leading-none">
-                                  {new Date(selectedVehicle.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                   {(selectedAccess?.hora_entrada || selectedVehicle?.created_at) && !isNaN(new Date(selectedAccess?.hora_entrada || selectedVehicle?.created_at).getTime())
+                                     ? new Date(selectedAccess?.hora_entrada || selectedVehicle?.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                                     : ' — '}
                                 </span>
                              </div>
                              {selectedVehicle.observacoes && (
@@ -2097,26 +2104,26 @@ export default function VeiculosPage() {
                     {/* 3) Saída do Visitante (VERMELHO) */}
                     {selectedAccess?.hora_saida ? (
                       <div className="relative flex items-start gap-4">
-                        <div className="p-2 rounded-full ring-4 ring-rose-50 dark:ring-rose-900/10 relative z-10 bg-rose-100 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800/50">
-                            <LogOut size={16} />
-                        </div>
-                        <div className="flex-1 p-4 rounded-2xl bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/20 shadow-sm transition-all">
-                            <div className="flex items-center justify-between gap-4 mb-2">
-                              <div className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-400">3) Saída do Visitante</span>
-                                  <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-[9px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                                    {selectedAccess.operador_saida?.nome || selectedAccess.operador_saida_nome || 'SISTEMA'}
-                                  </span>
+                              <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-red-500 text-white shadow-lg shadow-red-500/20">
+                                  <LogOut size={16} />
                               </div>
-                              <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
-                                 <Clock size={10} /> {new Date(selectedAccess.hora_saida).toLocaleString('pt-BR')}
-                              </span>
-                            </div>
-                            <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
+                              <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-md transition-all">
+                                  <div className="flex items-center justify-between gap-4 mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[10px] font-black uppercase tracking-widest text-red-700 dark:text-red-400">3) FECHAMENTO: SAÍDA REGISTRADA</span>
+                                        <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-[9px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
+                                          {operatorMap[selectedAccess.operador_saida_id || '']?.nome || selectedAccess.operador_saida_nome || 'SISTEMA'}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-red-400/60 flex items-center gap-1 uppercase tracking-widest whitespace-nowrap">
+                                       <Clock size={10} /> {selectedAccess.hora_saida && !isNaN(new Date(selectedAccess.hora_saida).getTime()) ? `${new Date(selectedAccess.hora_saida).toLocaleDateString('pt-BR')} · ${new Date(selectedAccess.hora_saida).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ' — '}
+                                    </span>
+                                  </div>
+                            <div className="text-xs font-bold text-red-700/80 dark:text-red-400/80">
                                Saída registrada com sucesso na portaria.
                             </div>
                             {selectedAccess.observacoes && (
-                               <div className="mt-2 text-xs text-rose-700 dark:text-rose-300 italic">
+                               <div className="mt-2 text-xs text-red-700 dark:text-red-300 italic">
                                  "{selectedAccess.observacoes}"
                                </div>
                             )}
@@ -2128,7 +2135,7 @@ export default function VeiculosPage() {
                             <LogOut size={16} />
                         </div>
                         <div className="flex-1 p-4 rounded-2xl border border-dashed border-slate-200 dark:border-slate-800 flex items-center justify-center">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">Aguardando registro de saída...</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 italic">AGUARDANDO REGISTRO DE SAÍDA...</span>
                         </div>
                       </div>
                     )}

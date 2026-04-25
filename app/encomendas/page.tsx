@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { 
@@ -56,6 +56,7 @@ interface Package {
   operador_retira?: { nome: string };
   operador_recusa?: { nome: string };
   whatsapp_enviado: boolean;
+  whatsapp_enviado_at?: string;
   whatsapp_lido: boolean;
   whatsapp_mensagem_id?: string;
   residente?: { nome: string; celular: string; bloco: string; apto: string; tem_whatsapp?: boolean };
@@ -70,7 +71,7 @@ export default function EncomendasPage() {
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<'ATIVAS' | 'HISTORICO'>('ATIVAS');
   const [filter, setFilter] = useState('TODOS');
-  const [statusFilter, setStatusFilter] = useState<'AGUARDANDO' | 'TODOS' | 'RETIRADA' | 'RECUSADA' | 'WHATSAPP'>('TODOS');
+  const [statusFilter, setStatusFilter] = useState<'AGUARDANDO' | 'TODOS' | 'RETIRADA' | 'RECUSADA' | 'WHATSAPP' | 'ESQUECIDAS'>('TODOS');
   const [dateFilter, setDateFilter] = useState<'HOJE' | 'TODOS'>('TODOS');
   const [retiradoPor, setRetiradoPor] = useState('');
   const [motivoRecusa, setMotivoRecusa] = useState('');
@@ -255,7 +256,10 @@ export default function EncomendasPage() {
             const message = `${greeting} ${selectedUnidade.nome.split(' ')[0]}, uma nova encomenda da *${formData.transportadora}* chegou para você na Portaria!${obsSuffix}`;
             const whatsappUrl = `https://api.whatsapp.com/send?phone=${selectedUnidade.celular.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
             window.open(whatsappUrl, '_blank');
-            supabase.from('packages').update({ whatsapp_enviado: true }).eq('id', data.id).then(() => fetchPackages());
+            supabase.from('packages').update({ 
+              whatsapp_enviado: true,
+              whatsapp_enviado_at: new Date().toISOString()
+            }).eq('id', data.id).then(() => fetchPackages());
           },
           'success',
           'Enviar Agora'
@@ -387,9 +391,9 @@ export default function EncomendasPage() {
     );
   };
 
-  const handleManualWhatsApp = async (pkg: Package) => {
-    // Busca o morador para pegar o telefone (se não estiver no pkg)
-    const resident = residents.find(r => r.id === (pkg as any).unidade_id);
+  const handleManualWhatsApp = (pkg: Package) => {
+    const resident = pkg.residente || residents.find(r => r.id === (pkg as any).unidade_id);
+    
     if (!resident?.celular) {
       alert('Morador não possui celular cadastrado!');
       return;
@@ -404,12 +408,31 @@ export default function EncomendasPage() {
     const whatsappUrl = `https://api.whatsapp.com/send?phone=${resident.celular.replace(/\D/g, '')}&text=${encodeURIComponent(message)}`;
     
     window.open(whatsappUrl, '_blank');
+  };
+
+  const toggleWhatsAppStatus = async (pkg: Package, field: 'whatsapp_enviado' | 'whatsapp_lido') => {
+    const newValue = !pkg[field];
+    const updateData: any = { [field]: newValue };
     
-    await supabase.from('packages').update({
-      whatsapp_enviado: true
-    }).eq('id', pkg.id);
-    
-    fetchPackages();
+    if (field === 'whatsapp_enviado') {
+      updateData.whatsapp_enviado_at = newValue ? new Date().toISOString() : null;
+    }
+    if (field === 'whatsapp_lido') {
+      updateData.whatsapp_lido_at = newValue ? new Date().toISOString() : null;
+    }
+
+    // Atualiza localmente primeiro para feedback instantâneo
+    const updatedPkg = { ...pkg, ...updateData };
+    setPackages(prev => prev.map(p => p.id === pkg.id ? updatedPkg : p));
+    if (selectedPackage?.id === pkg.id) {
+      setSelectedPackage(updatedPkg);
+    }
+
+    try {
+      await supabase.from('packages').update(updateData).eq('id', pkg.id);
+    } catch (err) {
+      console.error('Erro ao atualizar status WhatsApp:', err);
+    }
   };
 
 
@@ -423,8 +446,15 @@ export default function EncomendasPage() {
   };
 
   const pending = packages.filter(p => p.status === 'AGUARDANDO').length;
-  const recebidasHoje = packages.filter(p => isToday(p.recebida_em)).length;
-  const retiradasHoje = packages.filter(p => isToday(p.hora_retirada)).length;
+  const movimentacaoHoje = packages.filter(p => isToday(p.recebida_em) || isToday(p.hora_retirada)).length;
+  
+  const pendentes24h = packages.filter(p => {
+    if (p.status !== 'AGUARDANDO') return false;
+    const entrada = new Date(p.recebida_em).getTime();
+    const agora = new Date().getTime();
+    return (agora - entrada) > (24 * 60 * 60 * 1000);
+  }).length;
+
   const avisosEnviados = packages.filter(p => p.whatsapp_enviado).length;
 
   const filtered = packages.filter(p => {
@@ -434,16 +464,29 @@ export default function EncomendasPage() {
     
     if (!matchSearch) return false;
 
+    // Se o filtro de data for HOJE, mostramos tudo o que aconteceu hoje (entrada ou saída), ignorando a aba
+    if (dateFilter === 'HOJE') {
+        return isToday(p.recebida_em) || isToday(p.hora_retirada);
+    }
+
+    // Filtro especial para Pendentes > 24h
+    if (statusFilter === 'ESQUECIDAS') {
+        if (p.status !== 'AGUARDANDO') return false;
+        const entrada = new Date(p.recebida_em).getTime();
+        const agora = new Date().getTime();
+        return (agora - entrada) > (24 * 60 * 60 * 1000);
+    }
+
+    // Filtro para Avisos WhatsApp (Soberano)
+    if (statusFilter === 'WHATSAPP') {
+        return p.whatsapp_enviado === true;
+    }
+
     if (activeTab === 'ATIVAS') {
         return p.status === 'AGUARDANDO';
     } else {
         // HISTORICO
         const matchBase = p.status !== 'AGUARDANDO';
-        if (statusFilter === 'WHATSAPP') return p.whatsapp_enviado === true && matchBase;
-        if (dateFilter === 'HOJE') {
-            const dateMatch = statusFilter === 'RETIRADA' ? isToday(p.hora_retirada) : isToday(p.recebida_em);
-            return dateMatch && matchBase;
-        }
         if (statusFilter !== 'TODOS' && p.status !== statusFilter) return false;
         return matchBase;
     }
@@ -490,34 +533,34 @@ export default function EncomendasPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
            {/* Pendentes */}
            <div 
-             onClick={() => { setFilter('AGUARDANDO'); setStatusFilter('AGUARDANDO'); setDateFilter('TODOS'); }}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${filter === 'AGUARDANDO' ? 'bg-amber-500 border-amber-500 text-white scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
+             onClick={() => { setFilter('AGUARDANDO'); setStatusFilter('AGUARDANDO'); setDateFilter('TODOS'); setActiveTab('ATIVAS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${activeTab === 'ATIVAS' && statusFilter === 'AGUARDANDO' && dateFilter === 'TODOS' ? 'bg-amber-500 border-amber-500 text-white scale-[1.02]' : 'bg-amber-50 dark:bg-amber-900/10 border-amber-200 dark:border-amber-800/30 hover:border-amber-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${filter === 'AGUARDANDO' ? 'text-amber-100' : 'text-amber-600'}`}>Aguardando</p>
-             <p className={`text-2xl font-black ${filter === 'AGUARDANDO' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : pending}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${activeTab === 'ATIVAS' && statusFilter === 'AGUARDANDO' && dateFilter === 'TODOS' ? 'text-amber-100' : 'text-amber-600'}`}>Aguardando</p>
+             <p className={`text-2xl font-black ${activeTab === 'ATIVAS' && statusFilter === 'AGUARDANDO' && dateFilter === 'TODOS' ? 'text-white' : 'text-amber-600 dark:text-amber-400'}`}>{loading ? '-' : pending}</p>
            </div>
            
-           {/* Recebidas Hoje */}
+           {/* Movimentação Hoje */}
            <div 
-             onClick={() => { setFilter('TODOS'); setStatusFilter('TODOS'); setDateFilter('HOJE'); }}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'bg-blue-600 border-blue-600 scale-[1.02]' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/30 hover:border-blue-400'}`}
+             onClick={() => { setFilter('TODOS'); setStatusFilter('TODOS'); setDateFilter('HOJE'); setActiveTab('HISTORICO'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${dateFilter === 'HOJE' ? 'bg-blue-600 border-blue-600 scale-[1.02]' : 'bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800/30 hover:border-blue-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'text-blue-100' : 'text-blue-600'}`}>Chegaram Hoje</p>
-             <p className={`text-2xl font-black ${filter === 'TODOS' && statusFilter === 'TODOS' && dateFilter === 'HOJE' ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>{loading ? '-' : recebidasHoje}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${dateFilter === 'HOJE' ? 'text-blue-100' : 'text-blue-600'}`}>Movimentação Hoje</p>
+             <p className={`text-2xl font-black ${dateFilter === 'HOJE' ? 'text-white' : 'text-blue-600 dark:text-blue-400'}`}>{loading ? '-' : movimentacaoHoje}</p>
            </div>
            
-           {/* Retiradas Hoje */}
+           {/* Pendentes +24h */}
            <div 
-             onClick={() => { setFilter('TODOS'); setStatusFilter('RETIRADA'); setDateFilter('HOJE'); }}
-             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'bg-emerald-500 border-emerald-500 scale-[1.02]' : 'bg-emerald-50 dark:bg-emerald-900/10 border-emerald-200 dark:border-emerald-800/30 hover:border-emerald-400'}`}
+             onClick={() => { setFilter('TODOS'); setStatusFilter('ESQUECIDAS'); setDateFilter('TODOS'); setActiveTab('ATIVAS'); }}
+             className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'ESQUECIDAS' ? 'bg-rose-500 border-rose-500 scale-[1.02]' : 'bg-rose-50 dark:bg-rose-900/10 border-rose-200 dark:border-rose-800/30 hover:border-rose-400'}`}
            >
-             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'text-emerald-100' : 'text-emerald-600'}`}>Retiradas Hoje</p>
-             <p className={`text-2xl font-black ${statusFilter === 'RETIRADA' && dateFilter === 'HOJE' ? 'text-white' : 'text-emerald-600 dark:text-emerald-400'}`}>{loading ? '-' : retiradasHoje}</p>
+             <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'ESQUECIDAS' ? 'text-rose-100' : 'text-rose-600'}`}>Pendentes +24h</p>
+             <p className={`text-2xl font-black ${statusFilter === 'ESQUECIDAS' ? 'text-white' : 'text-rose-600 dark:text-rose-400'}`}>{loading ? '-' : pendentes24h}</p>
            </div>
            
            {/* Avisos */}
            <div 
-             onClick={() => { setFilter('TODOS'); setStatusFilter('WHATSAPP'); setDateFilter('TODOS'); }}
+             onClick={() => { setFilter('TODOS'); setStatusFilter('WHATSAPP'); setDateFilter('TODOS'); setActiveTab('HISTORICO'); }}
              className={`p-4 rounded-2xl border shadow-sm cursor-pointer transition-all ${statusFilter === 'WHATSAPP' ? 'bg-indigo-600 border-indigo-600 text-white scale-[1.02]' : 'bg-indigo-50 dark:bg-indigo-900/10 border-indigo-200 dark:border-indigo-800/30 hover:border-indigo-400'}`}
            >
              <p className={`text-[10px] font-black uppercase tracking-widest mb-1 ${statusFilter === 'WHATSAPP' ? 'text-indigo-100' : 'text-indigo-600'}`}>Avisos via WhatsApp</p>
@@ -673,19 +716,56 @@ export default function EncomendasPage() {
                   <td className="p-4">
                       {activeTab !== 'HISTORICO' ? (
                         <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => { setSelectedPackage(pkg); setShowRetireModal(true); }}
-                            className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl text-[10px] font-black border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all shadow-sm flex items-center gap-2 uppercase tracking-widest"
-                          >
-                            <CheckCircle2 size={16} /> Entregar
-                          </button>
-                          <button 
-                            onClick={() => { setSelectedPackage(pkg); setShowRejectModal(true); }}
-                            className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl text-[10px] font-black border border-red-500/20 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center gap-2 uppercase tracking-widest"
-                            title="Recusar"
-                          >
-                            <Ban size={16} /> Recusar
-                          </button>
+                           <button 
+                             onClick={() => { setSelectedPackage(pkg); setShowRetireModal(true); }}
+                             className="px-4 py-2 bg-emerald-500/10 text-emerald-500 rounded-xl text-[10px] font-black border border-emerald-500/20 hover:bg-emerald-500 hover:text-white transition-all shadow-sm flex items-center justify-center gap-2 uppercase tracking-widest"
+                           >
+                             <CheckCircle2 size={16} /> Entregar
+                           </button>
+                           
+                           <button 
+                             onClick={() => { setSelectedPackage(pkg); setShowRejectModal(true); }}
+                             className="px-4 py-2 bg-red-500/10 text-red-500 rounded-xl text-[10px] font-black border border-red-500/20 hover:bg-red-500 hover:text-white transition-all shadow-sm flex items-center justify-center uppercase tracking-widest"
+                             title="Recusar"
+                           >
+                             Recusar
+                           </button>
+
+                           {/* WHATSAPP CONTROLS (Só aparece se estiver AGUARDANDO) */}
+                           {pkg.status === 'AGUARDANDO' && (
+                             <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit ml-1">
+                               <button 
+                                 onClick={() => handleManualWhatsApp(pkg)}
+                                 className="p-1.5 text-indigo-500 hover:bg-indigo-500 hover:text-white rounded-lg transition-all"
+                                 title="Abrir WhatsApp"
+                               >
+                                 <MessageSquare size={14} />
+                               </button>
+                               <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+                               <button 
+                                 onClick={() => toggleWhatsAppStatus(pkg, 'whatsapp_enviado')}
+                                 className={`p-1.5 rounded-lg transition-all border ${
+                                   pkg.whatsapp_enviado 
+                                   ? 'bg-emerald-500/20 text-emerald-500 border-emerald-500/30 font-black' 
+                                   : 'text-slate-400 border-transparent hover:bg-emerald-500/10 hover:text-emerald-500'
+                                 }`}
+                                 title="Marcar Enviado"
+                               >
+                                 <Check size={14} strokeWidth={pkg.whatsapp_enviado ? 4 : 2} />
+                               </button>
+                               <button 
+                                 onClick={() => toggleWhatsAppStatus(pkg, 'whatsapp_lido')}
+                                 className={`p-1.5 rounded-lg transition-all border ${
+                                   pkg.whatsapp_lido 
+                                   ? 'bg-blue-500/20 text-blue-500 border-blue-500/30 font-black' 
+                                   : 'text-slate-400 border-transparent hover:bg-blue-500/10 hover:text-blue-500'
+                                 }`}
+                                 title="Marcar Lido"
+                               >
+                                 <Eye size={14} strokeWidth={pkg.whatsapp_lido ? 3 : 2} />
+                               </button>
+                             </div>
+                           )}
                         </div>
                       ) : (
                         <div className="flex flex-col gap-1">
@@ -883,7 +963,7 @@ export default function EncomendasPage() {
                     type="text"
                     value={formData.numero}
                     onChange={(e) => setFormData({...formData, numero: e.target.value})}
-                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg"
+                    className="w-full p-3 border border-slate-200 dark:border-slate-700 rounded-lg uppercase-input"
                     placeholder="Código de rastreamento"
                   />
                 </div>
@@ -1071,7 +1151,7 @@ export default function EncomendasPage() {
                  <div>
                     <h2 className="text-xl lg:text-2xl font-black tracking-tight text-slate-900 dark:text-white flex items-center gap-2">
                       <HistoryLog size={20} className="text-blue-500" />
-                      Detalhes da Movimentação - Encomendas
+                      Detalhes da Movimentação — Encomendas
                     </h2>
                     <div className="flex items-center gap-2 mt-2">
                        <span className="inline-block px-2 py-0.5 bg-slate-900/5 dark:bg-slate-800 rounded-md text-[10px] font-black text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 whitespace-nowrap uppercase tracking-wider">
@@ -1092,43 +1172,46 @@ export default function EncomendasPage() {
                  </button>
                </div>
 
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50 dark:bg-slate-900/50">
+              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-slate-900/50">
                 <div className="space-y-4 relative">
-                  <div className="absolute top-4 bottom-4 left-[21px] w-[2px] bg-slate-200 dark:bg-slate-700"></div>
+                  <div className="absolute top-4 bottom-4 left-[20px] w-[0px] border-l-2 border-dashed border-slate-200 dark:border-slate-700/50"></div>
 
                   {/* 1) Recebimento Portaria (Verde) */}
                   <div className="relative flex items-start gap-4">
-                    <div className="p-2 rounded-full ring-4 ring-emerald-50 dark:ring-emerald-900/10 relative z-10 bg-emerald-100 border-emerald-200 text-emerald-600 dark:bg-emerald-900/30 dark:border-emerald-800/50">
+                    <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
                         <LogIn size={16} />
                     </div>
                     <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
                         <div className="flex items-center justify-between gap-4 mb-2">
-                          <div className="flex items-center gap-2">
-                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) Recebimento Portaria</span>
-                              <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                {selectedPackage.operador_recebe?.nome?.split(' ')[0] || 'SISTEMA'}
-                              </span>
-                          </div>
-                          <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                             <Clock size={10} /> {new Date(selectedPackage.recebida_em).toLocaleString('pt-BR')}
-                          </span>
-                        </div>
-                        {selectedPackage.observacoes && (
-                           <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 italic">
-                             "{selectedPackage.observacoes}"
+                           <div className="flex items-center gap-2">
+                               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) REGISTRO DE ENTRADA</span>
+                               <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                 {selectedPackage.operador_recebe?.nome || 'SISTEMA'}
+                               </span>
                            </div>
-                        )}
+                           <span className="text-[10px] font-bold text-emerald-600/70 flex items-center gap-1 uppercase tracking-widest">
+                              <Clock size={10} /> {new Date(selectedPackage.recebida_em).toLocaleDateString('pt-BR')} · {new Date(selectedPackage.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                           </span>
+                         </div>
+                         <div className="text-xs font-bold text-emerald-700/80 dark:text-emerald-400/80">
+                            Registro de entrada efetuado na portaria pelo operador.
+                         </div>
+                         {selectedPackage.observacoes && (
+                            <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 italic border-t border-emerald-100/50 pt-2">
+                              "{selectedPackage.observacoes}"
+                            </div>
+                         )}
                     </div>
                   </div>
                   
                   {/* 2) Dados da Encomenda (Azul) */}
                   <div className="relative flex items-start gap-4">
-                    <div className="p-2 rounded-full ring-4 ring-blue-50 dark:ring-blue-900/10 relative z-10 bg-blue-100 border-blue-200 text-blue-600 dark:bg-blue-900/30 dark:border-blue-800/50">
+                    <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
                         <Info size={16} />
                     </div>
                     <div className="flex-1 p-4 rounded-2xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20 shadow-sm transition-all">
                         <div className="flex items-center justify-between gap-4 mb-3">
-                          <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) Dados da Encomenda</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) DADOS DA ENCOMENDA</span>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                            <div>
@@ -1139,88 +1222,112 @@ export default function EncomendasPage() {
                               <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Volumes</span>
                               <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.volumes}</span>
                            </div>
-                           <div className="col-span-2">
-                              <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Identificação / Objeto</span>
-                              <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.numero || 'NÃO INFORMADO'}</span>
+                           {selectedPackage.numero && (
+                             <div className="col-span-2">
+                                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Identificação / Objeto</span>
+                                <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.numero}</span>
+                             </div>
+                           )}                   {/* 3) Fluxo de Comunicação (WhatsApp) */}
+                   <div className="relative flex items-start gap-4">
+                     <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 text-indigo-500">
+                         <MessageSquare size={16} />
+                     </div>
+                     <div className="flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-all">
+                        <div className="flex items-center justify-between gap-4 mb-4">
+                           <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white flex items-center gap-2">
+                              3) FLUXO DE COMUNICAÇÃO
+                           </span>
+                        </div>
+                        
+                        <div className="space-y-3">
+                           {/* Sub-etapa: Enviado */}
+                           <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`size-2 rounded-full ${selectedPackage.whatsapp_enviado ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Aviso Enviado</span>
+                              </div>
+                              {selectedPackage.whatsapp_enviado && selectedPackage.whatsapp_enviado_at ? (
+                                <div className="flex items-center gap-1.5 text-[10px] font-black text-emerald-500/80 uppercase">
+                                  <Clock size={12} />
+                                  {new Date(selectedPackage.whatsapp_enviado_at).toLocaleDateString('pt-BR')} · {new Date(selectedPackage.whatsapp_enviado_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              ) : (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase italic">Pendente</span>
+                              )}
+                           </div>
+
+                           {/* Sub-etapa: Visualizado */}
+                           <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className={`size-2 rounded-full ${selectedPackage.whatsapp_lido ? 'bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]' : 'bg-slate-300 dark:bg-slate-700'}`} />
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">Aviso Visualizado</span>
+                              </div>
+                              {selectedPackage.whatsapp_lido && selectedPackage.whatsapp_lido_at ? (
+                                <div className="flex items-center gap-1.5 text-[10px] font-black text-blue-500/80 uppercase">
+                                  <Clock size={12} />
+                                  {new Date(selectedPackage.whatsapp_lido_at).toLocaleDateString('pt-BR')} · {new Date(selectedPackage.whatsapp_lido_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                                </div>
+                              ) : (
+                                <span className="text-[9px] font-bold text-slate-400 uppercase italic">Pendente</span>
+                              )}
                            </div>
                         </div>
-                    </div>
-                  </div>
+                     </div>
+                   </div>
 
-                  {(selectedPackage.whatsapp_enviado || selectedPackage.whatsapp_lido) && (
-                    <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 text-indigo-500">
-                          <MessageSquare size={16} />
-                      </div>
-                      <div className="flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-all">
-                          <div className="flex items-center justify-between gap-4">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">Aviso via WhatsApp</span>
-                            {selectedPackage.whatsapp_lido ? (
-                               <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-primary">
-                                  <Eye size={10} /> LIDA
-                               </span>
-                            ) : (
-                               <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest text-green-500">
-                                  <Check size={10} /> ENVIADA
-                               </span>
-                            )}
-                          </div>
-                      </div>
-                    </div>
-                  )}
-                  {/* 3) Finalização: Retirada (Verde) */}
-                  {selectedPackage.status === 'RETIRADA' && (
-                    <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-rose-50 dark:ring-rose-900/10 relative z-10 bg-rose-100 border-rose-200 text-rose-600 dark:bg-rose-900/30 dark:border-rose-800/50">
-                          <CheckCircle2 size={16} />
-                      </div>
-                      <div className="flex-1 p-4 rounded-2xl bg-rose-50/30 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-800/20 shadow-sm transition-all">
-                          <div className="flex items-center justify-between gap-4 mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-rose-700 dark:text-rose-400">3) Finalização: Retirada</span>
-                                <span className="px-2 py-0.5 rounded bg-rose-100 dark:bg-rose-900/40 text-[9px] font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                                  {selectedPackage.operador_retira?.nome?.split(' ')[0] || 'SISTEMA'}
-                                </span>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                               <Clock size={10} /> {selectedPackage.hora_retirada ? new Date(selectedPackage.hora_retirada).toLocaleString('pt-BR') : ''}
-                            </span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400">
-                             Quem retirou: <span className="text-slate-900 dark:text-white uppercase font-black">{selectedPackage.retirado_por || 'NÃO INFORMADO'}</span>
-                          </div>
-                          {selectedPackage.observacoes && (
-                             <div className="mt-2 text-xs text-rose-700 dark:text-rose-300 italic">
-                               "{selectedPackage.observacoes}"
+                   {/* 4) Finalização: Retirada (Verde) */}
+                   {selectedPackage.status === 'RETIRADA' && (
+                     <div className="relative flex items-start gap-4">
+                       <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                           <LogOut size={16} />
+                       </div>
+                       <div className="flex-1 p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 shadow-md transition-all">
+                           <div className="flex items-center justify-between gap-4 mb-2">
+                             <div className="flex items-center gap-2">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">4) FECHAMENTO: RETIRADA</span>
+                                 <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                   {selectedPackage.operador_retira?.nome || 'SISTEMA'}
+                                 </span>
                              </div>
-                          )}
-                      </div>
-                    </div>
-                  )}
+                             <span className="text-[10px] font-bold text-emerald-400/60 flex items-center gap-1 uppercase tracking-widest">
+                                <Clock size={10} /> {selectedPackage.hora_retirada ? `${new Date(selectedPackage.hora_retirada).toLocaleDateString('pt-BR')} · ${new Date(selectedPackage.hora_retirada).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ' — '}
+                             </span>
+                           </div>
+                           <div className="text-xs font-bold text-emerald-500 dark:text-emerald-500/80">
+                              Quem retirou: <span className="text-emerald-600 dark:text-emerald-400 uppercase font-black">{selectedPackage.retirado_por || 'NÃO INFORMADO'}</span>
+                           </div>
+                           {selectedPackage.observacoes_saida && (
+                              <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 italic">
+                                "{selectedPackage.observacoes_saida}"
+                              </div>
+                           )}
+                       </div>
+                     </div>
+                   )}
 
-                  {selectedPackage.status === 'RECUSADA' && (
-                    <div className="relative flex items-start gap-4">
-                      <div className="p-2 rounded-full ring-4 ring-red-50 dark:ring-red-900/10 relative z-10 bg-red-100 border-red-200 text-red-600 dark:bg-red-900/30 dark:border-red-800/50">
-                          <Ban size={16} />
-                      </div>
-                      <div className="flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-red-200 dark:border-red-800/20 shadow-sm transition-all">
-                          <div className="flex items-center justify-between gap-4 mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">3) Finalização: Recusada</span>
-                                <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-[9px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
-                                  {selectedPackage.operador_recusa?.nome?.split(' ')[0] || 'SISTEMA'}
-                                </span>
-                            </div>
-                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-widest">
-                               <Clock size={10} /> {selectedPackage.hora_recusa ? new Date(selectedPackage.hora_recusa).toLocaleString('pt-BR') : ''}
-                            </span>
-                          </div>
-                          <div className="text-xs font-bold text-slate-600 dark:text-slate-400 whitespace-pre-wrap">
-                             Motivo: <span className="text-red-600 dark:text-red-400 font-black italic">{selectedPackage.motivo_recusa}</span>
-                          </div>
-                      </div>
-                    </div>
-                  )}
+                   {selectedPackage.status === 'RECUSADA' && (
+                     <div className="relative flex items-start gap-4">
+                       <div className="p-2 rounded-full ring-4 ring-red-500/20 dark:ring-red-900/30 relative z-10 bg-red-600 border-red-500 text-white shadow-[0_0_15px_rgba(220,38,38,0.3)]">
+                           <Ban size={16} />
+                       </div>
+                       <div className="flex-1 p-4 rounded-2xl bg-red-50/50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 shadow-md transition-all">
+                           <div className="flex items-center justify-between gap-4 mb-2">
+                             <div className="flex items-center gap-2">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">4) FECHAMENTO: RECUSADA</span>
+                                 <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-[9px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
+                                   {selectedPackage.operador_recusa?.nome || 'SISTEMA'}
+                                 </span>
+                             </div>
+                             <span className="text-[10px] font-bold text-red-400/60 flex items-center gap-1 uppercase tracking-widest">
+                                <Clock size={10} /> {selectedPackage.hora_recusa ? `${new Date(selectedPackage.hora_recusa).toLocaleDateString('pt-BR')} · ${new Date(selectedPackage.hora_recusa).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}` : ' — '}
+                             </span>
+                           </div>
+                           <div className="text-xs font-bold text-red-500 dark:text-red-500/80 whitespace-pre-wrap">
+                              Motivo: <span className="text-red-600 dark:text-red-400 font-black italic">{selectedPackage.motivo_recusa}</span>
+                           </div>
+                       </div>
+                     </div>
+                   )}
                 </div>
               </div>
 

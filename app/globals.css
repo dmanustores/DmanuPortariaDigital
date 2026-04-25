@@ -18,6 +18,24 @@
   }
 }
 
+/* Padronização visual para campos de preenchimento */
+input[type="text"]:not(.no-capitalize), 
+input[type="search"], 
+textarea {
+  text-transform: capitalize;
+}
+
+/* Campos que NÃO devem ser capitalizados (Emails, Senhas) */
+input[type="email"],
+input[type="password"] {
+  text-transform: none !important;
+}
+
+/* Exceção para campos técnicos que devem ser todos em maiúsculo (Placas, etc) */
+.uppercase-input {
+  text-transform: uppercase !important;
+}
+
 /* Material Symbols sizing fix */
 .material-symbols-outlined {
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
