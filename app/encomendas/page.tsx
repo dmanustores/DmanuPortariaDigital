@@ -58,6 +58,7 @@ interface Package {
   whatsapp_enviado: boolean;
   whatsapp_enviado_at?: string;
   whatsapp_lido: boolean;
+  whatsapp_lido_at?: string;
   whatsapp_mensagem_id?: string;
   residente?: { nome: string; celular: string; bloco: string; apto: string; tem_whatsapp?: boolean };
 }
@@ -1125,8 +1126,8 @@ export default function EncomendasPage() {
                   <AlertTriangle size={18} />
                   Confirmar Recusa
                 </button>
-              </div>
-            </motion.div>
+                </div>
+              </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -1168,68 +1169,71 @@ export default function EncomendasPage() {
                     </div>
                  </div>
                  <button onClick={() => setShowDetailsModal(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-                   <X size={20} className="text-slate-400" />
+                    <X size={20} />
                  </button>
-               </div>
+              </div>
 
-              <div className="flex-1 overflow-y-auto p-8 space-y-6 bg-slate-50 dark:bg-slate-900/50">
-                <div className="space-y-4 relative">
-                  <div className="absolute top-4 bottom-4 left-[20px] w-[0px] border-l-2 border-dashed border-slate-200 dark:border-slate-700/50"></div>
-
-                  {/* 1) Recebimento Portaria (Verde) */}
-                  <div className="relative flex items-start gap-4">
-                    <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
-                        <LogIn size={16} />
-                    </div>
-                    <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
-                        <div className="flex items-center justify-between gap-4 mb-2">
-                           <div className="flex items-center gap-2">
-                               <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) REGISTRO DE ENTRADA</span>
-                               <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                 {selectedPackage.operador_recebe?.nome || 'SISTEMA'}
-                               </span>
-                           </div>
-                           <span className="text-[10px] font-bold text-emerald-600/70 flex items-center gap-1 uppercase tracking-widest">
-                              <Clock size={10} /> {new Date(selectedPackage.recebida_em).toLocaleDateString('pt-BR')} · {new Date(selectedPackage.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                           </span>
+              <div className="p-6 overflow-y-auto max-h-[70vh]">
+                <div className="space-y-8 relative">
+                   <div className="absolute left-[27px] top-4 bottom-4 w-[1px] bg-slate-100 dark:bg-slate-800" />
+                   
+                   {/* 1) Registro de Entrada (Verde) */}
+                   <div className="relative flex items-start gap-4">
+                     <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
+                         <LogIn size={16} />
+                     </div>
+                     <div className="flex-1 p-4 rounded-2xl bg-emerald-50/30 dark:bg-emerald-900/10 border border-emerald-100 dark:border-emerald-800/20 shadow-sm transition-all">
+                         <div className="flex items-center justify-between gap-4 mb-2">
+                             <div className="flex items-center gap-2">
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">1) REGISTRO DE ENTRADA</span>
+                                 <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                                   {selectedPackage.operador_recebe?.nome || 'OPERADOR'}
+                                 </span>
+                             </div>
+                             <span className="text-[10px] font-bold text-emerald-400/60 flex items-center gap-1 uppercase tracking-widest">
+                                <Clock size={10} /> {new Date(selectedPackage.recebida_em).toLocaleDateString('pt-BR')} · {new Date(selectedPackage.recebida_em).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                             </span>
                          </div>
-                         <div className="text-xs font-bold text-emerald-700/80 dark:text-emerald-400/80">
-                            Registro de entrada efetuado na portaria pelo operador.
-                         </div>
+                         <p className="text-xs font-bold text-emerald-600 dark:text-emerald-500/80 mb-2 uppercase tracking-tight">Registro de entrada efetuado na portaria pelo operador.</p>
                          {selectedPackage.observacoes && (
                             <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 italic border-t border-emerald-100/50 pt-2">
                               "{selectedPackage.observacoes}"
                             </div>
                          )}
-                    </div>
-                  </div>
-                  
-                  {/* 2) Dados da Encomenda (Azul) */}
-                  <div className="relative flex items-start gap-4">
-                    <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
-                        <Info size={16} />
-                    </div>
-                    <div className="flex-1 p-4 rounded-2xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20 shadow-sm transition-all">
-                        <div className="flex items-center justify-between gap-4 mb-3">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) DADOS DA ENCOMENDA</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
-                           <div>
-                              <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Transportadora</span>
-                              <span className="text-xs font-bold text-slate-900 dark:text-white uppercase">{selectedPackage.transportadora}</span>
-                           </div>
-                           <div>
-                              <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Volumes</span>
-                              <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.volumes}</span>
-                           </div>
-                           {selectedPackage.numero && (
-                             <div className="col-span-2">
-                                <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Identificação / Objeto</span>
-                                <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.numero}</span>
-                             </div>
-                           )}                   {/* 3) Fluxo de Comunicação (WhatsApp) */}
+                     </div>
+                   </div>
+                   
+                   {/* 2) Dados da Encomenda (Azul) */}
                    <div className="relative flex items-start gap-4">
-                     <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:border-indigo-800/50 text-indigo-500">
+                     <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-blue-500 text-white shadow-lg shadow-blue-500/20">
+                         <Info size={16} />
+                     </div>
+                     <div className="flex-1 p-4 rounded-2xl bg-blue-50/30 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/20 shadow-sm transition-all">
+                         <div className="flex items-center justify-between gap-4 mb-3">
+                             <span className="text-[10px] font-black uppercase tracking-widest text-blue-700 dark:text-blue-400">2) DADOS DA ENCOMENDA</span>
+                         </div>
+                         <div className="grid grid-cols-2 gap-4">
+                            <div>
+                               <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Transportadora</span>
+                               <span className="text-xs font-bold text-slate-900 dark:text-white uppercase">{selectedPackage.transportadora}</span>
+                            </div>
+                            <div>
+                               <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Volumes</span>
+                               <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.volumes}</span>
+                            </div>
+                            {selectedPackage.numero && (
+                              <div className="col-span-2">
+                                 <span className="block text-[10px] text-slate-400 uppercase tracking-widest font-black">Identificação / Objeto</span>
+                                 <span className="text-xs font-bold text-slate-900 dark:text-white">{selectedPackage.numero}</span>
+                              </div>
+                            )}
+                         </div>
+                     </div>
+                   </div>
+
+                   {/* 3) Fluxo de Comunicação (WhatsApp) */}
+                   <div className="relative flex items-start gap-4">
+                     <div className="p-2 rounded-full ring-4 ring-slate-50 dark:ring-slate-900 relative z-10 bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-200 dark:indigo-800/50 text-indigo-500">
                          <MessageSquare size={16} />
                      </div>
                      <div className="flex-1 p-4 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-sm transition-all">
@@ -1238,7 +1242,6 @@ export default function EncomendasPage() {
                               3) FLUXO DE COMUNICAÇÃO
                            </span>
                         </div>
-                        
                         <div className="space-y-3">
                            {/* Sub-etapa: Enviado */}
                            <div className="bg-slate-50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800 p-3 rounded-xl flex items-center justify-between">
@@ -1275,7 +1278,7 @@ export default function EncomendasPage() {
                      </div>
                    </div>
 
-                   {/* 4) Finalização: Retirada (Verde) */}
+                   {/* 4) Finalização: Retirada/Recusa */}
                    {selectedPackage.status === 'RETIRADA' && (
                      <div className="relative flex items-start gap-4">
                        <div className="p-2 rounded-full ring-4 ring-white dark:ring-slate-900 relative z-10 bg-emerald-500 text-white shadow-lg shadow-emerald-500/20">
@@ -1286,7 +1289,7 @@ export default function EncomendasPage() {
                              <div className="flex items-center gap-2">
                                  <span className="text-[10px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">4) FECHAMENTO: RETIRADA</span>
                                  <span className="px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-[9px] font-black uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
-                                   {selectedPackage.operador_retira?.nome || 'SISTEMA'}
+                                   {selectedPackage.operador_retira?.nome || 'OPERADOR'}
                                  </span>
                              </div>
                              <span className="text-[10px] font-bold text-emerald-400/60 flex items-center gap-1 uppercase tracking-widest">
@@ -1296,11 +1299,6 @@ export default function EncomendasPage() {
                            <div className="text-xs font-bold text-emerald-500 dark:text-emerald-500/80">
                               Quem retirou: <span className="text-emerald-600 dark:text-emerald-400 uppercase font-black">{selectedPackage.retirado_por || 'NÃO INFORMADO'}</span>
                            </div>
-                           {selectedPackage.observacoes_saida && (
-                              <div className="mt-2 text-xs text-emerald-700 dark:text-emerald-300 italic">
-                                "{selectedPackage.observacoes_saida}"
-                              </div>
-                           )}
                        </div>
                      </div>
                    )}
@@ -1315,7 +1313,7 @@ export default function EncomendasPage() {
                              <div className="flex items-center gap-2">
                                  <span className="text-[10px] font-black uppercase tracking-widest text-red-600 dark:text-red-400">4) FECHAMENTO: RECUSADA</span>
                                  <span className="px-2 py-0.5 rounded bg-red-100 dark:bg-red-900/40 text-[9px] font-black uppercase tracking-wider text-red-600 dark:text-red-400">
-                                   {selectedPackage.operador_recusa?.nome || 'SISTEMA'}
+                                   {selectedPackage.operador_recusa?.nome || 'OPERADOR'}
                                  </span>
                              </div>
                              <span className="text-[10px] font-bold text-red-400/60 flex items-center gap-1 uppercase tracking-widest">
